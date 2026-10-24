@@ -30,7 +30,8 @@
     "test:db:schedule-concurrency": "node scripts/test-schedule-concurrency.mjs",
     "test:db:points-concurrency": "node scripts/test-points-concurrency.mjs",
     "test:db:notification-concurrency": "node scripts/test-notification-concurrency.mjs",
-    "test:db:analytics-concurrency": "node scripts/test-analytics-concurrency.mjs"
+    "test:db:analytics-concurrency": "node scripts/test-analytics-concurrency.mjs",
+    "test:db:settlement-concurrency": "node scripts/test-settlement-concurrency.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",
