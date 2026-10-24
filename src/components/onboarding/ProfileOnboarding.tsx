@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type FormEvent,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { submitOnboarding } from '@/client/onboarding';
@@ -11,6 +17,7 @@ import { Card } from '@/components/ui/Card';
 import { Checkbox, RadioGroup } from '@/components/ui/Checkbox';
 import { InlineError } from '@/components/ui/InlineError';
 import { Input } from '@/components/ui/Input';
+import { Loading } from '@/components/ui/Loading';
 import { designTokens, type FontScale } from '@/config/design-tokens';
 import type { OnboardingData, OnboardingStep } from '@/config/onboarding';
 import { routes } from '@/config/routes';
@@ -35,6 +42,8 @@ export function ProfileOnboarding({
     null,
   );
   const [pending, setPending] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
+  const busy = pending || refreshing;
   const [error, setError] = useState<string | null>(null);
   const saving = useRef(false);
   const active = useRef(true);
@@ -82,7 +91,8 @@ export function ProfileOnboarding({
   }
 
   async function save() {
-    if (saving.current || step === 'artists' || !setupReady) return;
+    if (saving.current || refreshing || step === 'artists' || !setupReady)
+      return;
     saving.current = true;
     setPending(true);
     setError(null);
@@ -125,8 +135,11 @@ export function ProfileOnboarding({
   }
 
   function retryConfiguration() {
+    if (refreshing) return;
     setError(null);
-    router.refresh();
+    // A refreshed policy set remounts this form. Do not accept selections on
+    // its obsolete tree while the server is still returning the new documents.
+    startRefresh(() => router.refresh());
   }
 
   return (
@@ -139,12 +152,17 @@ export function ProfileOnboarding({
         <h1>{t(`${step}Title`)}</h1>
         <p>{t(`${step}Description`)}</p>
       </header>
+      {refreshing && <Loading />}
       {step === 'artists' ? (
         <Card title={t('profileSavedTitle')}>
           <p>{t('profileSavedDescription')}</p>
         </Card>
       ) : (
-        <form className="onboarding-stack" onSubmit={onSubmit}>
+        <form
+          className="onboarding-stack"
+          onSubmit={onSubmit}
+          aria-busy={busy || undefined}
+        >
           {step === 'font' && (
             <>
               <RadioGroup
@@ -155,7 +173,7 @@ export function ProfileOnboarding({
                 }))}
                 value={fontScale}
                 onChange={previewScale}
-                disabled={pending}
+                disabled={busy}
               />
               <Card title={t('previewTitle')}>
                 <p>{t('previewBody')}</p>
@@ -177,7 +195,7 @@ export function ProfileOnboarding({
                   ? t('nameHint', { min: data.nameMin, max: data.nameMax })
                   : t('namePendingHint')
               }
-              disabled={pending}
+              disabled={busy}
               required
             />
           )}
@@ -188,7 +206,7 @@ export function ProfileOnboarding({
                 hint={t('ageHint')}
                 checked={ageConfirmed}
                 onChange={(event) => setAgeConfirmed(event.target.checked)}
-                disabled={pending}
+                disabled={busy || !setupReady}
               />
               {data.terms && (
                 <Card title={data.terms.title}>
@@ -204,7 +222,7 @@ export function ProfileOnboarding({
                         event.target.checked ? data.terms!.version : null,
                       )
                     }
-                    disabled={pending || !setupReady}
+                    disabled={busy || !setupReady}
                   />
                 </Card>
               )}
@@ -222,7 +240,7 @@ export function ProfileOnboarding({
                         event.target.checked ? data.privacy!.version : null,
                       )
                     }
-                    disabled={pending || !setupReady}
+                    disabled={busy || !setupReady}
                   />
                 </Card>
               )}
@@ -243,7 +261,7 @@ export function ProfileOnboarding({
                         event.target.checked ? data.analytics!.version : null,
                       )
                     }
-                    disabled={pending || !setupReady}
+                    disabled={busy || !setupReady}
                   />
                 </Card>
               ) : (
@@ -267,7 +285,7 @@ export function ProfileOnboarding({
               }
             />
           )}
-          <Button type="submit" isLoading={pending} disabled={!setupReady}>
+          <Button type="submit" isLoading={busy} disabled={!setupReady}>
             {pending ? t('saving') : t('continue')}
           </Button>
         </form>
@@ -278,7 +296,7 @@ export function ProfileOnboarding({
           action={routes.authLogout}
           label={t('cancel')}
           pendingLabel={t('cancelPending')}
-          disabled={pending}
+          disabled={busy}
         />
       </footer>
     </main>

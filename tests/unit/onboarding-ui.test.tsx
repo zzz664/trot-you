@@ -8,6 +8,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { ProfileOnboarding } from '@/components/onboarding/ProfileOnboarding';
 import { Checkbox, RadioGroup } from '@/components/ui/Checkbox';
 import type {
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   refresh: vi.fn(),
   submit: vi.fn(),
+  page: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -31,6 +33,7 @@ vi.mock('next/navigation', () => ({
     refresh: mocks.refresh,
   }),
 }));
+vi.mock('@/server/onboarding/page', () => ({ getOnboardingPage: mocks.page }));
 vi.mock('@/client/onboarding', () => ({
   submitOnboarding: mocks.submit,
 }));
@@ -70,6 +73,23 @@ beforeEach(() => {
 });
 
 describe('profile onboarding controls', () => {
+  it('only resets consent choices, not name drafts, when policy versions change', async () => {
+    mocks.page.mockResolvedValue({ ok: true, data: base });
+    const nameBefore = await OnboardingScreen({ step: 'name' });
+    const consentBefore = await OnboardingScreen({ step: 'consent' });
+    mocks.page.mockResolvedValue({
+      ok: true,
+      data: {
+        ...base,
+        terms: policy('new terms', '44444444-4444-4444-8444-444444444444'),
+      },
+    });
+    const nameAfter = await OnboardingScreen({ step: 'name' });
+    const consentAfter = await OnboardingScreen({ step: 'consent' });
+    expect(nameAfter.key).toBe(nameBefore.key);
+    expect(consentAfter.key).not.toBe(consentBefore.key);
+  });
+
   it('resynchronizes a reused root layout with persisted font on re-entry', () => {
     document.documentElement.dataset.fontScale = 'normal';
     render(subject('font', { ...base, fontScale: 'xlarge' }));
@@ -197,6 +217,15 @@ describe('profile onboarding controls', () => {
       screen.getByRole('button', { name: messages.onboarding.continue }),
     ).toBeDisabled();
     view.rerender(subject('consent', { ...base, terms: null }));
+    expect(
+      screen.getByRole('checkbox', { name: messages.onboarding.ageLabel }),
+    ).toBeDisabled();
+    await user.click(
+      screen.getByRole('checkbox', { name: messages.onboarding.ageLabel }),
+    );
+    expect(
+      screen.getByRole('checkbox', { name: messages.onboarding.ageLabel }),
+    ).not.toBeChecked();
     expect(
       screen.getByRole('button', { name: messages.onboarding.continue }),
     ).toBeDisabled();

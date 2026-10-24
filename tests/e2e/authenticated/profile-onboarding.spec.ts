@@ -49,6 +49,7 @@ async function saveFontAndName(page: Page, name = '허구팬') {
 async function acceptRequired(page: Page) {
   for (const label of [copy.ageLabel, copy.termsLabel, copy.privacyLabel]) {
     const checkbox = page.getByRole('checkbox', { name: label, exact: true });
+    await expect(checkbox).toBeEnabled();
     await checkbox.focus();
     await page.keyboard.press('Space');
     await expect(checkbox).toBeChecked();
@@ -347,6 +348,7 @@ test('missing configuration fails closed and displayed consent cannot accept a n
     ok: false,
     code: 'SETUP_NOT_READY',
   });
+  await page.getByRole('textbox', { name: copy.nameLabel }).fill('허구팬');
   enableFictionalPolicy();
   await page
     .getByRole('button', { name: messages.ui.retry, exact: true })
@@ -354,7 +356,9 @@ test('missing configuration fails closed and displayed consent cannot accept a n
   await expect(
     page.getByRole('button', { name: copy.continue, exact: true }),
   ).toBeEnabled();
-  await page.getByRole('textbox', { name: copy.nameLabel }).fill('허구팬');
+  await expect(page.getByRole('textbox', { name: copy.nameLabel })).toHaveValue(
+    '허구팬',
+  );
   await page.getByRole('button', { name: copy.continue, exact: true }).click();
   await expect(page).toHaveURL(`${appOrigin}${routes.onboardingConsent}`);
   disableFictionalPolicy();
@@ -368,10 +372,57 @@ test('missing configuration fails closed and displayed consent cannot accept a n
   await expect(
     page.getByRole('button', { name: copy.continue, exact: true }),
   ).toBeDisabled();
+  await expect(
+    page.getByRole('checkbox', { name: copy.ageLabel }),
+  ).toBeDisabled();
   enableFictionalPolicy();
-  await page
-    .getByRole('button', { name: messages.ui.retry, exact: true })
-    .click();
+  // Hold the real RSC refresh response to reproduce the old-tree interaction
+  // window. A selection must not be accepted and then silently lost on remount.
+  let releaseRefresh!: () => void;
+  let interceptedRefresh = false;
+  let refreshState: 'pending' | 'ready' | 'failed' = 'pending';
+  const pausedRefresh = new Promise<void>((resolve) => {
+    releaseRefresh = resolve;
+  });
+  await page.route(`**${routes.onboardingConsent}*`, async (route) => {
+    if (route.request().headers().rsc !== '1' || interceptedRefresh)
+      return route.continue();
+    interceptedRefresh = true;
+    try {
+      const response = await route.fetch();
+      refreshState = 'ready';
+      await pausedRefresh;
+      await route.fulfill({ response });
+    } catch {
+      refreshState = 'failed';
+      await route.abort('failed').catch(() => {});
+    }
+  });
+  try {
+    await page
+      .getByRole('button', { name: messages.ui.retry, exact: true })
+      .click();
+    await expect
+      .poll(() => refreshState, {
+        message:
+          'The real policy refresh response must arrive before interaction',
+      })
+      .toBe('ready');
+    await expect(
+      page.getByRole('checkbox', { name: copy.ageLabel }),
+    ).toBeDisabled();
+    await expect(page.getByRole('main').getByRole('status')).toHaveText(
+      messages.ui.loading,
+    );
+  } finally {
+    releaseRefresh();
+  }
+  await expect(
+    page.getByRole('button', { name: copy.continue, exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByText('자동화 점검용 허구 이용약관', { exact: true }),
+  ).toBeVisible();
   await acceptRequired(page);
   rotateFictionalTerms();
   await page.getByRole('button', { name: copy.continue, exact: true }).click();
