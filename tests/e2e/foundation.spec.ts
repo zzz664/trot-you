@@ -25,6 +25,8 @@ for (const width of [360, 414]) {
         scale
       ];
       await expect(page.locator('body')).toHaveCSS('font-size', expectedSize!);
+      await expect(page.locator('body')).toHaveCSS('word-break', 'keep-all');
+      await expect(page.locator('body')).toHaveCSS('overflow-wrap', 'anywhere');
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(
         messages.foundation.title,
       );
