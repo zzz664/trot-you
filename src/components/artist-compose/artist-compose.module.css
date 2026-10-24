@@ -1,0 +1,69 @@
+.screen {
+  overflow-wrap: anywhere;
+}
+.notice {
+  padding: calc(var(--space-unit) * 2);
+  border: var(--border-width) solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+.editor,
+.media,
+.preview,
+.drafts,
+.recorder {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+  margin-block: calc(var(--space-unit) * 3);
+}
+.kind {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.kind legend {
+  margin-bottom: var(--space-unit);
+  font-weight: 700;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-unit);
+  align-items: start;
+}
+.actions > * {
+  max-width: 100%;
+}
+.mediaList,
+.draftList {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.mediaList li,
+.draftList li {
+  min-width: 0;
+}
+.message {
+  white-space: pre-wrap;
+}
+.screen input[type='file'] {
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+  white-space: normal;
+}
+.screen input[type='file']::file-selector-button {
+  min-height: var(--touch-min);
+  font: inherit;
+  max-width: 100%;
+  white-space: normal;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-control-border);
+  border-radius: var(--radius-control);
+}
