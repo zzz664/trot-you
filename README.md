@@ -73,3 +73,7 @@ Next.js 권장 ESLint 구성의 React/import/a11y 플러그인 호환 범위에 
 ## 측정 이벤트 DB 기반
 
 [13종 측정 이벤트·동의·집계 계약](docs/database/analytics-events.md)을 참고하세요. private 원시 행, strict typed 속성, 본인 동의와 client/service/검증 charge 권한 분리, 멱등 수집과 KST 일별 건수를 포함합니다. 승인된 정책은 기본 미설정이며 SDK·HTTP 수집 API·자동 domain hook·대시보드·외부 분석 전송은 없습니다. 익명 유입 동의 모델과 원본의 네 가지 퍼널/KPI 수식은 후속 정의·통합 대기이며 전체 분석 MVP 완료를 뜻하지 않습니다.
+
+## 월별 정산 리포트 DB 기반
+
+[정산 리포트·불변 snapshot 계약](docs/database/settlement-reports.md)을 참고하세요. 검증된 charge/refund 원장의 KST 월 집계, 주간 메시지·사진 활동 snapshot, 소수 중간값과 정확한 유리수 최종 반올림, 관리자 draft 계산·revision 확인·확정 잠금, 현재 소속 가수의 confirmed 조회를 포함합니다. 운영 정책은 seed하지 않으며 부분 주·지연 원장은 명시된 정책과 개별 조정을 요구합니다. 음수 매출·부분 월 계약·미정 성과 조건은 임의로 적용하지 않습니다. 이는 리포트 기반이며 송금·은행/결제 호출·UI·엑셀 내보내기 구현이 아닙니다.

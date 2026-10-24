@@ -1,0 +1,14 @@
+begin isolation level repeatable read;
+create extension if not exists pgtap with schema extensions;
+set local search_path=public,extensions;
+select no_plan();
+insert into auth.users(id,email,raw_user_meta_data) values('59000000-0000-4000-8000-000000000001','settlement-isolation@example.invalid','{}');
+update public.profiles set role='admin' where id='59000000-0000-4000-8000-000000000001';
+set local role authenticated;
+select set_config('request.jwt.claim.sub','59000000-0000-4000-8000-000000000001',true);
+select throws_ok($$select public.settlement_calculate(gen_random_uuid(),'2026-01-01')$$,'25001','SETTLEMENT_READ_COMMITTED_REQUIRED','repeatable-read calculation cannot reuse a stale pre-fence snapshot');
+select throws_ok($$select public.settlement_confirm(gen_random_uuid(),gen_random_uuid())$$,'25001','SETTLEMENT_READ_COMMITTED_REQUIRED','repeatable-read confirmation cannot ignore committed source revisions');
+select throws_ok($$select public.settlement_queue_adjustment(gen_random_uuid(),'2026-01-01')$$,'25001','SETTLEMENT_READ_COMMITTED_REQUIRED','repeatable-read adjustment allocation is rejected');
+reset role;
+select * from finish();
+rollback;

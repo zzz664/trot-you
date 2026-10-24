@@ -946,6 +946,151 @@ export type Database = {
           },
         ];
       };
+      settlement_weekly_stats: {
+        Row: {
+          message_count: number;
+          message_required: number;
+          photo_count: number;
+          photo_required: number;
+          report_id: string;
+          week_start: string;
+          window_end: string;
+          window_start: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          message_count: number;
+          message_required: number;
+          photo_count: number;
+          photo_required: number;
+          report_id: string;
+          week_start: string;
+          window_end: string;
+          window_start: string;
+        };
+        Update: {
+          message_count?: number;
+          message_required?: number;
+          photo_count?: number;
+          photo_required?: number;
+          report_id?: string;
+          week_start?: string;
+          window_end?: string;
+          window_start?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'settlement_weekly_stats_report_id_fkey';
+            columns: ['report_id'];
+            isOneToOne: false;
+            referencedRelation: 'settlements';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      settlements: {
+        Row: {
+          activity_ratio: number;
+          adjustment_gross_krw: number;
+          artist_id: string;
+          base_amount_krw: number;
+          calculated_at: string;
+          confirmed_at: string | null;
+          currency: string;
+          current_gross_krw: number;
+          deduction_krw: number;
+          exact_components: NonNullable<Json>;
+          final_amount_krw: number;
+          gross_krw: number;
+          id: string;
+          month: string;
+          period_end: string;
+          period_start: string;
+          pg_fee_krw: number;
+          policy_snapshot: NonNullable<Json>;
+          rate: number;
+          revision: string;
+          source_event_count: number;
+          source_message_count: number;
+          source_version: number;
+          status: Database['public']['Enums']['settlement_status'];
+          unrounded_final_krw: number;
+          vat_krw: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          activity_ratio: number;
+          adjustment_gross_krw: number;
+          artist_id: string;
+          base_amount_krw: number;
+          calculated_at: string;
+          confirmed_at?: string | null;
+          currency?: string;
+          current_gross_krw: number;
+          deduction_krw: number;
+          exact_components: NonNullable<Json>;
+          final_amount_krw: number;
+          gross_krw: number;
+          id?: string;
+          month: string;
+          period_end: string;
+          period_start: string;
+          pg_fee_krw: number;
+          policy_snapshot: NonNullable<Json>;
+          rate: number;
+          revision?: string;
+          source_event_count: number;
+          source_message_count: number;
+          source_version: number;
+          status?: Database['public']['Enums']['settlement_status'];
+          unrounded_final_krw: number;
+          vat_krw: number;
+        };
+        Update: {
+          activity_ratio?: number;
+          adjustment_gross_krw?: number;
+          artist_id?: string;
+          base_amount_krw?: number;
+          calculated_at?: string;
+          confirmed_at?: string | null;
+          currency?: string;
+          current_gross_krw?: number;
+          deduction_krw?: number;
+          exact_components?: NonNullable<Json>;
+          final_amount_krw?: number;
+          gross_krw?: number;
+          id?: string;
+          month?: string;
+          period_end?: string;
+          period_start?: string;
+          pg_fee_krw?: number;
+          policy_snapshot?: NonNullable<Json>;
+          rate?: number;
+          revision?: string;
+          source_event_count?: number;
+          source_message_count?: number;
+          source_version?: number;
+          status?: Database['public']['Enums']['settlement_status'];
+          unrounded_final_krw?: number;
+          vat_krw?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'settlements_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artist_catalog';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'settlements_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artists';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       subscriptions: {
         Row: {
           artist_id: string;
@@ -1651,6 +1796,39 @@ export type Database = {
         };
         Returns: undefined;
       };
+      settlement_calculate: {
+        Args: { p_artist_id: string; p_month: string };
+        Returns: string;
+      };
+      settlement_confirm: {
+        Args: { p_expected_revision: string; p_report_id: string };
+        Returns: undefined;
+      };
+      settlement_pending_adjustments: {
+        Args: { p_artist_id: string };
+        Returns: {
+          amount_krw: number;
+          event_id: string;
+          kind: Database['public']['Enums']['payment_event_kind'];
+          occurred_at: string;
+          source_report_id: string;
+          target_month: string;
+        }[];
+      };
+      settlement_queue_adjustment: {
+        Args: { p_event_id: string; p_target_month: string };
+        Returns: undefined;
+      };
+      settlement_report_sources: {
+        Args: { p_report_id: string };
+        Returns: {
+          amount_krw: number;
+          event_id: string;
+          kind: Database['public']['Enums']['payment_event_kind'];
+          occurred_at: string;
+          origin: string;
+        }[];
+      };
     };
     Enums: {
       analytics_event_name:
@@ -1680,6 +1858,7 @@ export type Database = {
       report_target: 'post' | 'comment' | 'reply';
       schedule_status: 'draft' | 'published';
       schedule_type: 'broadcast' | 'concert' | 'event' | 'festival';
+      settlement_status: 'draft' | 'confirmed';
       subscription_status:
         'pending' | 'active' | 'grace' | 'canceled' | 'expired';
       user_role: 'fan' | 'artist' | 'admin';
@@ -1838,6 +2017,7 @@ export const Constants = {
       report_target: ['post', 'comment', 'reply'],
       schedule_status: ['draft', 'published'],
       schedule_type: ['broadcast', 'concert', 'event', 'festival'],
+      settlement_status: ['draft', 'confirmed'],
       subscription_status: [
         'pending',
         'active',
