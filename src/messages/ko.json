@@ -1,0 +1,13 @@
+{
+  "metadata": {
+    "title": "트롯유",
+    "description": "좋아하는 가수와 더 가까워지는 공간, 트롯유"
+  },
+  "foundation": {
+    "eyebrow": "트롯유",
+    "title": "좋아하는 가수와, 더 가까이",
+    "description": "가수의 소식과 따뜻한 이야기를 편하게 만날 수 있는 공간을 준비하고 있어요.",
+    "statusTitle": "아직 준비 중이에요",
+    "statusDescription": "현재는 개발용 기본 화면입니다. 회원가입, 구독, 결제 기능은 아직 제공하지 않아요."
+  }
+}
