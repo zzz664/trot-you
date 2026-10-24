@@ -189,7 +189,7 @@ select throws_ok('update public.payment_events set amount_krw = 123', '55000', '
   'ledger UPDATE trigger rejects privileged mutation');
 select throws_ok('delete from public.payment_events', '55000', 'IMMUTABLE_PAYMENT_LEDGER',
   'ledger DELETE trigger rejects privileged mutation');
-select throws_ok('truncate public.payment_events, private.payment_event_verifications', '55000', 'IMMUTABLE_PAYMENT_LEDGER',
+select throws_ok('truncate public.payment_events, private.payment_event_verifications, private.notification_jobs, private.notification_attempts', '55000', 'IMMUTABLE_PAYMENT_LEDGER',
   'ledger TRUNCATE is rejected even with all related tables named');
 select throws_ok($$update private.payment_event_verifications set provider_action_id = 'rewritten'$$,
   '55000', 'IMMUTABLE_PAYMENT_LEDGER', 'provider verification identity cannot be rewritten');
