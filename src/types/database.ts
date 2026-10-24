@@ -1995,6 +1995,57 @@ export type Database = {
           ref_id: string;
         }[];
       };
+      renewal_candidates: { Args: { p_limit: number }; Returns: Json };
+      renewal_claim: {
+        Args: {
+          p_lease_seconds?: number;
+          p_mandate_id?: string;
+          p_period_end?: string;
+          p_period_start?: string;
+          p_subscription_id: string;
+        };
+        Returns: Json;
+      };
+      renewal_finalize: {
+        Args: {
+          p_amount_krw: number;
+          p_approved_at: string;
+          p_attempt_id: string;
+          p_currency: string;
+          p_evidence_ref: string;
+          p_provider_action_id: string;
+          p_provider_payment_id: string;
+        };
+        Returns: string;
+      };
+      renewal_read: { Args: { p_subscription_id: string }; Returns: Json };
+      renewal_read_attempt: { Args: { p_attempt_id: string }; Returns: Json };
+      renewal_record_notice: {
+        Args: {
+          p_amount_krw: number;
+          p_delivered_at: string;
+          p_evidence_ref: string;
+          p_period_start: string;
+          p_policy_version: string;
+          p_subscription_id: string;
+        };
+        Returns: undefined;
+      };
+      renewal_record_outcome: {
+        Args: {
+          p_attempt_id: string;
+          p_evidence_ref?: string;
+          p_lease_token: string;
+          p_outcome: string;
+          p_provider_payment_id?: string;
+          p_retryable?: boolean;
+        };
+        Returns: undefined;
+      };
+      renewal_record_query: {
+        Args: { p_attempt_id: string; p_lease_token: string };
+        Returns: undefined;
+      };
       schedule_create: {
         Args: {
           p_address?: string;

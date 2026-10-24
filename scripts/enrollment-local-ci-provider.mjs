@@ -17,6 +17,9 @@ const SCENARIOS = new Set([
   'approve-response-lost',
   'ready-response-lost',
   'slow-charge',
+  'subscription-response-lost',
+  'hold-charge',
+  'query-unavailable',
 ]);
 const BODY_LIMIT = 16_384;
 const SLOW_CHARGE_MS = 1_000;
@@ -32,11 +35,13 @@ export function createFixtureState() {
       kakaoReady: 0,
       kakaoApprove: 0,
       kakaoQuery: 0,
+      kakaoSubscription: 0,
     },
     charges: { toss: 0, kakao: 0 },
     tossOperations: new Map(),
     tossOrders: new Map(),
     kakaoOrders: new Map(),
+    kakaoSids: new Map(),
   };
 }
 
@@ -74,6 +79,8 @@ export function fixtureResponse(state, request) {
     Object.assign(state, createFixtureState());
     return json({ ok: true });
   }
+  if (method === 'POST' && url.pathname === '/__fixture/release')
+    return { ...json({ ok: true }), release: true };
   if (method === 'POST' && url.pathname === '/__fixture/scenario') {
     assert.deepEqual(Object.keys(body), ['scenario']);
     assert.ok(SCENARIOS.has(body.scenario));
@@ -105,7 +112,10 @@ export function fixtureResponse(state, request) {
     if (method === 'GET') {
       assert.match(url.pathname, /^\/toss\/v1\/payments\/orders\/[a-f0-9-]+$/i);
       state.requests.tossQuery += 1;
-      const payment = state.tossOrders.get(url.pathname.split('/').at(-1));
+      const payment =
+        state.scenario === 'query-unavailable'
+          ? undefined
+          : state.tossOrders.get(url.pathname.split('/').at(-1));
       return payment
         ? json(payment)
         : json(
@@ -174,6 +184,7 @@ export function fixtureResponse(state, request) {
       : {
           ...json(output),
           delay: state.scenario === 'slow-charge' ? SLOW_CHARGE_MS : 0,
+          hold: state.scenario === 'hold-charge',
         };
   }
   assert.equal(
@@ -207,6 +218,40 @@ export function fixtureResponse(state, request) {
           next_redirect_mobile_url: `https://online-pay.kakao.com/ci-enrollment?tid=${tid}&device=mobile`,
           next_redirect_pc_url: `https://online-pay.kakao.com/ci-enrollment?tid=${tid}&device=desktop`,
         });
+  }
+  if (url.pathname === '/kakaopay/online/v1/payment/subscription') {
+    state.requests.kakaoSubscription += 1;
+    identity(body);
+    const mandate = state.kakaoSids.get(body.sid);
+    assert.ok(mandate);
+    assert.equal(body.partner_user_id, mandate.customer);
+    amount(body.total_amount);
+    assert.equal(body.tax_free_amount, 0);
+    assert.equal(body.quantity, 1);
+    assert.ok(typeof body.item_name === 'string' && body.item_name.length > 0);
+    if (state.scenario === 'reject')
+      return json(
+        { error_code: -782, error_message: 'Fictional fixture.' },
+        400,
+      );
+    // Every dispatch is a distinct charge even when merchant order IDs repeat.
+    // No invented idempotency support can conceal application duplication.
+    state.charges.kakao += 1;
+    const output = {
+      cid: body.cid,
+      tid: `ci_tid_${randomUUID()}`,
+      aid: `ci_aid_${randomUUID()}`,
+      sid: body.sid,
+      partner_order_id: body.partner_order_id,
+      partner_user_id: body.partner_user_id,
+      payment_method_type: 'CARD',
+      amount: { total: body.total_amount, tax_free: 0 },
+      approved_at: new Date().toISOString(),
+    };
+    state.kakaoOrders.set(output.tid, { ...body, ...output, approval: output });
+    return state.scenario === 'subscription-response-lost'
+      ? { lost: true }
+      : { ...json(output), hold: state.scenario === 'hold-charge' };
   }
   const order = state.kakaoOrders.get(body.tid);
   assert.ok(order);
@@ -252,6 +297,7 @@ export function fixtureResponse(state, request) {
     approved_at: new Date().toISOString(),
   };
   order.approval = output;
+  state.kakaoSids.set(output.sid, { customer: output.partner_user_id });
   return state.scenario === 'approve-response-lost'
     ? { lost: true }
     : {
@@ -274,6 +320,7 @@ async function readBody(request) {
 export function startFixtureProvider(input = process.env) {
   assert.equal(parseEnrollmentTestRuntime(input).mode, 'ci');
   const state = createFixtureState();
+  const heldReplies = new Set();
   const server = createServer(async (request, response) => {
     try {
       assert.equal(request.socket.remoteAddress, '127.0.0.1');
@@ -288,6 +335,19 @@ export function startFixtureProvider(input = process.env) {
         headers: request.headers,
         body: await readBody(request),
       });
+      if (result.release) {
+        for (const release of heldReplies) release();
+        heldReplies.clear();
+      }
+      if (result.hold)
+        await new Promise((resolve) => {
+          const release = () => {
+            heldReplies.delete(release);
+            resolve();
+          };
+          heldReplies.add(release);
+          response.once('close', release);
+        });
       if (result.lost) {
         request.socket.destroy();
         return;

@@ -341,6 +341,7 @@
       "COMPLETION_UNAVAILABLE": "이 화면에서는 결제 결과를 확정할 수 없어요. 기존 요청이 있다면 해당 상태 화면에서 확인해 주세요."
     },
     "providerRegistrationItemName": "자동결제 수단 등록",
+    "providerRenewalItemName": "월 구독 갱신",
     "intentInitialPrice": "준비 요청에 저장된 적용 가격 {price}원",
     "intentRegularPrice": "준비 요청에 저장된 이후 매월 구독료 {price}원",
     "intentPriceNotice": "실제 결제한 금액이 아니에요. 결제를 진행할 수 있을 때 최신 가격과 조건을 다시 확인해요.",
