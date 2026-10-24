@@ -17,7 +17,7 @@
 - 기존 **24개 독립 세션 경합**은 변경하지 않았다. 신규 **7개 일정·캘린더 경합**은 중복 opt-out, disable→enable, 삭제→선호/선호→삭제 양방향, 가수 중지, 관리자 역할 회수 및 콘텐츠 기획 동일 슬롯 upsert를 검증한다.
 - 로컬 PGlite PG18 synthetic Auth/Storage는 보조 검증이며 실제 Supabase PG17/HTTP/동시 세션으로 표시하지 않는다.
 - Docker 실행 파일이 없는 환경이므로 실제 Supabase PG17 lint/pgTAP/독립 세션은 CI에서 확인해야 한다. 로컬 브라우저의 알려진 실행 거절은 재시도하지 않는다. 화면/Next.js 행동은 변경하지 않았다.
-- 생성 타입은 수정하지 않았다. 최초 CI genuine artifact를 두 번째 커밋으로 반영한 뒤 exact-head 전체 CI를 다시 확인해야 한다.
+- 첫 구현 커밋에서는 생성 타입을 수정하지 않았다. 아래 실제 CI genuine artifact를 두 번째 커밋으로 반영했고 이 커밋의 exact-head 전체 CI를 다시 확인해야 한다.
 - 운영 DB/실제 행사/사용자·외부 초대/발송·지도 호출/키/배포는 변경하지 않았다.
 
 접근권한·시간·cursor·잠금·삭제 및 후속 경계는 [일정·캘린더 DB 계약](../database/schedule-calendar.md)을 참고한다.
@@ -32,3 +32,11 @@
 - join projection UPDATE의 실제 오류는 view 비갱신 가능 오류55000임을 맞추고 별도로 DML grant 부재도 검사했다.
 
 수정 후 독립 probe가 통과했고 남은 blocking finding은 없다. 감사 admin CRUD, 비공개 작성자 보호, KST half-open overlap, cursor와 opt-out 삭제 잠금 검토는 통과했지만 실제 Supabase PG17/동시 세션 CI 결과를 대신하지 않는다.
+
+## 실제 Supabase CI 및 생성 타입 반영
+
+- bootstrap exact head `aeb2bea7c40f3d8e1871c174a62fdef3c758bacf`, CI run `40060344126`을 독립 검증자가 확인했다. 실제 Supabase PostgreSQL **17.11.0.006**에서 reset/lint, **972 pgTAP × 2회**, **31개 독립 세션 경합**(결제 7 + 메시지 5 + 커뮤니티 12 + 일정·캘린더 7), 타입 생성/typecheck/정리가 통과했다. quality job의 **166개 단위검사·13개 E2E**도 통과했다. 실패는 새 스키마와 이전 생성 타입의 예상된 drift gate뿐이다.
+- genuine `database-types` artifact ID `12547206718`: ZIP SHA-256 `697bebc3fe6838b110349b03b896c18ceabbee7e0d6f9580857916a347bb710e`. ZIP에는 `database.ts` 한 파일만 있다.
+- 생성 파일은 **50,271 bytes / 1,647 lines**, SHA-256 `6acc80340f5d920ef99e731ad407234b8140e105ef970139cb3aa59aeee99d2e`를 검증하고 `src/types/database.ts`에 바이트 그대로 반영했다. 수동 보정은 하지 않았다.
+- 게시된 구현 커밋과 로컬 구현 커밋의 tree가 `0e1eed3643231b4619d39f425cc738c6aa1eca4d`로 같은 것을 확인했다. 이전 clean 로컬 구현 커밋은 검증된 외부 bundle로 보존한 뒤 게시된 exact head로 안전하게 맞췄다. 이 후속 커밋의 범위는 생성 타입과 이 작업 기록뿐이다.
+- 생성 타입 반영 후 `npm run check:all`을 재실행해 lint/format/typecheck, **166개 단위검사**, 대비 검사와 build가 모두 통과했음을 확인했다. 최종 타입 커밋의 실제 Supabase/브라우저 CI는 게시 후 확인해야 하며 아직 성공으로 간주하지 않는다.

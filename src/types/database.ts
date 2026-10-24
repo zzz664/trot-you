@@ -96,6 +96,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      calendar_audit_log: {
+        Row: {
+          action: string;
+          actor_id: string;
+          after_data: Json | null;
+          before_data: Json | null;
+          created_at: string;
+          id: string;
+          target_id: string;
+          target_type: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          action: string;
+          actor_id: string;
+          after_data?: Json | null;
+          before_data?: Json | null;
+          created_at?: string;
+          id?: string;
+          target_id: string;
+          target_type: string;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string;
+          after_data?: Json | null;
+          before_data?: Json | null;
+          created_at?: string;
+          id?: string;
+          target_id?: string;
+          target_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'calendar_audit_log_actor_id_fkey';
+            columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       comments: {
         Row: {
           body: string;
@@ -184,6 +226,62 @@ export type Database = {
           {
             foreignKeyName: 'community_moderation_log_actor_id_fkey';
             columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      content_calendar: {
+        Row: {
+          artist_id: string;
+          created_at: string;
+          created_by: string;
+          date: string;
+          example_text: string | null;
+          id: string;
+          topic: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          artist_id: string;
+          created_at?: string;
+          created_by: string;
+          date: string;
+          example_text?: string | null;
+          id?: string;
+          topic: string;
+          updated_at?: string;
+        };
+        Update: {
+          artist_id?: string;
+          created_at?: string;
+          created_by?: string;
+          date?: string;
+          example_text?: string | null;
+          id?: string;
+          topic?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'content_calendar_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artist_catalog';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'content_calendar_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artists';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'content_calendar_created_by_fkey';
+            columns: ['created_by'];
             isOneToOne: false;
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
@@ -730,6 +828,124 @@ export type Database = {
           },
         ];
       };
+      schedule_notification_optouts: {
+        Row: {
+          created_at: string;
+          schedule_id: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          schedule_id: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          schedule_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'schedule_notification_optouts_schedule_id_fkey';
+            columns: ['schedule_id'];
+            isOneToOne: false;
+            referencedRelation: 'schedule_catalog';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'schedule_notification_optouts_schedule_id_fkey';
+            columns: ['schedule_id'];
+            isOneToOne: false;
+            referencedRelation: 'schedules';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'schedule_notification_optouts_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      schedules: {
+        Row: {
+          address: string | null;
+          artist_id: string;
+          created_at: string;
+          created_by: string;
+          description: string | null;
+          ends_at: string | null;
+          id: string;
+          lat: number | null;
+          lng: number | null;
+          place_name: string | null;
+          starts_at: string;
+          status: Database['public']['Enums']['schedule_status'];
+          title: string;
+          type: Database['public']['Enums']['schedule_type'];
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          address?: string | null;
+          artist_id: string;
+          created_at?: string;
+          created_by: string;
+          description?: string | null;
+          ends_at?: string | null;
+          id?: string;
+          lat?: number | null;
+          lng?: number | null;
+          place_name?: string | null;
+          starts_at: string;
+          status?: Database['public']['Enums']['schedule_status'];
+          title: string;
+          type: Database['public']['Enums']['schedule_type'];
+          updated_at?: string;
+        };
+        Update: {
+          address?: string | null;
+          artist_id?: string;
+          created_at?: string;
+          created_by?: string;
+          description?: string | null;
+          ends_at?: string | null;
+          id?: string;
+          lat?: number | null;
+          lng?: number | null;
+          place_name?: string | null;
+          starts_at?: string;
+          status?: Database['public']['Enums']['schedule_status'];
+          title?: string;
+          type?: Database['public']['Enums']['schedule_type'];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'schedules_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artist_catalog';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'schedules_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artists';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'schedules_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       subscriptions: {
         Row: {
           artist_id: string;
@@ -836,6 +1052,42 @@ export type Database = {
           slug?: string | null;
         };
         Relationships: [];
+      };
+      schedule_catalog: {
+        Row: {
+          address: string | null;
+          artist_id: string;
+          artist_name: string;
+          artist_slug: string;
+          created_at: string;
+          description: string | null;
+          ends_at: string | null;
+          id: string;
+          lat: number | null;
+          lng: number | null;
+          place_name: string | null;
+          starts_at: string;
+          title: string;
+          type: Database['public']['Enums']['schedule_type'];
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: 'schedules_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artist_catalog';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'schedules_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artists';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
     Functions: {
@@ -1015,6 +1267,31 @@ export type Database = {
         Args: { p_body: string; p_post_id: string; p_title: string };
         Returns: undefined;
       };
+      content_calendar_delete: {
+        Args: { p_entry_id: string };
+        Returns: undefined;
+      };
+      content_calendar_list: {
+        Args: { p_artist_id: string; p_month: string };
+        Returns: {
+          artist_id: string;
+          created_at: string;
+          date: string;
+          example_text: string;
+          id: string;
+          topic: string;
+          updated_at: string;
+        }[];
+      };
+      content_calendar_upsert: {
+        Args: {
+          p_artist_id: string;
+          p_date: string;
+          p_example_text?: string;
+          p_topic: string;
+        };
+        Returns: string;
+      };
       has_active_access: { Args: { p_artist_id: string }; Returns: boolean };
       mark_message_read: { Args: { p_message_id: string }; Returns: string };
       messaging_cancel: {
@@ -1097,6 +1374,105 @@ export type Database = {
         };
         Returns: undefined;
       };
+      schedule_create: {
+        Args: {
+          p_address?: string;
+          p_artist_id: string;
+          p_description?: string;
+          p_ends_at?: string;
+          p_lat?: number;
+          p_lng?: number;
+          p_place_name?: string;
+          p_starts_at: string;
+          p_status?: Database['public']['Enums']['schedule_status'];
+          p_title: string;
+          p_type: Database['public']['Enums']['schedule_type'];
+        };
+        Returns: string;
+      };
+      schedule_delete: { Args: { p_schedule_id: string }; Returns: undefined };
+      schedule_get: {
+        Args: { p_schedule_id: string };
+        Returns: {
+          address: string | null;
+          artist_id: string;
+          artist_name: string;
+          artist_slug: string;
+          created_at: string;
+          description: string | null;
+          ends_at: string | null;
+          id: string;
+          lat: number | null;
+          lng: number | null;
+          place_name: string | null;
+          starts_at: string;
+          title: string;
+          type: Database['public']['Enums']['schedule_type'];
+          updated_at: string;
+        }[];
+        SetofOptions: {
+          from: '*';
+          to: 'schedule_catalog';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      schedule_get_notification: {
+        Args: { p_schedule_id: string };
+        Returns: boolean;
+      };
+      schedule_list: {
+        Args: {
+          p_after_id?: string;
+          p_after_starts_at?: string;
+          p_artist_ids?: string[];
+          p_limit?: number;
+          p_month: string;
+        };
+        Returns: {
+          address: string | null;
+          artist_id: string;
+          artist_name: string;
+          artist_slug: string;
+          created_at: string;
+          description: string | null;
+          ends_at: string | null;
+          id: string;
+          lat: number | null;
+          lng: number | null;
+          place_name: string | null;
+          starts_at: string;
+          title: string;
+          type: Database['public']['Enums']['schedule_type'];
+          updated_at: string;
+        }[];
+        SetofOptions: {
+          from: '*';
+          to: 'schedule_catalog';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      schedule_set_notification: {
+        Args: { p_enabled: boolean; p_schedule_id: string };
+        Returns: boolean;
+      };
+      schedule_update: {
+        Args: {
+          p_address?: string;
+          p_description?: string;
+          p_ends_at?: string;
+          p_lat?: number;
+          p_lng?: number;
+          p_place_name?: string;
+          p_schedule_id: string;
+          p_starts_at: string;
+          p_status?: Database['public']['Enums']['schedule_status'];
+          p_title: string;
+          p_type: Database['public']['Enums']['schedule_type'];
+        };
+        Returns: string;
+      };
       set_profile_role: {
         Args: {
           p_role: Database['public']['Enums']['user_role'];
@@ -1115,6 +1491,8 @@ export type Database = {
       payment_provider: 'toss' | 'kakaopay';
       report_status: 'open' | 'hidden' | 'restored' | 'deleted';
       report_target: 'post' | 'comment' | 'reply';
+      schedule_status: 'draft' | 'published';
+      schedule_type: 'broadcast' | 'concert' | 'event' | 'festival';
       subscription_status:
         'pending' | 'active' | 'grace' | 'canceled' | 'expired';
       user_role: 'fan' | 'artist' | 'admin';
@@ -1254,6 +1632,8 @@ export const Constants = {
       payment_provider: ['toss', 'kakaopay'],
       report_status: ['open', 'hidden', 'restored', 'deleted'],
       report_target: ['post', 'comment', 'reply'],
+      schedule_status: ['draft', 'published'],
+      schedule_type: ['broadcast', 'concert', 'event', 'festival'],
       subscription_status: [
         'pending',
         'active',
