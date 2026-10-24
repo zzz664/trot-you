@@ -353,3 +353,19 @@ h2 {
   resize: vertical;
   white-space: pre-wrap;
 }
+
+.speech-input,
+.speech-preview {
+  display: grid;
+  min-inline-size: 0;
+  gap: var(--space-unit);
+}
+.speech-input {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: calc(var(--space-unit) * 2);
+}
+.speech-preview {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -84,6 +84,7 @@ jobs:
       - run: node --test scripts/media-local-config.test.mjs
       - run: npm run test:chat-fixture
       - run: npm run test:reply-fixture
+      - run: npm run test:speech-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
@@ -347,6 +348,41 @@ jobs:
         if: always()
         with:
           name: reply-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
+
+  speech-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/reply-local-ci.mjs environment
+      - run: node scripts/speech-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Native speech API contract simulation only: controlled constructor stub,
+      # no microphone grant, user audio or external recognition provider. Auth,
+      # reply authorization and consent-gated analytics use the real local DB.
+      - run: npm run test:e2e:speech
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: speech-browser-results
           path: |
             playwright-report/
             test-results/
