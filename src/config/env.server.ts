@@ -1,5 +1,9 @@
 import 'server-only';
 import { z } from 'zod';
+import {
+  DISPATCH_CRON_SECRET_MIN_LENGTH,
+  DISPATCH_CRON_SECRET_MAX_LENGTH,
+} from './message-dispatch';
 import { KAKAOPAY_TEST_CIDS } from './integrations';
 import { parseCancellationTestRuntime } from './cancellation-test-runtime';
 import { parseReconciliationTestRuntime } from './reconciliation-test-runtime';
@@ -61,6 +65,14 @@ const serverEnvSchema = publicEnvSchema.extend({
   VAPID_PRIVATE_KEY: optionalEnvValue(secretSchema),
   ALIMTALK_API_KEY: optionalEnvValue(secretSchema),
   CRON_SECRET: optionalEnvValue(secretSchema.min(16)),
+  MESSAGE_DISPATCH_ENABLED: flagSchema,
+  MESSAGE_DISPATCH_CRON_SECRET: optionalEnvValue(
+    z
+      .string()
+      .min(DISPATCH_CRON_SECRET_MIN_LENGTH)
+      .max(DISPATCH_CRON_SECRET_MAX_LENGTH)
+      .regex(/^[A-Za-z0-9_-]+$/),
+  ),
   PAYMENTS_RENEWALS_ENABLED: flagSchema,
   PAYMENTS_REFUNDS_ENABLED: flagSchema,
   PAYMENTS_RECONCILIATION_ENABLED: flagSchema,
@@ -131,6 +143,13 @@ export function parseServerEnv(
   )
     return failure('CONFIGURATION_INVALID');
   if (
+    (env.MESSAGE_DISPATCH_ENABLED && !env.MESSAGE_DISPATCH_CRON_SECRET) ||
+    (env.MESSAGE_DISPATCH_CRON_SECRET &&
+      [
+        env.CRON_SECRET,
+        env.RENEWAL_CRON_SECRET,
+        env.RECONCILIATION_CRON_SECRET,
+      ].includes(env.MESSAGE_DISPATCH_CRON_SECRET)) ||
     (env.PAYMENTS_RENEWALS_ENABLED && !env.RENEWAL_CRON_SECRET) ||
     (env.PAYMENTS_RECONCILIATION_ENABLED && !env.RECONCILIATION_CRON_SECRET) ||
     (env.RECONCILIATION_CRON_SECRET &&

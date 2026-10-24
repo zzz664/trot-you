@@ -1365,6 +1365,37 @@ export type Database = {
         };
         Returns: Json;
       };
+      artist_dispatch_artists: {
+        Args: { p_after_slug?: string };
+        Returns: Json;
+      };
+      artist_dispatch_cancel: {
+        Args: {
+          p_artist_slug: string;
+          p_message_id: string;
+          p_operation_id: string;
+        };
+        Returns: Json;
+      };
+      artist_dispatch_context: {
+        Args: {
+          p_artist_slug: string;
+          p_before_created_at?: string;
+          p_before_id?: string;
+          p_message_id?: string;
+        };
+        Returns: Json;
+      };
+      artist_dispatch_submit: {
+        Args: {
+          p_artist_slug: string;
+          p_expected_revision: number;
+          p_message_id: string;
+          p_operation_id: string;
+          p_scheduled_at?: string;
+        };
+        Returns: Json;
+      };
       billing_claim_attempt: {
         Args: { p_attempt_id: string; p_lease_seconds: number };
         Returns: Json;
@@ -1867,6 +1898,7 @@ export type Database = {
         Args: { p_actor_id: string; p_upload_id: string };
         Returns: boolean;
       };
+      message_dispatch_run: { Args: { p_limit?: number }; Returns: Json };
       messaging_cancel: {
         Args: { p_actor_id: string; p_message_id: string };
         Returns: undefined;

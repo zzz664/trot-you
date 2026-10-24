@@ -20,10 +20,18 @@ export default async function ArtistPage({
   if (!result.ok) return <ComposeErrorScreen code={result.code} />;
   const t = await getTranslations('artistComposeMenu');
   const auth = await getTranslations('auth');
+  const dispatch = await getTranslations('artistDispatch');
   return (
     <main className="app-shell">
       <h1>{auth('artistTitle')}</h1>
       <p>{t('description')}</p>
+      <Link
+        href={routes.artistDispatchHistory}
+        prefetch={false}
+        className="ui-button ui-button--secondary"
+      >
+        {dispatch('menuTitle')}
+      </Link>
       <Card title={t('title')}>
         {result.data.artists.length === 0 ? (
           <p>{t('empty')}</p>

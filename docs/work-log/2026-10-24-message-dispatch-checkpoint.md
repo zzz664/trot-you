@@ -89,3 +89,31 @@ The checkpoint is ready for actual Supabase CI migration/lint, these sixteen
 races and genuine public RPC type generation. Generated types are deliberately
 unchanged until that artifact exists. Aggregate application quality checks and
 browser/visual verification remain the full feature owner's later gate.
+
+## Actual Supabase CI and genuine generated types
+
+[Checkpoint run 40141550767](https://github.com/zzz664/trot-you/actions/runs/40141550767)
+completed for remote head `af2ad95b1cebcb8cf2175d8f9385ad76b92bc579`.
+The observed PR checkout merge `339b52bbfe5327fe75267ba920b646d778576143`
+has the same tree `df09237490534d89d8f34ddf1997b2ff95d72082`; source logs
+and official artifacts were checked against that provenance.
+
+- Actual local Supabase PG17 reset/lint, **3,065 pgTAP assertions twice** and
+  **260 independent-session races** (244 existing plus 16 dispatch) passed.
+- Genuine type generation and typecheck passed. All other 11 jobs passed,
+  preserving 4,680 unit, 114 fixture and 369 browser checks at this database-only
+  checkpoint. Ordinary baseline review found no visible layout blocker across
+  the 385 existing captures.
+- The database job failed only its expected committed-type-drift gate. This run
+  is **not** an overall CI pass and does not verify the later application tree.
+- Official `database-types` artifact `12579408279` ZIP SHA-256 was verified as
+  `b5766a989c78967325636bc091e25a635cb7289808c21af774df56b8a83a4545`.
+  Its `database.ts` is 80,115 bytes with SHA-256
+  `9fbb3fee509b45df2ae910985c67a50c300f549d64c15791582247da3e84731c`.
+  It was copied byte-identically into `src/types/database.ts`; `cmp` and the
+  digest were checked. No database type was hand-written.
+
+The local checkpoint was bundled, then its tree-equivalent remote head was
+adopted without discarding application work. The application candidate requires
+its own final full check and exact-head CI, including the new dispatch browser
+job and normal visual inspection, before merge.

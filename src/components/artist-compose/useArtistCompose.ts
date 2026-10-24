@@ -17,6 +17,7 @@ import type {
   ComposeSaveInput,
 } from '@/config/artist-compose';
 import { artistComposePath } from '@/config/routes';
+import { readDispatchPage } from '@/client/dispatch';
 
 type Operation =
   | { kind: 'save'; input: ComposeSaveInput }
@@ -47,6 +48,9 @@ export function useArtistCompose(initial: ComposePageData) {
   const needsRefresh = useRef(false);
   const [saved, setSaved] = useState(false);
   const [accessLost, setAccessLost] = useState(false);
+  const [recoveredDispatchedId, setRecoveredDispatchedId] = useState<
+    string | null
+  >(null);
   const alive = useRef(true);
   const mountedBefore = useRef(false);
   const generation = useRef(0);
@@ -97,6 +101,7 @@ export function useArtistCompose(initial: ComposePageData) {
       setBusy(null);
       setMediaBusyState(false);
       setAccessLost(lost);
+      setRecoveredDispatchedId(null);
     },
     [stop],
   );
@@ -151,7 +156,9 @@ export function useArtistCompose(initial: ComposePageData) {
       const controller = new AbortController();
       controllers.current.add(controller);
       try {
-        const result = await readComposePage(
+        let resolvedMessageId = messageId;
+        let recoveredId: string | null = null;
+        let result = await readComposePage(
           { slug, messageId, ...(cursor ? { cursor } : {}) },
           controller.signal,
         );
@@ -161,6 +168,53 @@ export function useArtistCompose(initial: ComposePageData) {
           controller.signal.aborted
         )
           return false;
+        if (
+          !result.ok &&
+          !older &&
+          messageId &&
+          (result.code === 'NOT_FOUND' || result.code === 'CONFLICT')
+        ) {
+          // Back/Forward can restore a former draft URL after its send committed.
+          // Only an exact owned dispatch receipt authorizes opening a clean
+          // composer; a general history page never proves this resource changed.
+          const dispatched = await readDispatchPage(
+            { slug, messageId },
+            controller.signal,
+          );
+          if (
+            !alive.current ||
+            owner !== generation.current ||
+            controller.signal.aborted
+          )
+            return false;
+          if (
+            dispatched.ok &&
+            dispatched.data.selectedMessage?.id === messageId
+          ) {
+            result = await readComposePage(
+              { slug, messageId: null },
+              controller.signal,
+            );
+            resolvedMessageId = null;
+            recoveredId = messageId;
+          } else if (!dispatched.ok) {
+            handleError(
+              dispatched.code === 'NOT_FOUND'
+                ? result.code
+                : dispatched.code === 'FORBIDDEN' ||
+                    dispatched.code === 'UNAUTHENTICATED'
+                  ? dispatched.code
+                  : 'UNAVAILABLE',
+            );
+            return false;
+          }
+          if (
+            !alive.current ||
+            owner !== generation.current ||
+            controller.signal.aborted
+          )
+            return false;
+        }
         if (!result.ok) {
           handleError(result.code);
           return false;
@@ -187,6 +241,7 @@ export function useArtistCompose(initial: ComposePageData) {
           needsRefresh.current = false;
           setRefreshRequired(false);
           setUncertain(false);
+          setRecoveredDispatchedId(recoveredId);
           selection.current = next.selectedDraft;
           setSelected(next.selectedDraft);
           setBody(next.selectedDraft?.body ?? '');
@@ -195,7 +250,7 @@ export function useArtistCompose(initial: ComposePageData) {
           window.history.replaceState(
             null,
             '',
-            artistComposePath(slug, messageId ?? undefined),
+            artistComposePath(slug, resolvedMessageId ?? undefined),
           );
         }
         return true;
@@ -492,6 +547,7 @@ export function useArtistCompose(initial: ComposePageData) {
     refreshRequired,
     saved,
     accessLost,
+    recoveredDispatchedId,
     dirty,
     save,
     remove,

@@ -27,6 +27,7 @@ export const routes = {
   enrollmentReconcile: '/api/checkout/enrollment/reconcile',
   enrollmentStatus: '/api/checkout/enrollment/status',
   enrollmentComplete: '/checkout/complete',
+  dispatchMessages: '/api/cron/dispatch-messages',
   chargeRenewals: '/api/cron/charge-renewals',
   reconcilePayments: '/api/cron/reconcile-payments',
   tossPaymentWebhook: '/api/webhooks/payment/toss',
@@ -43,6 +44,7 @@ export const routes = {
   refundReject: '/api/admin/refunds/reject',
   restricted: '/restricted',
   artist: '/artist',
+  artistDispatchHistory: '/artist/messages',
   artistComposeApi: '/api/artist',
   admin: '/admin',
   authLogin: '/api/auth/login',
@@ -121,4 +123,21 @@ export function artistComposeMenuPath(afterSlug?: string) {
   return afterSlug
     ? `${routes.artist}?after=${encodeURIComponent(afterSlug)}`
     : routes.artist;
+}
+
+export function artistDispatchApiPath(
+  slug: string,
+  action?: 'submit' | 'cancel',
+) {
+  const path = `${routes.artistComposeApi}/${encodeURIComponent(slug)}/dispatch`;
+  return action ? `${path}/${action}` : path;
+}
+
+export function artistDispatchPath(slug: string) {
+  return `${routes.artist}/${encodeURIComponent(slug)}/dispatch`;
+}
+export function artistDispatchMenuPath(afterSlug?: string) {
+  return afterSlug
+    ? `${routes.artistDispatchHistory}?after=${encodeURIComponent(afterSlug)}`
+    : routes.artistDispatchHistory;
 }

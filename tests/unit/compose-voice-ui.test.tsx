@@ -14,6 +14,9 @@ const mock = vi.hoisted(() => ({
   file: vi.fn(),
   busy: vi.fn(),
 }));
+vi.mock('@/components/artist-dispatch/ArtistDispatch', () => ({
+  ArtistDispatch: () => null,
+}));
 vi.mock('@/client/compose-recording', () => ({
   supportsComposeRecording: mock.supports,
   createComposeRecording: mock.create,

@@ -13,6 +13,7 @@ export default defineConfig({
     '**/replies/**',
     '**/speech/**',
     '**/compose/**',
+    '**/dispatch/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

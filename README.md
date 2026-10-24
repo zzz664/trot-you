@@ -46,9 +46,13 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 
 [화면·보안·준비 범위](docs/configuration/artist-discovery.md)와 [DB 계약](docs/database/artist-discovery.md)을 참고하세요. `/artists`는 공개된 active 가수의 안전한 목록만, `/artists/[slug]`는 현재 프로필/동의 조건을 만족한 팬에게 서버 이름 치환 맛보기 또는 유료 대화방을 제공합니다. `/onboarding/artists`의 관심 가수 선택은 유료 구독이나 결제가 아닙니다. 선택 후 `/onboarding/install`에서 브라우저별 설치 안내·명시적 선택을 저장한 뒤 현재 모든 필수 조건을 DB에서 다시 확인하여 가입 준비를 완료합니다. 사진·음성·영상은 기존 [권한 기반 미디어 흐름](docs/configuration/media.md)을 통해 명시적으로 열며, 실제 바이트 권한을 다시 확인합니다. 서버 전용 맛보기·대화방 RPC에 기존 `SUPABASE_SERVICE_ROLE_KEY`가 필요하며 브라우저·인증 actor client에는 전달하지 않습니다.
 
+## 메시지 즉시 공개·예약·취소
+
+[작동·설정 경계](docs/configuration/message-dispatch.md), [원자적 DB 계약](docs/database/message-dispatch.md), [전용 검증 안내](docs/configuration/message-dispatch-ci.md)를 참고하세요. 저장된 본인 초안의 revision을 확인한 뒤 명시적으로 즉시 공개 또는 한국 시간(KST) 예약을 승인합니다. 공개는 앱 대화방의 실제 메시지와 조건을 충족하는 기기의 알림 outbox를 한 트랜잭션에 반영하지만 **푸시·알림톡 전송/수신 성공을 뜻하지 않습니다.** `/artist/messages`의 본인 처리 내역은 활동이 멈춘 가수에서도 현재 소속 권한으로 조회·취소할 수 있습니다. 응답 유실·중복 클릭·이전 초안 URL 복구와 정책상 취소 마감 시각을 처리합니다. 예약 worker는 기본 비활성이고 보호된 route 코드만 있으며 실제 scheduler·호스팅·provider 연결을 활성화하지 않았습니다.
+
 ## 팬 대화방 열람
 
-[화면·API·준비 범위](docs/configuration/fan-chat.md)와 [DB 계약](docs/database/fan-chat.md)을 참고하세요. 유료 권한이 있는 팬의 첫 30개 메시지, 정밀 커서 기반 이전 메시지, 서버 이름 치환, 기존 미디어 뷰어, 실제 화면에 보인 메시지의 멱등 읽음 기록과 개인 읽음 수를 연결합니다. 구독 만료·제한·정책 변경은 새 요청마다 다시 확인합니다. 팬 텍스트 답장은 아래 별도 기능으로 연결하며, 가수 발송·실시간 전달·분석 수집은 후속 기능입니다. 실제 서비스 운영과 이전 미디어의 미완료 독립 재검토를 승인한 것은 아닙니다.
+[화면·API·준비 범위](docs/configuration/fan-chat.md)와 [DB 계약](docs/database/fan-chat.md)을 참고하세요. 유료 권한이 있는 팬의 첫 30개 메시지, 정밀 커서 기반 이전 메시지, 서버 이름 치환, 기존 미디어 뷰어, 실제 화면에 보인 메시지의 멱등 읽음 기록과 개인 읽음 수를 연결합니다. 구독 만료·제한·정책 변경은 새 요청마다 다시 확인합니다. 팬 텍스트 답장은 아래 별도 기능으로 연결하며, 가수의 앱 내 공개는 아래 메시지 발송 기능으로 연결하며, 실시간 provider 전달·분석 수집은 후속 기능입니다. 실제 서비스 운영과 이전 미디어의 미완료 독립 재검토를 승인한 것은 아닙니다.
 
 ## 팬 텍스트 답장
 
@@ -60,7 +64,7 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 
 ## 아티스트 메시지 초안 작성
 
-[화면·저장·업로드 계약](docs/configuration/artist-compose.md), [DB 소유권·충돌 방지](docs/database/artist-compose.md), [전용 브라우저 CI](docs/configuration/artist-compose-ci.md)를 참고하세요. `/artist`에서 현재 소속된 가수를 선택해 글·사진·음성·영상 메시지를 작성합니다. 사진 리사이즈, 명시적 동의 후 브라우저 녹음, 기존 보호 미디어 업로드, 서버 이름 치환 미리보기와 본인 초안 저장·복구를 연결했습니다. 저장과 첨부는 멱등 키·revision 검사로 중복이나 오래된 수정이 새 내용을 덮지 않게 합니다. **초안 저장은 팬에게 발송이 아닙니다.** 즉시/예약 발송·알림 outbox·발송 취소 시간은 다음 별도 기능이며 이 화면은 가짜 발송 버튼을 제공하지 않습니다. 실제 운영 정책·기기별 녹음·호스팅 검증 및 기존 독립 미디어 재검토 제한은 그대로 남아 있습니다.
+[화면·저장·업로드 계약](docs/configuration/artist-compose.md), [DB 소유권·충돌 방지](docs/database/artist-compose.md), [전용 브라우저 CI](docs/configuration/artist-compose-ci.md)를 참고하세요. `/artist`에서 현재 소속된 가수를 선택해 글·사진·음성·영상 메시지를 작성합니다. 사진 리사이즈, 명시적 동의 후 브라우저 녹음, 기존 보호 미디어 업로드, 서버 이름 치환 미리보기와 본인 초안 저장·복구를 연결했습니다. 저장과 첨부는 멱등 키·revision 검사로 중복이나 오래된 수정이 새 내용을 덮지 않게 합니다. **초안 저장은 팬에게 발송이 아닙니다.** 저장한 초안을 아래 별도 확인 절차로 앱에 공개하거나 예약할 수 있습니다. 실제 운영 정책·기기별 녹음·호스팅 검증 및 기존 독립 미디어 재검토 제한은 그대로 남아 있습니다.
 
 ## 연동 설정 기반
 

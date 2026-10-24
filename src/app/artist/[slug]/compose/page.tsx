@@ -1,6 +1,6 @@
 import { ArtistComposer } from '@/components/artist-compose/ArtistComposer';
 import { ComposeErrorScreen } from '@/components/artist-compose-menu/ComposeErrorScreen';
-import { getComposePage } from '@/server/artist-compose/page';
+import { getComposeDispatchPage } from '@/server/message-dispatch/page';
 export default async function ComposePage({
   params,
   searchParams,
@@ -10,9 +10,9 @@ export default async function ComposePage({
 }) {
   const { slug } = await params;
   const { draft } = await searchParams;
-  const result = await getComposePage(slug, draft ?? null);
+  const result = await getComposeDispatchPage(slug, draft ?? null);
   return result.ok ? (
-    <ArtistComposer key={`${slug}:${draft ?? ''}`} initial={result.data} />
+    <ArtistComposer key={`${slug}:${draft ?? ''}`} {...result.data} />
   ) : (
     <ComposeErrorScreen code={result.code} />
   );

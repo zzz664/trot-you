@@ -1,0 +1,46 @@
+.panel,
+.history,
+.receipt,
+.recovery {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+  margin-block: calc(var(--space-unit) * 3);
+  overflow-wrap: anywhere;
+}
+.mode {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.mode legend {
+  margin-bottom: var(--space-unit);
+  font-weight: 700;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-unit);
+  align-items: start;
+}
+.actions > * {
+  max-width: 100%;
+}
+.list {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.list li {
+  min-width: 0;
+}
+.body {
+  white-space: pre-wrap;
+}
+.panel input[type='datetime-local'] {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}

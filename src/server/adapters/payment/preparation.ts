@@ -35,6 +35,8 @@ export function parsePreparationEnvironment(env: ServerEnv) {
     PAYMENTS_RENEWALS_ENABLED: 'false',
     PAYMENTS_REFUNDS_ENABLED: 'false',
     PAYMENTS_RECONCILIATION_ENABLED: 'false',
+    MESSAGE_DISPATCH_ENABLED: 'false',
+    MESSAGE_DISPATCH_CRON_SECRET: undefined,
     RECONCILIATION_CRON_SECRET: undefined,
     RENEWAL_CRON_SECRET: undefined,
     TOSS_BILLING_ENABLED: String(env.TOSS_BILLING_ENABLED),
