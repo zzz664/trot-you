@@ -29,3 +29,11 @@
 - CI에서만 생성하는 `[auth.email].enable_signup=true`로 provider를 활성화하고, 전역 signup=false는 유지한다. 생성 함수에 15개 회귀 테스트를 추가하고, 실제 loopback `/auth/v1/settings`에서 email=true·disable_signup=true가 모두 확인되어야 fixture를 생성하도록 사전 검증을 추가했다. redirect는 허용하지 않으며 요청 timeout은 10초다.
 - 원격 PR head `ae548496a2f113a7949785480105bccd7283c232`와 기존 로컬 커밋 tree가 동일함을 확인하고 기존 로컬 이력을 archive에 보존한 뒤 동일 feature 브랜치에서 수정했다. 기본 Supabase config·앱 코드·DB schema는 수정하지 않았다. 수정 후 전체 검증 결과와 실제 CI 재실행 결과는 구분한다.
 - 수정 후 `npm run check:all` 통과: lint/format/type, 단위 381개, 대비 10조합, 키 없는 build. 실제 로컬 이메일 provider·PKCE·세션 재검증은 새 CI 실행 대기이며 로컬 브라우저를 재시도하지 않았다.
+
+## 실제 브라우저 쿠키·POST 동작 보정
+
+- 두 번째 CI `40071569245`는 실제 인증 E2E 15개 통과/2개 실패였다. 6개 세션 모바일 화면, 서버 폐기 세션, 갱신 전파, 권한·제한 가드 등은 통과했지만 PKCE 후 verifier 존재와 네이티브 로그아웃 POST가 실패했다.
+- 로그아웃 오류 artifact는 FORBIDDEN을 확인했다. Fetch 표준상 no-referrer 문서의 네이티브 POST는 Origin:null을 보낸다. 문서만 same-origin 정책으로 변경하고 인증 handler/콜백 no-referrer 및 null/누락 Origin 거부는 유지했다. 실제 로그인/로그아웃 버튼의 POST Origin과 응답 상태를 E2E에서 직접 확인하도록 추가했다.
+- 설치된 auth-js 2.118은 정확한 callback URL을 쓰더라도 fixed verifier 외에 flow별 verifier slot과 index를 함께 저장한다. 기존 정리는 fixed 이름만 다뤘다. 정확한 프로젝트 prefix와 제한된 suffix 패턴으로 전체 PKCE artifacts를 지우고 session은 보존하도록 수정했다. 새 로그인은 이전 시도를 교체하는 단일 진행 정책을 문서화했다.
+- 실제 설치 SDK로 네트워크 없이 PKCE 쿠키들을 생성하고 두 차례 재시작/정리를 수행하는 회귀를 추가했다. flow ID 8/64 경계·orphan slot·index chunk 삭제, 다른 프로젝트/유사 이름/기존 세션 보존도 검증한다. 테스트의 실패 조건을 완화하지 않았다.
+- 수정 후 `npm run check:all` 전체 통과(단위 382개 포함), 인증 E2E 18개 발견 확인. 실제 브라우저 재실행 결과는 새 CI에서 확인하며 로컬 브라우저는 실행하지 않았다.

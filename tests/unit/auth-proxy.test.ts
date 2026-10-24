@@ -54,6 +54,7 @@ describe('Next 16 proxy refresh transport', () => {
       'fresh-token',
     );
     expect(response.headers.get('cache-control')).toContain('no-store');
+    expect(response.headers.get('referrer-policy')).toBe('same-origin');
     expect(response.headers.get('location')).toBeNull();
   });
   it('does not grant authorization or synthesize a session on refresh failure', async () => {
@@ -69,6 +70,7 @@ describe('Next 16 proxy refresh transport', () => {
     expect(response.cookies.getAll()).toEqual([]);
     expect(response.headers.get('location')).toBeNull();
     expect(response.headers.get('x-middleware-next')).toBe('1');
+    expect(response.headers.get('referrer-policy')).toBe('same-origin');
   });
   it('allows keyless rendering without constructing or reading a session', async () => {
     createContext.mockReturnValue({
@@ -77,6 +79,7 @@ describe('Next 16 proxy refresh transport', () => {
     });
     const response = await proxy(new NextRequest('https://app.example/start'));
     expect(response.headers.get('x-middleware-next')).toBe('1');
+    expect(response.headers.get('referrer-policy')).toBe('same-origin');
     expect(response.cookies.getAll()).toEqual([]);
   });
 });

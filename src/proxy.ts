@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAuthContext } from '@/server/auth/context';
+import { AUTH_DOCUMENT_REFERRER_POLICY } from '@/config/auth';
 
 export async function proxy(request: NextRequest) {
   const context = createAuthContext(
@@ -15,9 +16,11 @@ export async function proxy(request: NextRequest) {
   } catch {
     // No auth decision is inferred from this transport failure.
   }
-  return context.apply(
+  const response = context.apply(
     NextResponse.next({ request: { headers: request.headers } }),
   );
+  response.headers.set('Referrer-Policy', AUTH_DOCUMENT_REFERRER_POLICY);
+  return response;
 }
 
 export const config = {

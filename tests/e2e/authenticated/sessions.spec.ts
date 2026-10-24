@@ -30,6 +30,7 @@ for (const width of [360, 414]) {
       const response = await page.goto(routes.home);
       await expect(page).toHaveURL(`${appOrigin}${routes.home}`);
       expect(response?.headers()['cache-control']).toContain('no-store');
+      expect(response?.headers()['referrer-policy']).toBe('same-origin');
       await expect(page.locator('html')).toHaveAttribute(
         'data-font-scale',
         scale,
@@ -288,7 +289,22 @@ test('logout is POST-only, same-origin, idempotent and safe after Back/Forward',
   }
   await page.reload();
   await expect(logout).toBeVisible();
-  await logout.click();
+  const [logoutRequest, logoutResponse] = await Promise.all([
+    page.waitForRequest(
+      (request) =>
+        request.url() === `${appOrigin}${routes.authLogout}` &&
+        request.method() === 'POST',
+    ),
+    page.waitForResponse(
+      (response) =>
+        response.url() === `${appOrigin}${routes.authLogout}` &&
+        response.request().method() === 'POST',
+    ),
+    logout.click(),
+  ]);
+  expect(await logoutRequest.headerValue('origin')).toBe(appOrigin);
+  expect(logoutResponse.status()).toBe(303);
+  expect(logoutResponse.headers()['referrer-policy']).toBe('no-referrer');
   await expect(page).toHaveURL(/\/start\?reason=signed_out$/);
   expect(
     (await context.cookies()).some((cookie) => cookie.name.startsWith('sb-')),
@@ -350,4 +366,33 @@ test('Kakao initiation uses PKCE and configured hosts, never follows the provide
   expect(callback.search).toBe('');
   expect(response.headers()['set-cookie']).toContain('HttpOnly');
   expect(response.headers()['cache-control']).toContain('no-store');
+});
+
+test('native Kakao button preserves Origin without contacting the OAuth provider', async ({
+  page,
+}) => {
+  const document = await page.goto(routes.start);
+  expect(document?.headers()['referrer-policy']).toBe('same-origin');
+  const requestPromise = page.waitForRequest(
+    (request) =>
+      request.url().startsWith(`${appOrigin}${routes.authLogin}?`) &&
+      request.method() === 'POST',
+  );
+  const responsePromise = page.waitForResponse(
+    (response) =>
+      response.url().startsWith(`${appOrigin}${routes.authLogin}?`) &&
+      response.request().method() === 'POST',
+  );
+  // beforeEach blocks every non-app browser request, including the local
+  // authorize URL. We observe only this application's real form POST/redirect.
+  await page
+    .getByRole('button', { name: messages.auth.login })
+    .click({ noWaitAfter: true });
+  expect(await (await requestPromise).headerValue('origin')).toBe(appOrigin);
+  const response = await responsePromise;
+  expect(response.status()).toBe(303);
+  expect(response.headers()['referrer-policy']).toBe('no-referrer');
+  expect(new URL(response.headers().location!).origin).toBe(
+    'http://127.0.0.1:54321',
+  );
 });

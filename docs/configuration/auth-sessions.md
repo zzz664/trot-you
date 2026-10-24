@@ -25,8 +25,8 @@
 - Proxy나 layout만 믿지 않는다. 모든 세션 페이지의 DAL이 `getClaims()`로 서명을 검증하고 `getUser()`의 현재 subject를 확인한 뒤, 동일 actor client로 `profiles.id = subject`를 조회한다. 필요한 역할/온보딩/제한 열만 읽는다. 계정 ID·이메일·연락처·토큰은 화면에 출력하지 않는다.
 - 역할은 수정 가능한 user metadata나 JWT custom role이 아니라 현재 DB 프로필에서 읽는다. 제한(무기한/미래 만료)이 온보딩보다 우선하고, 그다음 미완료 온보딩, 그다음 팬/가수/운영자별 경로로 이동한다. 제한 만료는 요청 시 다시 평가한다. 누락 프로필, Auth/DB 오류는 fail closed로 안내한다.
 - return path는 `/`, `/artist`, `/admin`, `/onboarding`의 정확한 문자열만 허용하며, 허용된 경로도 실제 역할/상태의 landing과 다르면 무시한다. URL scheme, `//`, 인코딩·역슬래시·쿼리로 경로를 우회할 수 없다. `Host`/`X-Forwarded-Host`를 callback·redirect origin에 사용하지 않는다.
-- login/logout POST는 정확한 configured origin의 `Origin`만 허용한다. 없거나 `null`/다른 origin이면 거부한다. 콜백은 SDK PKCE verifier로 요청을 묶으며, 성공/실패 후 verifier를 삭제한다. 중복 code, provider error, 부정 형식은 일반 오류로 바꾸고 원본 code/error_description을 HTML이나 로그에 반사하지 않는다.
-- 응답은 private/no-store이고 Referrer-Policy는 no-referrer다. SDK I/O는 요청별 no-store와 10초 fetch timeout을 사용한다. 단일 사용 code/로그아웃은 앱이 무조건 재시도하지 않으며 SDK의 refresh 재시도 계약을 따른다.
+- login/logout POST는 정확한 configured origin의 `Origin`만 허용한다. 없거나 `null`/다른 origin이면 거부한다. 콜백은 SDK PKCE verifier로 요청을 묶는다. 정확한 callback URL을 유지하기 위해 experimental flow-id query는 사용하지 않고 브라우저당 하나의 진행 중인 로그인만 지원한다. 다시 시작하면 이전 시도를 교체하며, 성공/실패 후 고정 verifier뿐 아니라 SDK의 flow별 slot·index·numeric chunk까지 본인 프로젝트 범위에서 삭제한다. 다른 탭의 이전 시도는 로그인 화면에서 다시 시작해야 한다. 중복 code, provider error, 부정 형식은 일반 오류로 바꾸고 원본 code/error_description을 HTML이나 로그에 반사하지 않는다.
+- 응답은 private/no-store다. 인증 handler/콜백은 Referrer-Policy=no-referrer로 code 유출을 막고, 문서 응답은 same-origin으로 외부 referrer를 차단하면서 네이티브 form POST의 실제 Origin을 보존한다. no-referrer 문서의 Origin:null을 예외 허용하는 방식은 쓰지 않는다. SDK I/O는 요청별 no-store와 10초 fetch timeout을 사용한다. 단일 사용 code/로그아웃은 앱이 무조건 재시도하지 않으며 SDK의 refresh 재시도 계약을 따른다.
 - 로그아웃은 `scope: local`이며, SDK refresh/네트워크 오류가 있어도 현재 앱의 auth cookie와 chunk를 지운다. 실패 시 원격 종료를 확인하지 못했다는 문구를 보인다. 기존 access JWT의 즉시 전역 폐기를 보장하지 않는다. 다른 기기를 종료하지 않으며 이 기능은 고위험 결제/관리 변경용 재인증을 대신하지 않는다.
 - 로그인/로그아웃은 전체 문서 POST 이동이고, history BFCache 복원 시 서버 재검증을 위해 새로고침한다. 같은 버튼을 기다리는 동안 중복 클릭을 막되 뒤로 돌아오면 영구 비활성 상태를 남기지 않는다.
 
@@ -44,4 +44,4 @@ CLI 2.122.0에서 `[auth.email].enable_signup`은 이름과 달리 `GOTRUE_EXTER
 
 ## 참조
 
-설치된 Next.js 16.4.3 문서의 `proxy`, `cookies`, authentication DAL 규칙을 확인했다. 공개 공식 문서: [Supabase SSR client](https://supabase.com/docs/guides/auth/server-side/creating-a-client), [SSR 보안과 캐시](https://supabase.com/docs/guides/auth/server-side/advanced-guide), [Kakao OAuth](https://supabase.com/docs/guides/auth/social-sign-in/auth-kakao). 비공개 원본 사양은 저장소에 복사하지 않는다.
+설치된 Next.js 16.4.3 문서의 `proxy`, `cookies`, authentication DAL 규칙을 확인했다. 공개 공식 문서: [Supabase SSR client](https://supabase.com/docs/guides/auth/server-side/creating-a-client), [SSR 보안과 캐시](https://supabase.com/docs/guides/auth/server-side/advanced-guide), [Kakao OAuth](https://supabase.com/docs/guides/auth/social-sign-in/auth-kakao), [Fetch 표준 Origin 헤더 처리](https://fetch.spec.whatwg.org/#append-a-request-origin-header). 비공개 원본 사양은 저장소에 복사하지 않는다.

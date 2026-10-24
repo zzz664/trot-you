@@ -5,6 +5,13 @@ export const AUTH_REQUEST_TIMEOUT_MS = 10_000;
 export const AUTH_CODE_MAX_LENGTH = 2048;
 export const AUTH_REDIRECT_STATUS = 303;
 export const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+// Auth-js 2.118 dual-writes fixed, bounded per-flow, and index PKCE keys.
+// Match only this suffix after the exact project storage key, including chunks.
+export const AUTH_PKCE_COOKIE_SUFFIX =
+  /^-(?:code-verifier|flows-code-verifier|flow-[A-Za-z0-9_-]{8,64}-code-verifier)(?:\.\d+)?$/;
+// no-referrer would turn native form POST Origin into null. Documents send
+// same-origin metadata only; credential-bearing auth redirects stay no-referrer.
+export const AUTH_DOCUMENT_REFERRER_POLICY = 'same-origin';
 export const AUTH_RETURN_PATHS = [
   routes.home,
   routes.artist,

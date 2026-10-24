@@ -113,6 +113,26 @@ describe('server-owned auth cookie transport', () => {
       { name: `${base}.0`, value: 'current-session' },
       { name: `${base}-code-verifier`, value: 'verifier' },
       { name: `${base}-code-verifier.0`, value: 'chunked-verifier' },
+      { name: `${base}-flows-code-verifier`, value: 'flow-index' },
+      { name: `${base}-flows-code-verifier.1`, value: 'index-chunk' },
+      { name: `${base}-flow-12345678-code-verifier`, value: 'orphan-slot' },
+      {
+        name: `${base}-flow-${'x'.repeat(64)}-code-verifier.0`,
+        value: 'slot-chunk',
+      },
+      { name: `${base}-flow-short-code-verifier`, value: 'unrelated-short' },
+      {
+        name: `${base}-flow-${'x'.repeat(65)}-code-verifier`,
+        value: 'unrelated-long',
+      },
+      {
+        name: `${base}-flow-12345678-code-verifier.other`,
+        value: 'unrelated-suffix',
+      },
+      {
+        name: `sb-other-auth-token-flow-12345678-code-verifier`,
+        value: 'other-project',
+      },
       { name: `${base}-code-verifier.other`, value: 'unrelated-cookie' },
       { name: 'font-scale', value: 'large' },
     ]);
@@ -121,6 +141,24 @@ describe('server-owned auth cookie transport', () => {
     expect(response.cookies.get(`${base}.0`)).toBeUndefined();
     expect(response.cookies.get(`${base}-code-verifier`)?.maxAge).toBe(0);
     expect(response.cookies.get(`${base}-code-verifier.0`)?.maxAge).toBe(0);
+    for (const suffix of [
+      '-flows-code-verifier',
+      '-flows-code-verifier.1',
+      '-flow-12345678-code-verifier',
+      `-flow-${'x'.repeat(64)}-code-verifier.0`,
+    ]) {
+      expect(response.cookies.get(`${base}${suffix}`)?.maxAge).toBe(0);
+    }
+    for (const suffix of [
+      '-flow-short-code-verifier',
+      `-flow-${'x'.repeat(65)}-code-verifier`,
+      '-flow-12345678-code-verifier.other',
+    ]) {
+      expect(response.cookies.get(`${base}${suffix}`)).toBeUndefined();
+    }
+    expect(
+      response.cookies.get('sb-other-auth-token-flow-12345678-code-verifier'),
+    ).toBeUndefined();
     for (const cookie of response.cookies.getAll()) {
       expect(cookie).toMatchObject({
         httpOnly: true,
@@ -139,6 +177,7 @@ describe('server-owned auth cookie transport', () => {
       { name: `${base}.0`, value: 'chunk0' },
       { name: `${base}.12`, value: 'chunk12' },
       { name: `${base}-code-verifier.1`, value: 'verifier' },
+      { name: `${base}-flow-12345678-code-verifier.1`, value: 'orphaned-slot' },
       { name: `${base}.not-a-chunk`, value: 'unrelated' },
       { name: 'sb-other-auth-token.0', value: 'other-project' },
       { name: 'font-scale', value: 'large' },
@@ -152,6 +191,8 @@ describe('server-owned auth cookie transport', () => {
       `${base}.12`,
       `${base}-code-verifier`,
       `${base}-code-verifier.1`,
+      `${base}-flows-code-verifier`,
+      `${base}-flow-12345678-code-verifier.1`,
     ]) {
       expect(response.cookies.get(name)).toMatchObject({
         value: '',

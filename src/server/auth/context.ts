@@ -1,7 +1,7 @@
 import 'server-only';
 import type { CookieOptions } from '@supabase/ssr';
 import type { NextResponse } from 'next/server';
-import { AUTH_PRIVATE_HEADERS } from '@/config/auth';
+import { AUTH_PKCE_COOKIE_SUFFIX, AUTH_PRIVATE_HEADERS } from '@/config/auth';
 import { createAuthPort } from '@/server/adapters/auth/supabase';
 import {
   authCookieName,
@@ -43,17 +43,17 @@ export function createAuthContext(
   function clearCookies(session = true) {
     if (!configuration) return;
     const base = authCookieName(configuration);
-    const names = session
-      ? [base, `${base}-code-verifier`]
-      : [`${base}-code-verifier`];
+    const names = [
+      ...(session ? [base] : []),
+      `${base}-code-verifier`,
+      `${base}-flows-code-verifier`,
+    ];
     for (const name of new Set([...current.keys(), ...names])) {
+      if (!name.startsWith(base)) continue;
+      const suffix = name.slice(base.length);
       if (
-        !names.some(
-          (prefix) =>
-            name === prefix ||
-            (/^\.\d+$/.test(name.slice(prefix.length)) &&
-              name.startsWith(prefix)),
-        )
+        !AUTH_PKCE_COOKIE_SUFFIX.test(suffix) &&
+        !(session && (suffix === '' || /^\.\d+$/.test(suffix)))
       )
         continue;
       write({
