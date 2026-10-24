@@ -184,15 +184,15 @@ select throws_ok($$insert into public.artist_members (artist_id, user_id) values
 select throws_ok($$insert into public.artist_members (artist_id, user_id) values ('30000000-0000-4000-8000-000000000001', 'ffffffff-ffff-4fff-8fff-ffffffffffff')$$, '23503', null, 'membership requires existing profile');
 reset role;
 
--- Trusted server writes remain possible, but database structural rules still hold.
+-- Ordinary trusted-server writes remain possible; full completion now requires its validated RPC.
 set local role service_role;
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 select is((select count(*) from public.profiles), 5::bigint, 'server role can provision across profiles');
 select throws_ok($$update public.profiles set call_name = '' where id = '10000000-0000-4000-8000-000000000001'$$, '23514', null, 'empty calling name rejected');
 select throws_ok($$update public.profiles set call_name = '  ' where id = '10000000-0000-4000-8000-000000000001'$$, '23514', null, 'blank calling name rejected');
 select throws_ok($$update public.profiles set call_name = E'line\nbreak' where id = '10000000-0000-4000-8000-000000000001'$$, '23514', null, 'control characters rejected');
-select lives_ok($$update public.profiles set call_name = '서버확인', onboarding_completed_at = statement_timestamp() where id = '10000000-0000-4000-8000-000000000002'$$, 'server can record validated onboarding');
-select throws_ok($$update public.profiles set onboarding_completed_at = now() where id = '20000000-0000-4000-8000-000000000001'$$, '23514', null, 'even server cannot complete onboarding without name');
+select throws_ok($$update public.profiles set call_name = '서버확인', onboarding_completed_at = statement_timestamp() where id = '10000000-0000-4000-8000-000000000002'$$, '42501', 'ONBOARDING_COMPLETION_RPC_REQUIRED', 'server cannot bypass the validated completion RPC');
+select throws_ok($$update public.profiles set onboarding_completed_at = now() where id = '20000000-0000-4000-8000-000000000001'$$, '42501', 'ONBOARDING_COMPLETION_RPC_REQUIRED', 'server cannot record incomplete onboarding through raw table writes');
 select throws_ok($$update public.profiles set restricted_until = now() + interval '1 day' where id = '10000000-0000-4000-8000-000000000001'$$, '23514', null, 'restriction expiry requires restriction flag');
 select throws_ok($$update public.artists set id = '30000000-0000-4000-8000-000000000006' where slug = 'test-active'$$, '23514', 'IMMUTABLE_ID', 'artist IDs cannot be rewritten');
 select lives_ok($$update public.profiles set created_at = '2000-01-01', updated_at = '2000-01-01' where id = '10000000-0000-4000-8000-000000000001'$$, 'timestamp trigger accepts update but overrides forged timestamps');

@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ArtistCatalog } from '@/components/artists/ArtistCatalog';
 import { ArtistCatalogEntry } from '@/components/artists/ArtistCatalogEntry';
 import { ArtistErrorScreen } from '@/components/artists/ArtistErrorScreen';
-import { ArtistInstallPending } from '@/components/artists/ArtistInstallPending';
+import { InstallOnboarding } from '@/components/onboarding/InstallOnboarding';
 import { ArtistLoading } from '@/components/artists/ArtistLoading';
 import { ArtistPreview } from '@/components/artists/ArtistPreview';
 import { DialogProvider } from '@/components/ui/DialogProvider';
@@ -372,24 +372,24 @@ describe('safe preview and next-stage boundaries', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('keeps install and full completion explicitly pending', async () => {
+  it('keeps completion disabled until real guidance is saved', async () => {
     render(
       subject(
-        <ArtistInstallPending
+        <InstallOnboarding
           data={{
-            selectedSlug: artist.slug,
             selectedName: artist.name,
-            selectedAt: '2026-10-24T00:00:00Z',
+            choice: null,
+            acknowledgedAt: null,
+            installationSelfReportedAt: null,
+            completedAt: null,
           }}
         />,
       ),
     );
+    expect(screen.getByText(messages.install.description)).toBeVisible();
     expect(
-      screen.getByText(messages.artists.installPendingDescription),
-    ).toBeVisible();
-    expect(
-      screen.queryByRole('button', { name: messages.onboarding.continue }),
-    ).not.toBeInTheDocument();
+      screen.getByRole('button', { name: messages.install.complete }),
+    ).toBeDisabled();
     await userEvent.click(
       screen.getByRole('button', { name: messages.artists.changeSelection }),
     );

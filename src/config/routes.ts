@@ -10,6 +10,7 @@ export const routes = {
   artists: '/artists',
   artistSelectionSubmit: '/api/onboarding/artist',
   onboardingSubmit: '/api/onboarding',
+  installSubmit: '/api/onboarding/install',
   restricted: '/restricted',
   artist: '/artist',
   admin: '/admin',

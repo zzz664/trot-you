@@ -26,6 +26,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Static literal required by Next.js. Auth handlers own their cookie writes.
   matcher: [
-    '/((?!_next/static|_next/image|api/auth|api/onboarding|favicon.ico|ui-preview).*)',
+    '/((?!_next/static|_next/image|api/auth|api/onboarding|favicon.ico|ui-preview|sw\\.js$|offline\\.html$|manifest\\.webmanifest$|icons/).*)',
   ],
 };

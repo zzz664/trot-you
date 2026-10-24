@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
-import { proxy } from '@/proxy';
+import { proxy, config } from '@/proxy';
+import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server';
 
 const { createContext } = vi.hoisted(() => ({ createContext: vi.fn() }));
 vi.mock('@/server/auth/context', () => ({ createAuthContext: createContext }));
@@ -81,5 +82,30 @@ describe('Next 16 proxy refresh transport', () => {
     expect(response.headers.get('x-middleware-next')).toBe('1');
     expect(response.headers.get('referrer-policy')).toBe('same-origin');
     expect(response.cookies.getAll()).toEqual([]);
+  });
+});
+
+describe('public PWA resources do not invoke session refresh', () => {
+  it.each([
+    '/sw.js',
+    '/offline.html',
+    '/manifest.webmanifest',
+    '/icons/trot-you-192.png',
+    '/icons/trot-you-512.png',
+    '/_next/static/chunks/hash.js',
+  ])('bypasses proxy for %s', (url) => {
+    expect(unstable_doesMiddlewareMatch({ config, nextConfig: {}, url })).toBe(
+      false,
+    );
+  });
+  it.each([
+    '/start',
+    '/onboarding/install',
+    '/artists/singer',
+    '/sw.js/private',
+  ])('retains session refresh for %s', (url) => {
+    expect(unstable_doesMiddlewareMatch({ config, nextConfig: {}, url })).toBe(
+      true,
+    );
   });
 });

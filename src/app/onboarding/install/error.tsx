@@ -1,7 +1,5 @@
 'use client';
-
-import { ArtistErrorScreen } from '@/components/artists/ArtistErrorScreen';
-
-export default function ArtistError({ reset }: { reset: () => void }) {
-  return <ArtistErrorScreen code="UNAVAILABLE" onRetry={reset} onboarding />;
+import { InstallErrorScreen } from '@/components/onboarding/InstallErrorScreen';
+export default function InstallError({ reset }: { reset: () => void }) {
+  return <InstallErrorScreen code="UNAVAILABLE" onRetry={reset} />;
 }

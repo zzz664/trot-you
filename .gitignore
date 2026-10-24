@@ -13,3 +13,7 @@ next-env.d.ts
 *.pem
 *.key
 .DS_Store
+# Generated after the production Next build; never commit bundled workers.
+public/sw.js
+public/sw.js.map
+public/offline.html

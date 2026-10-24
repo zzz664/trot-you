@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { InstallStatusCard } from '@/components/onboarding/InstallStatusCard';
 import { ArtistCatalogEntry } from '@/components/artists/ArtistCatalogEntry';
 import { AuthForm } from './AuthForm';
 import { Card } from '@/components/ui/Card';
@@ -30,7 +31,10 @@ export async function SessionPage({ path }: { path: string }) {
       <h1>{t(title)}</h1>
       <p>{t(description)}</p>
       {path === routes.home && state.profile.role === 'fan' && (
-        <ArtistCatalogEntry />
+        <>
+          <InstallStatusCard />
+          <ArtistCatalogEntry />
+        </>
       )}
       <Card title={t('sessionTitle')}>
         <p>{t('sessionDescription')}</p>

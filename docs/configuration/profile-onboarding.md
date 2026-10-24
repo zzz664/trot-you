@@ -2,7 +2,7 @@
 
 ## 제공 범위
 
-`/onboarding`은 저장된 단계로 이어 가는 입구다. `/onboarding/font` → `/onboarding/name` → `/onboarding/consent`에서 설정을 실제 서버 RPC로 저장한다. 마지막에는 `/onboarding/artists`의 [관심 가수 선택](artist-discovery.md)으로 이동한다. 관심 저장은 유료 구독이 아니며 전체 가입 완료도 아니다. 설치/알림 안내·음성 입력은 이후 별도 기능이다.
+`/onboarding`은 저장된 단계로 이어 가는 입구다. `/onboarding/font` → `/onboarding/name` → `/onboarding/consent`에서 설정을 실제 서버 RPC로 저장한다. 마지막에는 `/onboarding/artists`의 [관심 가수 선택](artist-discovery.md)으로 이동한다. 관심 저장은 유료 구독이 아니며 전체 가입 완료도 아니다. [설치/알림 권한 안내와 전체 완료](pwa-onboarding.md)는 다음 단계이며 음성 입력과 실제 Web Push 전달은 이후 별도 기능이다.
 
 - 글자 크기 세 단계는 선택 즉시 미리보기이며 **저장하고 다음** 성공 후 프로필과 HttpOnly 선호 쿠키에 저장한다. 로그인한 전체 문서의 첫 서버 렌더는 본인 프로필을 우선하고 로그인 전/조회 실패는 검증된 쿠키 또는 기본 large를 사용한다. Next의 재사용 layout에는 재진입 시 저장된 크기를 동기화한다.
 - 이름은 단순 문자열이 아니라 DB에서 NFC 정규화, 앞뒤 공백 정리, 승인된 2–10 코드 포인트 범위와 금칙어를 검사한다. UI 검사는 권한 경계가 아니다.

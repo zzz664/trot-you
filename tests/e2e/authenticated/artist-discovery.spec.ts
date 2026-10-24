@@ -180,10 +180,12 @@ for (const width of [360, 414]) {
         .click();
       await expect(page).toHaveURL(`${appOrigin}${routes.onboardingInstall}`);
       await expect(
-        page.getByRole('heading', { name: copy.installTitle }),
+        page.getByRole('heading', { name: messages.install.title }),
       ).toBeVisible();
       await expect(
-        page.getByText(copy.installPendingDescription, { exact: true }),
+        page.getByText(messages.install.notificationNotEnabled, {
+          exact: true,
+        }),
       ).toBeVisible();
       const saved = discoveryStoredInterest(actor.id);
       expect(saved).toMatchObject({
@@ -203,7 +205,7 @@ for (const width of [360, 414]) {
       );
       await page.reload();
       await expect(
-        page.getByRole('heading', { name: copy.installTitle }),
+        page.getByRole('heading', { name: messages.install.title }),
       ).toBeVisible();
       expect(discoveryStoredInterest(actor.id)).toEqual(saved);
       await page.evaluate(() => {

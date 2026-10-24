@@ -295,22 +295,69 @@ test('logout is POST-only, same-origin, idempotent and safe after Back/Forward',
   }
   await page.reload();
   await expect(logout).toBeVisible();
-  const [logoutRequest, logoutResponse] = await Promise.all([
-    page.waitForRequest(
-      (request) =>
-        request.url() === `${appOrigin}${routes.authLogout}` &&
-        request.method() === 'POST',
-    ),
-    page.waitForResponse(
-      (response) =>
-        response.url() === `${appOrigin}${routes.authLogout}` &&
-        response.request().method() === 'POST',
-    ),
-    logout.click(),
-  ]);
-  expect(await logoutRequest.headerValue('origin')).toBe(appOrigin);
-  expect(logoutResponse.status()).toBe(303);
-  expect(logoutResponse.headers()['referrer-policy']).toBe('no-referrer');
+  // Observe the actual network response without routing/fetching it ourselves.
+  // A worker-controlled redirect target can make Chromium's frame response
+  // describe the final 200 document instead of the original logout 303.
+  // CDP ExtraInfo is the wire status; it may arrive before requestWillBeSent.
+  const protocol = await context.newCDPSession(page);
+  const logoutRequestIds = new Set<string>();
+  const serverResponses: {
+    requestId: string;
+    status: number;
+    noReferrer: boolean;
+    noStore: boolean;
+    signedOut: boolean;
+  }[] = [];
+  protocol.on('Network.requestWillBeSent', (event) => {
+    if (
+      event.request.url === `${appOrigin}${routes.authLogout}` &&
+      event.request.method === 'POST'
+    )
+      logoutRequestIds.add(event.requestId);
+  });
+  protocol.on('Network.responseReceivedExtraInfo', (event) => {
+    // Keep only booleans for known public header values: never retain session
+    // cookies, request bodies or the raw response headers in test artifacts.
+    const header = (name: string) =>
+      Object.entries(event.headers).find(
+        ([key]) => key.toLowerCase() === name,
+      )?.[1];
+    serverResponses.push({
+      requestId: event.requestId,
+      status: event.statusCode,
+      noReferrer: header('referrer-policy') === 'no-referrer',
+      noStore: String(header('cache-control')).includes('no-store'),
+      signedOut:
+        header('location') === `${appOrigin}${routes.start}?reason=signed_out`,
+    });
+  });
+  try {
+    await protocol.send('Network.enable');
+    const [logoutRequest] = await Promise.all([
+      page.waitForRequest(
+        (request) =>
+          request.url() === `${appOrigin}${routes.authLogout}` &&
+          request.method() === 'POST',
+      ),
+      logout.click(),
+    ]);
+    expect(await logoutRequest.headerValue('origin')).toBe(appOrigin);
+    // Redirects reuse an ID: inspect the first wire response for the native
+    // POST, never a later redirect that might happen to return the expected code.
+    const serverRedirect = () =>
+      serverResponses.find((response) =>
+        logoutRequestIds.has(response.requestId),
+      );
+    await expect.poll(() => Boolean(serverRedirect())).toBe(true);
+    expect(serverRedirect()).toMatchObject({
+      status: 303,
+      noReferrer: true,
+      noStore: true,
+      signedOut: true,
+    });
+  } finally {
+    await protocol.detach();
+  }
   await expect(page).toHaveURL(/\/start\?reason=signed_out$/);
   expect(
     (await context.cookies()).some((cookie) => cookie.name.startsWith('sb-')),

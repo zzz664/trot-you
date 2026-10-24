@@ -1,6 +1,6 @@
 # 트롯유 (trot-you)
 
-한국어 팬 서비스의 Next.js App Router 애플리케이션입니다. **개발 기반·접근성 UI·도메인 DB, Kakao/Supabase 인증·세션과 프로필 온보딩을 구현하고 있습니다.** 실제 Kakao 승인/로그인, 가입 온보딩·구독·결제·메시지 화면 또는 운영 배포가 완료된 상태가 아닙니다.
+한국어 팬 서비스의 Next.js App Router 애플리케이션입니다. **개발 기반·접근성 UI·도메인 DB, Kakao/Supabase 인증·세션, 전체 온보딩과 정적 자산 전용 PWA를 구현하고 있습니다.** 실제 Kakao 승인/로그인, 운영 정책 활성화, 유료 구독·결제·메시지 또는 운영 배포가 완료된 상태가 아닙니다.
 
 ## 로컬 실행
 
@@ -32,7 +32,7 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 - `src/lib/`: 순수 함수. `src/messages/ko.json`: 사용자 문구.
 - 서버 기능은 `server/services → adapters | db | settings` 순서를 따릅니다. `server/auth`는 Next.js 요청/쿠키와 인증 서비스를 조립하는 경계입니다.
 - 기본 글자 크기는 `large`; 로그인 전 쿠키를 첫 서버 렌더에 적용하고, 로그인 후에는 본인 프로필의 저장값을 우선합니다. 온보딩에서 세 단계 크기를 저장할 수 있습니다.
-- Supabase 스키마·RLS·로컬 검증 도구와 actor-scoped 인증 조회가 있습니다. 결제·알림·PWA는 별도 기능입니다. 서비스 워커나 가짜 로그인/결제 성공 로직은 없습니다.
+- Supabase 스키마·RLS·로컬 검증 도구와 actor-scoped 인증 조회가 있습니다. PWA 서비스 워커는 공개 빌드 자산과 정적 오프라인 안내만 캐시합니다. 결제·Web Push 전달은 별도 기능이며 가짜 로그인/결제/알림 성공 로직은 없습니다.
 
 ## 인증·세션 연결
 
@@ -40,11 +40,11 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 
 ## 프로필 온보딩
 
-[화면·운영 준비 안내](docs/configuration/profile-onboarding.md)와 [DB 권한/동의 경계](docs/database/profile-onboarding.md)를 참고하세요. 글자 크기 → 부를 이름 → 만 14세 이상 자기 확인·명시적 버전별 동의를 실제 RPC로 저장합니다. 다음 가수 선택 단계에서 관심 선호만 저장하고, 설치 안내는 준비 중 상태로 유지하며 전체 온보딩 완료를 기록하지 않습니다. **승인된 실제 정책 본문/금칙어 설정은 아직 없으므로 해당 단계는 준비 중 상태로 닫힙니다.** CI의 허구 문서는 법률 문구나 실제 사용자 동의가 아닙니다.
+[화면·운영 준비 안내](docs/configuration/profile-onboarding.md)와 [DB 권한/동의 경계](docs/database/profile-onboarding.md)를 참고하세요. 글자 크기 → 부를 이름 → 만 14세 이상 자기 확인·명시적 버전별 동의를 실제 RPC로 저장합니다. 다음 가수 선택 단계에서 관심 선호를 저장하고, [설치 안내와 선택 기록](docs/configuration/pwa-onboarding.md)을 거쳐 전체 온보딩 완료 RPC로 이어집니다. 설치/알림 권한 자체는 강제하지 않습니다. **승인된 실제 정책 본문/금칙어 설정은 아직 없으므로 해당 단계는 준비 중 상태로 닫힙니다.** CI의 허구 문서는 법률 문구나 실제 사용자 동의가 아닙니다.
 
 ## 가수 탐색·맛보기·관심 선택
 
-[화면·보안·준비 범위](docs/configuration/artist-discovery.md)와 [DB 계약](docs/database/artist-discovery.md)을 참고하세요. `/artists`는 공개된 active 가수의 안전한 목록만, `/artists/[slug]`는 현재 프로필/동의 조건을 만족한 팬에게 서버 이름 치환 맛보기만 제공합니다. `/onboarding/artists`의 관심 가수 선택은 유료 구독이나 결제가 아닙니다. 선택 후 `/onboarding/install`은 명시적인 설치 안내 준비 중 화면이며 전체 가입을 완료하지 않습니다. 사진·음성·영상은 텍스트와 이용 불가 안내만 제공하고 서명 URL/재생은 아직 없습니다. 서버 전용 맛보기 RPC에만 기존 `SUPABASE_SERVICE_ROLE_KEY`가 필요하며 브라우저·인증 actor client에는 전달하지 않습니다.
+[화면·보안·준비 범위](docs/configuration/artist-discovery.md)와 [DB 계약](docs/database/artist-discovery.md)을 참고하세요. `/artists`는 공개된 active 가수의 안전한 목록만, `/artists/[slug]`는 현재 프로필/동의 조건을 만족한 팬에게 서버 이름 치환 맛보기만 제공합니다. `/onboarding/artists`의 관심 가수 선택은 유료 구독이나 결제가 아닙니다. 선택 후 `/onboarding/install`에서 브라우저별 설치 안내·명시적 선택을 저장한 뒤 현재 모든 필수 조건을 DB에서 다시 확인하여 가입 준비를 완료합니다. 사진·음성·영상은 텍스트와 이용 불가 안내만 제공하고 서명 URL/재생은 아직 없습니다. 서버 전용 맛보기 RPC에만 기존 `SUPABASE_SERVICE_ROLE_KEY`가 필요하며 브라우저·인증 actor client에는 전달하지 않습니다.
 
 ## 연동 설정 기반
 
