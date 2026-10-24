@@ -48,6 +48,7 @@ export function useArtistCompose(initial: ComposePageData) {
   const [saved, setSaved] = useState(false);
   const [accessLost, setAccessLost] = useState(false);
   const alive = useRef(true);
+  const mountedBefore = useRef(false);
   const generation = useRef(0);
   const running = useRef(false);
   const mediaRunning = useRef(false);
@@ -123,11 +124,7 @@ export function useArtistCompose(initial: ComposePageData) {
       };
       current.current = next;
       setData(next);
-      window.history.replaceState(
-        window.history.state,
-        '',
-        artistComposePath(slug, draft.id),
-      );
+      window.history.replaceState(null, '', artistComposePath(slug, draft.id));
     },
     [slug],
   );
@@ -139,6 +136,7 @@ export function useArtistCompose(initial: ComposePageData) {
     ) => {
       if (
         !alive.current ||
+        window.location.pathname !== artistComposePath(slug) ||
         running.current ||
         (mediaRunning.current && !navigation)
       )
@@ -195,7 +193,7 @@ export function useArtistCompose(initial: ComposePageData) {
           setKind(next.selectedDraft?.kind ?? 'text');
           setPreview(null);
           window.history.replaceState(
-            window.history.state,
+            null,
             '',
             artistComposePath(slug, messageId ?? undefined),
           );
@@ -232,7 +230,7 @@ export function useArtistCompose(initial: ComposePageData) {
       // The preallocated ID makes a refresh after a lost create response resolve
       // the original resource instead of silently creating a second draft.
       window.history.replaceState(
-        window.history.state,
+        null,
         '',
         artistComposePath(slug, pending.input.messageId),
       );
@@ -261,11 +259,7 @@ export function useArtistCompose(initial: ComposePageData) {
               pending.kind === 'save' &&
               pending.input.expectedRevision === 0
             ) {
-              window.history.replaceState(
-                window.history.state,
-                '',
-                artistComposePath(slug),
-              );
+              window.history.replaceState(null, '', artistComposePath(slug));
             }
           }
           setUncertain(unknown);
@@ -440,10 +434,24 @@ export function useArtistCompose(initial: ComposePageData) {
   useEffect(() => {
     alive.current = true;
     const navigate = () => {
-      const id = new URL(window.location.href).searchParams.get('draft');
+      const url = new URL(window.location.href);
       clear();
-      void load(id, false, true);
+      // An outgoing retained route must not fetch its empty draft then replace
+      // the artist menu/another artist URL while Next is changing the tree.
+      if (url.pathname !== artistComposePath(slug)) return;
+      void load(url.searchParams.get('draft'), false, true);
     };
+    const url = new URL(window.location.href);
+    if (
+      url.pathname === artistComposePath(slug) &&
+      (mountedBefore.current ||
+        url.searchParams.get('draft') !== (selection.current?.id ?? null))
+    ) {
+      // History restoration can mount cached RSC props from before a new draft
+      // was saved. Reconcile the URL identity, never trust that cached snapshot.
+      navigate();
+    }
+    mountedBefore.current = true;
     const hide = () => clear();
     const restore = (event: PageTransitionEvent) => {
       if (event.persisted) navigate();
@@ -469,7 +477,7 @@ export function useArtistCompose(initial: ComposePageData) {
       window.removeEventListener('pageshow', restore);
       window.removeEventListener('beforeunload', unload);
     };
-  }, [clear, load, stop]);
+  }, [clear, load, slug, stop]);
   return {
     data,
     selected,

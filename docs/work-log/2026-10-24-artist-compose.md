@@ -44,7 +44,7 @@
 ## Verification status
 
 - Local focused service/DB-adapter/HTTP/body/page/capture and UI tests pass.
-- The latest full unit snapshot passed **4,671 tests in 143 files**. This is a
+- The latest full unit snapshot passed **4,680 tests in 143 files**. This is a
   local unit result, not a database/browser/staging result.
 - Full local `npm run check:all` passes after genuine type integration: ESLint,
   Prettier, strict types, all unit tests, 10 contrast pairs and the production
@@ -67,10 +67,13 @@
   integration. Local Docker remains unavailable.
 - Authored browser checks cover current Auth/Postgres/Storage, synthetic normal
   uploads, validation, replay/conflict, refresh, interrupted/canceled flows and
-  three text scales at 360px/1280px. **74** screenshots are planned for actual CI
-  and normal visual inspection; they have not yet been captured/reviewed.
+  three text scales at 360px/1280px. All **74** planned screenshots from run
+  `40136095653` were captured and normally reviewed: no clipping, overlap or
+  readability blocker was found. This is presentation evidence, not a pass for
+  the three runtime failures described below; corrected-head CI is still required.
 - Local browser execution was previously denied and was not retried/escalated.
-  Actual browser CI and screenshot review remain required before completion.
+  Corrected-head actual browser CI and visual revalidation remain required
+  before completion.
 
 ## Boundaries retained
 
@@ -97,3 +100,29 @@ The same run's auth-browser job hit a separate Docker port-54322 bind conflict
 before tests. That infrastructure failure is not an application pass or source
 regression. Corrected-head browser execution and normal screenshot review are
 still pending.
+
+## Application recovery corrections
+
+Run `40136095653` passed 34 of the 37 compose browser cases, including the full
+three-text-scale narrow/desktop matrix. Its three failures led to targeted fixes:
+
+- The recording test omitted the separately disclosed upload button after
+  selecting the local recording. It now verifies that selection uploads nothing,
+  then clicks upload explicitly. The application still never auto-uploads.
+- The accepted media API rejects revocation of an already-completed intent. The
+  composer now re-reads its current owned draft to distinguish a completed-media
+  cancellation race from actual lost authority. Registered media remains intact;
+  an unavailable current-context read freezes editing with explicit reload rather
+  than claiming success, and denied authority clears protected content.
+- Back/Forward can restore cached initial route props. The composer uses Next's
+  documented native-history null-state contract and reconciles the exact URL draft
+  on restoration, suppresses outgoing-route late responses, and offers a retry if
+  the current-resource read is unavailable. It never reloads its own empty draft
+  while navigation is leaving for the artist menu.
+
+Nine unit regressions cover those recovery outcomes. The browser assertions now
+also bind the restored URL, body and listed draft identity. The media API, schema,
+parser boundary and existing security policies were not changed. Actual CI for
+these corrections remains pending; prior screenshot review cannot establish that
+those runtime fixes pass. The earlier Docker bind failure and real-device capture
+limitations remain distinct from these source corrections.

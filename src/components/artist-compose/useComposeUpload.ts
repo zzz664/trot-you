@@ -264,6 +264,16 @@ export function useComposeUpload(props: Props) {
         );
         if (!live()) return;
         if (!result.ok) {
+          if (result.code === 'FORBIDDEN') {
+            // The accepted API also uses FORBIDDEN for an already-completed
+            // intent: cancellation cannot delete registered media. Only a fresh
+            // owned-draft read can distinguish that outcome from access loss.
+            pending.current = null;
+            mark(null);
+            const refreshed = await callbacks.current.onChanged();
+            if (live() && refreshed) setNotice('canceledUpload');
+            return;
+          }
           failure(result.code);
           return;
         }
@@ -297,10 +307,15 @@ export function useComposeUpload(props: Props) {
         const result = await revokeMediaUpload({ uploadId }, request.signal);
         if (!live()) return;
         if (!result.ok) {
-          setError(result.code);
           mark(null);
-          if (result.code === 'FORBIDDEN' || result.code === 'UNAUTHENTICATED')
-            callbacks.current.onAccessLost();
+          if (result.code === 'FORBIDDEN') {
+            const refreshed = await callbacks.current.onChanged();
+            if (live() && refreshed) setNotice('canceledUpload');
+          } else {
+            setError(result.code);
+            if (result.code === 'UNAUTHENTICATED')
+              callbacks.current.onAccessLost();
+          }
           return;
         }
       }

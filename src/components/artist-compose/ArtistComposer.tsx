@@ -104,7 +104,28 @@ function ComposeScreen({ initial }: { initial: ComposePageData }) {
       {state.accessLost ? (
         <p role="alert">{t('accessLost')}</p>
       ) : !state.data || !policy ? (
-        <p role="status">{t('loading')}</p>
+        state.error ? (
+          <section>
+            <p className="ui-error-text" role="alert">
+              {t(`errors.${state.error}`)}
+            </p>
+            <Button
+              variant="secondary"
+              disabled={state.busy !== null}
+              onClick={() =>
+                void state.load(
+                  new URL(window.location.href).searchParams.get('draft'),
+                  false,
+                  true,
+                )
+              }
+            >
+              {t('reload')}
+            </Button>
+          </section>
+        ) : (
+          <p role="status">{t('loading')}</p>
+        )
       ) : (
         <>
           <p className="ui-hint">{t('privacy')}</p>

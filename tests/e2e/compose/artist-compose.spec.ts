@@ -743,7 +743,11 @@ test('voice recording asks twice before the synthetic capture, stops tracks, and
   await expect(button(page, copy.recordUpload)).toBeVisible();
   expect((await recordingSnapshot(page)).tracksStopped).toBeGreaterThan(0);
   expect(inspectDrafts(world)[0]!.mediaCount).toBe(0);
+  // Using a local recording selects it; it is not permission to upload yet.
   await button(page, copy.recordUpload).click();
+  await expect(page.getByText(copy.fileReady, { exact: true })).toBeVisible();
+  expect(inspectDrafts(world)[0]!.mediaCount).toBe(0);
+  await button(page, copy.upload).click();
   await expect(
     page.getByText(copy.uploadComplete, { exact: true }),
   ).toBeVisible();
@@ -943,6 +947,9 @@ test('capture cancellation and page navigation suppress late data and release na
   await installRecording(page);
   await openComposer(page, context, world);
   await createMediaDraft(page, 'voice');
+  const saved = inspectDrafts(world)[0]!;
+  expect(saved.body).toBe('허구 미디어 안내');
+  await expect(page).toHaveURL(artistComposePath(world.artist.slug, saved.id));
   await button(page, copy.record).click();
   await button(page, copy.recordStart).click();
   await expect(button(page, copy.recordStop)).toBeVisible();
@@ -953,7 +960,9 @@ test('capture cancellation and page navigation suppress late data and release na
   await page.goBack();
   await expect(page).toHaveURL(routes.artist);
   await page.goForward();
+  await expect(page).toHaveURL(artistComposePath(world.artist.slug, saved.id));
   await expect(textInput(page)).toHaveValue('허구 미디어 안내');
+  await expect(page.locator(`[data-message-id="${saved.id}"]`)).toBeVisible();
   await expect(button(page, copy.recordUpload)).toHaveCount(0);
   expect(inspectDrafts(world)[0]!.mediaCount).toBe(0);
 });

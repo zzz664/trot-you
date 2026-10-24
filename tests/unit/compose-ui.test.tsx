@@ -12,10 +12,12 @@ import { ArtistComposer } from '@/components/artist-compose/ArtistComposer';
 import { DialogProvider } from '@/components/ui/DialogProvider';
 import type {
   ComposeDraft,
+  ComposePageData,
   ComposeResult,
   ComposeSaveInput,
 } from '@/config/artist-compose';
 import messages from '@/messages/ko.json';
+import { artistComposePath, routes } from '@/config/routes';
 import {
   composeUiDraft,
   composeUiIds as ids,
@@ -62,6 +64,15 @@ vi.mock('@/components/media/SecureMedia', () => ({
 }));
 const copy = messages.artistCompose;
 function subject(initial = composeUiPage()) {
+  if (
+    initial.selectedDraft &&
+    !new URL(window.location.href).searchParams.has('draft')
+  )
+    window.history.replaceState(
+      {},
+      '',
+      artistComposePath(initial.artist.slug, initial.selectedDraft.id),
+    );
   return (
     <NextIntlClientProvider locale="ko" messages={messages} timeZone="UTC">
       <DialogProvider>
@@ -85,7 +96,11 @@ const body = () => screen.getByRole('textbox', { name: copy.body });
 const save = () => screen.getByRole('button', { name: copy.save });
 beforeEach(() => {
   Object.values(mock).forEach((fn) => fn.mockReset());
-  window.history.replaceState({}, '', '/');
+  window.history.replaceState(
+    {},
+    '',
+    artistComposePath(composeUiPage().artist.slug),
+  );
   mock.save.mockImplementation(async (input: ComposeSaveInput) => saved(input));
   mock.read.mockResolvedValue({ ok: true, data: composeUiPage() });
   mock.preview.mockResolvedValue({
@@ -275,7 +290,11 @@ describe('artist draft composer', () => {
     fireEvent.change(body(), { target: { value: '늦은 초안' } });
     fireEvent.click(save());
     const input = mock.save.mock.calls[0]![0] as ComposeSaveInput;
-    window.history.replaceState({}, '', `/?draft=${ids.other}`);
+    window.history.replaceState(
+      {},
+      '',
+      artistComposePath(composeUiPage().artist.slug, ids.other),
+    );
     await act(async () => window.dispatchEvent(new PopStateEvent('popstate')));
     await waitFor(() => expect(body()).toHaveValue('다른 초안'));
     await act(async () => request.resolve(saved(input)));
@@ -439,6 +458,7 @@ describe('artist upload recovery', () => {
     expect(mock.complete).not.toHaveBeenCalled();
   });
   it('surfaces current completed media when cancel loses to finalization', async () => {
+    mock.revoke.mockResolvedValue({ ok: false, code: 'FORBIDDEN' });
     const pending = deferred<unknown>();
     mock.complete.mockReturnValue(pending.promise);
     const current = photoPage({
@@ -615,4 +635,187 @@ describe('authoritative upload aftermath', () => {
     expect(mock.revoke).toHaveBeenCalledOnce();
     expect(body()).toBeEnabled();
   });
+});
+
+describe('real revoke refusal reconciliation', () => {
+  const initial = () => {
+    const draft = composeUiDraft({ kind: 'photo', body: null });
+    return composeUiPage({ selectedDraft: draft, drafts: [draft] });
+  };
+  async function uncertainUpload() {
+    mock.complete.mockResolvedValue({ ok: false, code: 'UNAVAILABLE' });
+    mock.revoke.mockResolvedValue({ ok: false, code: 'FORBIDDEN' });
+    const user = userEvent.setup();
+    render(subject(initial()));
+    await user.upload(
+      screen.getByLabelText(copy.fileLabel.photo),
+      new File(['x'], 'photo.jpg', { type: 'image/jpeg' }),
+    );
+    await user.click(await screen.findByRole('button', { name: copy.upload }));
+    await screen.findByRole('button', { name: copy.uploadRetry });
+    return user;
+  }
+  it('closes retained content when current ownership really is revoked after a completed-intent refusal', async () => {
+    mock.read.mockResolvedValue({ ok: false, code: 'FORBIDDEN' });
+    const user = await uncertainUpload();
+    await user.click(screen.getByRole('button', { name: copy.cancelUpload }));
+    expect(mock.read).toHaveBeenCalledOnce();
+    expect(screen.getByText(copy.accessLost)).toBeVisible();
+    expect(screen.queryByText(copy.canceledUpload)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: copy.body }),
+    ).not.toBeInTheDocument();
+  });
+  it('does not claim cancellation when the distinguishing current-context read is unavailable', async () => {
+    mock.read.mockResolvedValue({ ok: false, code: 'UNAVAILABLE' });
+    const user = await uncertainUpload();
+    await user.click(screen.getByRole('button', { name: copy.cancelUpload }));
+    expect(screen.queryByText(copy.canceledUpload)).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.accessLost)).not.toBeInTheDocument();
+    expect(body()).toHaveAttribute('readonly');
+    expect(screen.getByRole('button', { name: copy.reload })).toBeEnabled();
+    expect(screen.getByText(copy.refreshRequired)).toBeVisible();
+  });
+  it('reconciles a refreshed pending intent that completed before its cancel click', async () => {
+    const pending = composeUiDraft({
+      kind: 'photo',
+      body: null,
+      pendingUploadIds: [ids.upload],
+    });
+    const completed = {
+      ...pending,
+      revision: 2,
+      pendingUploadIds: [],
+      media: [
+        {
+          id: ids.media,
+          kind: 'photo' as const,
+          width: 2,
+          height: 2,
+          durationMs: null,
+        },
+      ],
+    };
+    mock.revoke.mockResolvedValue({ ok: false, code: 'FORBIDDEN' });
+    mock.read.mockResolvedValue({
+      ok: true,
+      data: composeUiPage({ selectedDraft: completed, drafts: [completed] }),
+    });
+    const user = userEvent.setup();
+    render(
+      subject(composeUiPage({ selectedDraft: pending, drafts: [pending] })),
+    );
+    await user.click(screen.getByRole('button', { name: copy.clearPending }));
+    expect(screen.getByText(copy.canceledUpload)).toBeVisible();
+    expect(screen.getByTestId('secure-media')).toHaveTextContent(ids.media);
+    expect(screen.queryByText(copy.accessLost)).not.toBeInTheDocument();
+  });
+});
+
+describe('Next native history and cached composer restoration', () => {
+  it('reconciles cached empty RSC props against the saved draft URL on remount', async () => {
+    const draft = composeUiDraft({ kind: 'voice', body: '허구 미디어 안내' });
+    window.history.replaceState(
+      {},
+      '',
+      artistComposePath(composeUiPage().artist.slug, draft.id),
+    );
+    mock.read.mockResolvedValue({
+      ok: true,
+      data: composeUiPage({ selectedDraft: draft, drafts: [draft] }),
+    });
+    render(subject(composeUiPage()));
+    await waitFor(() => expect(body()).toHaveValue(draft.body));
+    expect(mock.read.mock.calls[0]![0]).toMatchObject({ messageId: draft.id });
+    expect(
+      document.querySelector(`[data-message-id="${draft.id}"]`),
+    ).toBeInTheDocument();
+    expect(mock.save).not.toHaveBeenCalled();
+  });
+  it('does not reload an outgoing composer or replace the artist menu URL on Back', async () => {
+    const draft = composeUiDraft();
+    render(subject(composeUiPage({ selectedDraft: draft, drafts: [draft] })));
+    window.history.replaceState({}, '', routes.artist);
+    await act(async () => window.dispatchEvent(new PopStateEvent('popstate')));
+    expect(mock.read).not.toHaveBeenCalled();
+    expect(window.location.pathname).toBe(routes.artist);
+    expect(
+      screen.queryByRole('textbox', { name: copy.body }),
+    ).not.toBeInTheDocument();
+  });
+  it('suppresses an in-flight restored draft response after leaving its exact pathname', async () => {
+    const restored = deferred<ComposeResult<ComposePageData>>();
+    const draft = composeUiDraft();
+    window.history.replaceState(
+      {},
+      '',
+      artistComposePath(composeUiPage().artist.slug, draft.id),
+    );
+    mock.read.mockReturnValue(restored.promise);
+    render(subject());
+    expect(mock.read).toHaveBeenCalledOnce();
+    window.history.replaceState({}, '', routes.artist);
+    await act(async () => window.dispatchEvent(new PopStateEvent('popstate')));
+    await act(async () =>
+      restored.resolve({
+        ok: true,
+        data: composeUiPage({ selectedDraft: draft, drafts: [draft] }),
+      }),
+    );
+    expect(window.location.pathname).toBe(routes.artist);
+    expect(
+      screen.queryByRole('textbox', { name: copy.body }),
+    ).not.toBeInTheDocument();
+  });
+  it('never copies Next private history markers into application-origin replaceState calls', async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(
+      { __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: ['opaque'] },
+      '',
+      artistComposePath(composeUiPage().artist.slug),
+    );
+    const replace = vi.spyOn(window.history, 'replaceState');
+    render(subject());
+    fireEvent.change(body(), { target: { value: '역사 상태 동기화' } });
+    await user.click(save());
+    expect(replace).toHaveBeenCalled();
+    for (const [state] of replace.mock.calls) expect(state).toBeNull();
+  });
+  it('revalidates bfcache restoration against the current draft URL and rejects lost ownership', async () => {
+    const draft = composeUiDraft();
+    render(subject(composeUiPage({ selectedDraft: draft, drafts: [draft] })));
+    mock.read.mockResolvedValue({ ok: false, code: 'FORBIDDEN' });
+    await act(async () =>
+      window.dispatchEvent(
+        new PageTransitionEvent('pageshow', { persisted: true }),
+      ),
+    );
+    expect(mock.read.mock.calls[0]![0]).toMatchObject({ messageId: draft.id });
+    expect(screen.getByText(copy.accessLost)).toBeVisible();
+  });
+});
+
+it('offers an explicit current-resource retry if cached-route restoration cannot read the draft', async () => {
+  const draft = composeUiDraft({ body: '복구한 저장 내용' });
+  window.history.replaceState(
+    {},
+    '',
+    artistComposePath(composeUiPage().artist.slug, draft.id),
+  );
+  mock.read
+    .mockResolvedValueOnce({ ok: false, code: 'UNAVAILABLE' })
+    .mockResolvedValueOnce({
+      ok: true,
+      data: composeUiPage({ selectedDraft: draft, drafts: [draft] }),
+    });
+  const user = userEvent.setup();
+  render(subject());
+  await screen.findByText(copy.errors.UNAVAILABLE);
+  await user.click(screen.getByRole('button', { name: copy.reload }));
+  expect(body()).toHaveValue(draft.body);
+  expect(mock.save).not.toHaveBeenCalled();
+  expect(mock.read.mock.calls.map(([input]) => input.messageId)).toEqual([
+    draft.id,
+    draft.id,
+  ]);
 });
