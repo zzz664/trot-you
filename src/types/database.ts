@@ -1374,6 +1374,45 @@ export type Database = {
         };
         Returns: undefined;
       };
+      point_admin_adjust: {
+        Args: {
+          p_amount: number;
+          p_note: string;
+          p_request_id: string;
+          p_user_id: string;
+        };
+        Returns: string;
+      };
+      point_balance: { Args: Record<PropertyKey, never>; Returns: number };
+      point_capabilities: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          grades_configured: boolean;
+          missions_configured: boolean;
+          rewards_configured: boolean;
+          share_configured: boolean;
+        }[];
+      };
+      point_check_attendance: {
+        Args: Record<PropertyKey, never>;
+        Returns: string;
+      };
+      point_history: {
+        Args: {
+          p_before_created_at?: string;
+          p_before_id?: string;
+          p_limit?: number;
+        };
+        Returns: {
+          amount: number;
+          created_at: string;
+          earned_on: string;
+          id: string;
+          policy_version: string;
+          reason: Database['public']['Enums']['point_reason'];
+          ref_id: string;
+        }[];
+      };
       schedule_create: {
         Args: {
           p_address?: string;
@@ -1489,6 +1528,7 @@ export type Database = {
       message_type: 'text' | 'photo' | 'voice' | 'video';
       payment_event_kind: 'charge' | 'refund';
       payment_provider: 'toss' | 'kakaopay';
+      point_reason: 'attendance' | 'post' | 'comment' | 'admin_adjust';
       report_status: 'open' | 'hidden' | 'restored' | 'deleted';
       report_target: 'post' | 'comment' | 'reply';
       schedule_status: 'draft' | 'published';
@@ -1630,6 +1670,7 @@ export const Constants = {
       message_type: ['text', 'photo', 'voice', 'video'],
       payment_event_kind: ['charge', 'refund'],
       payment_provider: ['toss', 'kakaopay'],
+      point_reason: ['attendance', 'post', 'comment', 'admin_adjust'],
       report_status: ['open', 'hidden', 'restored', 'deleted'],
       report_target: ['post', 'comment', 'reply'],
       schedule_status: ['draft', 'published'],
