@@ -315,3 +315,41 @@ h2 {
 .chat-read-error {
   color: var(--color-error);
 }
+
+.reply-panel,
+.reply-composer,
+.reply-list,
+.reply-feed-heading {
+  display: grid;
+  min-inline-size: 0;
+  gap: calc(var(--space-unit) * 2);
+}
+.reply-panel {
+  padding-block: calc(var(--space-unit) * 2);
+  border-block-start: var(--border-width) solid var(--color-control-border);
+}
+.reply-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.reply-item {
+  min-inline-size: 0;
+}
+.reply-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.reply-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-unit);
+}
+.reply-actions > * {
+  flex: 1 1 auto;
+}
+.ui-textarea {
+  min-block-size: calc(var(--input-min-h) * 3);
+  resize: vertical;
+  white-space: pre-wrap;
+}

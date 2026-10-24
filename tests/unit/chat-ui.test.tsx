@@ -26,6 +26,10 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   refresh: vi.fn(),
 }));
+// Reply lifecycle and full room integration are covered in reply-ui.test.tsx.
+vi.mock('@/components/fan/replies/FanReplies', () => ({
+  FanReplies: () => null,
+}));
 vi.mock('@/client/chat', () => ({
   readChatPage: mocks.read,
   markChatRead: mocks.mark,

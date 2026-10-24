@@ -98,3 +98,7 @@ export function chatMessagesPath(slug: string) {
 export function chatReadPath(slug: string, messageId: string) {
   return `${chatMessagesPath(slug)}/${encodeURIComponent(messageId)}/read`;
 }
+
+export function fanRepliesPath(slug: string) {
+  return `${routes.artistMessages}/${encodeURIComponent(slug)}/replies`;
+}
