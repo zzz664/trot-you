@@ -164,11 +164,15 @@ for (const width of [360, 414]) {
         copy.messageKinds.video,
       ]) {
         await expect(
-          page.getByText(copy.mediaUnavailable.replace('{kind}', kind), {
+          page.getByRole('button', {
+            name: messages.media.open.replace('{kind}', kind),
             exact: true,
           }),
         ).toBeVisible();
       }
+      // These are deliberately metadata-only discovery fixtures. Never claim
+      // they render bytes; signing and actual generated media live in media CI.
+      expect(await page.content()).not.toContain('token=');
       await expect(page.locator('main img,main audio,main video')).toHaveCount(
         0,
       );

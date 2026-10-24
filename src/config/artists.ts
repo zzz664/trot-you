@@ -46,10 +46,13 @@ export type ArtistCatalogData = {
   selectedName: string | null;
   onboarding: boolean;
 };
-export type PreviewMedia = {
-  kind: 'photo' | 'voice' | 'video';
-  availability: 'unavailable';
-};
+export type PreviewMedia =
+  | { kind: 'photo' | 'voice' | 'video'; availability: 'unavailable' }
+  | {
+      id: string;
+      kind: 'photo' | 'voice' | 'video';
+      availability: 'available';
+    };
 export type ArtistPreviewMessage = {
   id: string;
   kind: 'text' | 'photo' | 'voice' | 'video';

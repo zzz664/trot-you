@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { SecureMedia } from '@/components/media/SecureMedia';
 import type { ArtistPreviewData } from '@/config/artists';
 import { checkoutPath, routes } from '@/config/routes';
 import { ArtistSelectionFeedback } from './ArtistSelectionFeedback';
@@ -47,13 +48,22 @@ export function ArtistPreview({ data }: { data: ArtistPreviewData }) {
             <li key={message.id}>
               <Card title={t(`messageKinds.${message.kind}`)}>
                 {message.text && <p className="artist-copy">{message.text}</p>}
-                {message.media.map((media, index) => (
-                  <p className="artist-media-unavailable" key={index}>
-                    {t('mediaUnavailable', {
-                      kind: t(`messageKinds.${media.kind}`),
-                    })}
-                  </p>
-                ))}
+                {message.media.map((media, index) =>
+                  media.availability === 'available' ? (
+                    <SecureMedia
+                      key={media.id}
+                      mediaId={media.id}
+                      kind={media.kind}
+                      preview
+                    />
+                  ) : (
+                    <p className="artist-media-unavailable" key={index}>
+                      {t('mediaUnavailable', {
+                        kind: t(`messageKinds.${media.kind}`),
+                      })}
+                    </p>
+                  ),
+                )}
               </Card>
             </li>
           ))}

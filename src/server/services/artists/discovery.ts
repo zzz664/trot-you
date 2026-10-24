@@ -125,10 +125,15 @@ export async function readArtistPreview(
           kind: message.kind,
           text: renderMessage(message.template, callName),
           sentAt: message.sentAt,
-          media: message.media.map(({ kind }) => ({
-            kind,
-            availability: 'unavailable',
-          })),
+          media: message.media.map((media) =>
+            media.availability === 'available'
+              ? {
+                  id: media.id,
+                  kind: media.kind,
+                  availability: 'available' as const,
+                }
+              : { kind: media.kind, availability: 'unavailable' as const },
+          ),
         })),
         selectedSlug: null,
         onboarding: false,
