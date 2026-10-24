@@ -15,20 +15,26 @@ test.beforeEach(async ({ context }) => {
 });
 
 for (const width of [360, 414]) {
-  for (const scale of ['normal', 'large', 'xlarge']) {
+  for (const scale of ['normal', 'large', 'xlarge'] as const) {
     test(`verified session: ${scale} at ${width}px`, async ({
       page,
       context,
       identity,
     }, testInfo) => {
-      const actor = await identity();
+      const actor = await identity({ font_scale: scale });
       await actor.signIn(context);
       await page.setViewportSize({ width, height: 896 });
       await context.addCookies([
-        { name: FONT_SCALE_COOKIE, value: scale, url: appOrigin },
+        // The authenticated database preference must beat a stale cookie.
+        {
+          name: FONT_SCALE_COOKIE,
+          value: scale === 'normal' ? 'xlarge' : 'normal',
+          url: appOrigin,
+        },
       ]);
       const response = await page.goto(routes.home);
       await expect(page).toHaveURL(`${appOrigin}${routes.home}`);
+      expect(await response!.text()).toContain(`data-font-scale="${scale}"`);
       expect(response?.headers()['cache-control']).toContain('no-store');
       expect(response?.headers()['referrer-policy']).toBe('same-origin');
       await expect(page.locator('html')).toHaveAttribute(

@@ -1,6 +1,7 @@
 import 'server-only';
 import { AUTH_RETURN_PATHS } from '@/config/auth';
 import { routes } from '@/config/routes';
+import { ONBOARDING_PATHS } from '@/config/onboarding';
 import type { AuthProfile } from '@/server/db/auth-profile';
 import type { AuthState } from './session';
 
@@ -42,6 +43,14 @@ export function pageRedirect(
 ): string | null {
   if (state.status === 'authenticated') {
     const target = landingPath(state.profile);
+    // Exact allowlist, never prefix matching. Each onboarding page additionally
+    // enforces its persisted prerequisites; completed/restricted actors cannot
+    // use onboarding paths to cross their authoritative landing boundary.
+    if (
+      target === routes.onboarding &&
+      ONBOARDING_PATHS.some((path) => path === pathname)
+    )
+      return null;
     return pathname === target ? null : target;
   }
   if (pathname === routes.start) return null;

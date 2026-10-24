@@ -167,3 +167,51 @@ h2 {
   background: var(--color-surface);
   color: var(--color-text);
 }
+.onboarding-stack,
+.ui-choice-group {
+  display: grid;
+  min-inline-size: 0;
+  gap: calc(var(--space-unit) * 2);
+}
+.ui-choice-group {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.ui-choice-group legend {
+  margin-block-end: var(--space-unit);
+}
+.ui-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-unit);
+  min-block-size: var(--touch-min);
+  min-inline-size: 0;
+  padding: var(--space-unit);
+  border: var(--border-width) solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+.ui-choice:has(input:checked) {
+  border-color: var(--color-accent);
+  border-width: var(--focus-width);
+}
+.ui-choice:has(input:disabled) {
+  cursor: not-allowed;
+  border-style: dashed;
+}
+.ui-choice input {
+  flex-shrink: 0;
+  inline-size: var(--fs-body);
+  block-size: var(--fs-body);
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+.ui-choice:has(input:focus-visible) {
+  outline: var(--focus-width) solid var(--color-accent);
+  outline-offset: var(--focus-offset);
+}
+.onboarding-policy-body {
+  white-space: pre-wrap;
+}

@@ -1,6 +1,5 @@
-import { SessionPage } from '@/components/auth/SessionPage';
-import { routes } from '@/config/routes';
+import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 
 export default function OnboardingPage() {
-  return <SessionPage path={routes.onboarding} />;
+  return <OnboardingScreen />;
 }

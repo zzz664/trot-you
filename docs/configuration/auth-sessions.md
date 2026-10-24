@@ -4,7 +4,7 @@
 
 - `@supabase/ssr` 0.12.7 / `@supabase/supabase-js` 2.118.0의 실제 PKCE·세션 API를 사용한다. 직접 JWT나 refresh protocol을 구현하지 않는다.
 - `POST /api/auth/login`은 Kakao 로그인을 시작하고 `GET /api/auth/callback`은 일회용 code를 교환한다. `POST /api/auth/logout`은 현재 기기 세션을 종료한다. GET 로그아웃은 없다.
-- `/start`, 팬·아티스트·운영자 세션 확인 화면, 온보딩 미완료/이용 제한 안내만 포함한다. 이름·나이·필수 동의·가수 선택·온보딩 완료 처리나 다른 도메인 UI는 포함하지 않는다.
+- 인증 기반은 `/start`, 팬·아티스트·운영자 세션 확인과 이용 제한 안내를 제공한다. 후속 [프로필 온보딩](profile-onboarding.md)은 이름·나이 자기 확인·필수 동의를 추가하지만 가수 선택·설치 및 전체 온보딩 완료는 아직 제공하지 않는다.
 - 기존 DB와 생성 타입을 그대로 사용한다. 실제 사용자·관리자를 생성하거나 역할을 승격하지 않는다.
 
 ## 운영자가 별도로 준비할 설정
@@ -24,7 +24,7 @@
 - Next.js 16의 `src/proxy.ts`는 `getClaims()`로 refresh하고 변경된 쿠키를 다음 요청 헤더와 최종 응답 모두에 전달한다. callback/login/logout은 자체 쿠키 전파를 책임진다. 모든 누적 cookie write 및 SDK가 첫 write에서만 보내는 cache header를 보존한다.
 - Proxy나 layout만 믿지 않는다. 모든 세션 페이지의 DAL이 `getClaims()`로 서명을 검증하고 `getUser()`의 현재 subject를 확인한 뒤, 동일 actor client로 `profiles.id = subject`를 조회한다. 필요한 역할/온보딩/제한 열만 읽는다. 계정 ID·이메일·연락처·토큰은 화면에 출력하지 않는다.
 - 역할은 수정 가능한 user metadata나 JWT custom role이 아니라 현재 DB 프로필에서 읽는다. 제한(무기한/미래 만료)이 온보딩보다 우선하고, 그다음 미완료 온보딩, 그다음 팬/가수/운영자별 경로로 이동한다. 제한 만료는 요청 시 다시 평가한다. 누락 프로필, Auth/DB 오류는 fail closed로 안내한다.
-- return path는 `/`, `/artist`, `/admin`, `/onboarding`의 정확한 문자열만 허용하며, 허용된 경로도 실제 역할/상태의 landing과 다르면 무시한다. URL scheme, `//`, 인코딩·역슬래시·쿼리로 경로를 우회할 수 없다. `Host`/`X-Forwarded-Host`를 callback·redirect origin에 사용하지 않는다.
+- return path는 `/`, `/artist`, `/admin`, `/onboarding` 및 등록된 프로필 단계의 정확한 문자열만 허용하며, 허용된 경로도 실제 역할/상태의 landing과 다르면 무시한다. URL scheme, `//`, 인코딩·역슬래시·쿼리로 경로를 우회할 수 없다. `Host`/`X-Forwarded-Host`를 callback·redirect origin에 사용하지 않는다.
 - login/logout POST는 정확한 configured origin의 `Origin`만 허용한다. 없거나 `null`/다른 origin이면 거부한다. 콜백은 SDK PKCE verifier로 요청을 묶는다. 정확한 callback URL을 유지하기 위해 experimental flow-id query는 사용하지 않고 브라우저당 하나의 진행 중인 로그인만 지원한다. 다시 시작하면 이전 시도를 교체하며, 성공/실패 후 고정 verifier뿐 아니라 SDK의 flow별 slot·index·numeric chunk까지 본인 프로젝트 범위에서 삭제한다. 다른 탭의 이전 시도는 로그인 화면에서 다시 시작해야 한다. 중복 code, provider error, 부정 형식은 일반 오류로 바꾸고 원본 code/error_description을 HTML이나 로그에 반사하지 않는다.
 - 응답은 private/no-store다. 인증 handler/콜백은 Referrer-Policy=no-referrer로 code 유출을 막고, 문서 응답은 same-origin으로 외부 referrer를 차단하면서 네이티브 form POST의 실제 Origin을 보존한다. no-referrer 문서의 Origin:null을 예외 허용하는 방식은 쓰지 않는다. SDK I/O는 요청별 no-store와 10초 fetch timeout을 사용한다. 단일 사용 code/로그아웃은 앱이 무조건 재시도하지 않으며 SDK의 refresh 재시도 계약을 따른다.
 - 로그아웃은 `scope: local`이며, SDK refresh/네트워크 오류가 있어도 현재 앱의 auth cookie와 chunk를 지운다. 실패 시 원격 종료를 확인하지 못했다는 문구를 보인다. 기존 access JWT의 즉시 전역 폐기를 보장하지 않는다. 다른 기기를 종료하지 않으며 이 기능은 고위험 결제/관리 변경용 재인증을 대신하지 않는다.

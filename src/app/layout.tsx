@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { cookies } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { NextIntlClientProvider } from 'next-intl';
 import { DialogRoot } from '@/components/ui/DialogRoot';
 import type { ReactNode } from 'react';
-import { APP_LOCALE, FONT_SCALE_COOKIE } from '@/config/constants';
+import { APP_LOCALE } from '@/config/constants';
 import { getPublicEnv } from '@/config/env';
-import { getDesignTokenCss, resolveFontScale } from '@/lib/design-tokens';
+import { getDesignTokenCss } from '@/lib/design-tokens';
+import { getServerFontScale } from '@/server/onboarding/page';
 import './globals.css';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,9 +23,7 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  const fontScale = resolveFontScale(
-    (await cookies()).get(FONT_SCALE_COOKIE)?.value,
-  );
+  const fontScale = await getServerFontScale();
   return (
     <html lang={APP_LOCALE} data-font-scale={fontScale}>
       <head>
