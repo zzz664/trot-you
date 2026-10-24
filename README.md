@@ -57,3 +57,7 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 ## 알려진 개발 도구 제약
 
 Next.js 권장 ESLint 구성의 React/import/a11y 플러그인 호환 범위에 맞춰 ESLint 9.39.5를 고정했습니다. [ESLint 9는 EOL](https://eslint.org/version-support/)이며, 호환 플러그인이 출시되면 ESLint 10으로 함께 갱신해야 합니다. 런타임 의존성이 아닌 개발 도구 제약이며, 점검일과 보안 검사 결과는 작업 기록에 남깁니다.
+
+## 팬 커뮤니티 데이터 기반
+
+[게시판·신고·운영 제한 DB 계약](docs/database/community.md)을 참고하세요. 호출자 고정 RPC, 원자적 좋아요/댓글/신고 집계, distinct 신고 자동 숨김, 관리자 복구/삭제·공지와 유한한 이용 제한을 포함합니다. 운영 정책은 별도 승인된 snapshot 설정 전까지 차단되며 업로더·화면·알림·포인트 및 답장 신고는 아직 없습니다.
