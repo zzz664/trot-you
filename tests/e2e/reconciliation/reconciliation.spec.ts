@@ -263,7 +263,28 @@ for (const provider of CHECKOUT_PROVIDERS)
         ),
       ).toBeVisible();
       await page.goBack();
+      await expect(page).toHaveURL(
+        new URL(routes.adminReconciliation, appOrigin).href,
+      );
+      await expect(
+        page.getByText(
+          messages.reconciliation.pageNumber.replace('{page}', '1'),
+          { exact: true },
+        ),
+      ).toBeVisible();
+      // Back may finish its document event before the App Router has restored
+      // the server-rendered page. Assert that restored state before Forward;
+      // never mask an aborted navigation or turn it into a test retry.
       await page.goForward();
+      await expect(page).toHaveURL(
+        new URL(`${routes.adminReconciliation}?page=2`, appOrigin).href,
+      );
+      await expect(
+        page.getByText(
+          messages.reconciliation.pageNumber.replace('{page}', '2'),
+          { exact: true },
+        ),
+      ).toBeVisible();
       expect(await calls(request)).toEqual(afterQuery);
       expect(afterQuery.charges).toEqual(before.charges);
       expect(afterQuery.requests.tossCharge).toBe(before.requests.tossCharge);

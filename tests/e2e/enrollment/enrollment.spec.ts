@@ -1,4 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
+import {
+  enrollmentStartSchema,
+  type EnrollmentStart,
+} from '../../../src/config/enrollment';
 import {
   test,
   expect,
@@ -639,16 +644,37 @@ test('expired idle enrollment recovers after nonce loss and a new login without 
   await completeOnboarding(actor);
   await actor.signIn(context);
   const oldSessionId = await prepare(page, actor);
-  const startedResponse = page.waitForResponse(
-    (value) =>
-      new URL(value.url()).pathname === routes.enrollmentStart &&
-      value.request().method() === 'POST',
+  // Capture the real response body before delivering it to the browser. A
+  // fast RSC/provider navigation may discard Chromium's old response handle;
+  // route.fetch performs the same single request, without transport retries.
+  const captured = Promise.withResolvers<EnrollmentStart>();
+  await page.route(
+    `${appOrigin}${routes.enrollmentStart}`,
+    async (route) => {
+      try {
+        const response = await route.fetch({ maxRetries: 0, maxRedirects: 0 });
+        expect(response.ok()).toBe(true);
+        const body = await response.body();
+        const parsed = z
+          .object({ ok: z.literal(true), data: enrollmentStartSchema })
+          .parse(JSON.parse(body.toString('utf8')));
+        await route.fulfill({ response, body });
+        captured.resolve(parsed.data);
+      } catch (error) {
+        captured.reject(error);
+        await route.abort();
+      }
+    },
+    { times: 1 },
   );
   await page.getByRole('button', { name: copy.start, exact: true }).click();
-  const started = await startedResponse;
-  expect(started.ok()).toBe(true);
-  const oldLaunch = (await started.json()).data.launch;
+  const oldLaunch = (await captured.promise).launch;
+  if (oldLaunch?.kind !== 'toss_billing_auth')
+    throw new Error('Expected fictional Toss launch');
   expect(oldLaunch.kind).toBe('toss_billing_auth');
+  await expect(
+    page.getByRole('button', { name: copy.openToss, exact: true }),
+  ).toBeVisible();
   // Keep the old provider-required callback only in test memory. It is never
   // opened, rendered, logged or exchanged before this idle operation expires.
   const oldCallback = new URL(oldLaunch.requestBillingAuth.successUrl);
