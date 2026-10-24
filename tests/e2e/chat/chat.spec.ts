@@ -469,6 +469,16 @@ for (const lost of ['subscription', 'session', 'restriction'] as const) {
     await world.fan.signIn(context);
     await page.goto(artistPreviewPath(world.artist.slug));
     await expect(page.getByText(item.text, { exact: true })).toBeVisible();
+    // The room now also loads the actor's own replies. Finish that initial
+    // authorization request before revoking access so this case specifically
+    // exercises the explicit chat refresh, not a detached-control race with
+    // the independently fail-closed reply load.
+    await expect(
+      page.getByRole('heading', {
+        name: messages.replies.history,
+        exact: true,
+      }),
+    ).toBeVisible();
     if (lost === 'subscription') subscribe(world, 'expired');
     else if (lost === 'session') await context.clearCookies();
     else restrict(world);

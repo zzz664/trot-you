@@ -592,6 +592,58 @@ test('pagination failure retains own history and explicit retry appends only onc
   expect(new Set(ids).size).toBe(35);
 });
 
+test('initial own-history request clears paid room when access is revoked before its authorization check', async ({
+  world,
+  page,
+  context,
+}, info) => {
+  await completeProfile(world.fan, world.artist);
+  subscribe(world);
+  const item = seedMessages(world, 1)[0]!;
+  // Isolate this initial reply-read boundary from independent automatic chat
+  // readmarks, which also correctly close the room after access loss.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'IntersectionObserver', {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  await world.fan.signIn(context);
+  let began = false;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(
+    `${appOrigin}${fanRepliesPath(world.artist.slug)}`,
+    async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      began = true;
+      await gate;
+      await route.continue().catch(() => undefined);
+    },
+  );
+  await page.goto(artistPreviewPath(world.artist.slug));
+  await expect(page.getByText(item.text, { exact: true })).toBeVisible();
+  await expect.poll(() => began).toBe(true);
+  subscribe(world, 'expired');
+  const rechecked = page.waitForResponse(
+    (response) =>
+      response.url() === `${appOrigin}${fanRepliesPath(world.artist.slug)}` &&
+      response.request().method() === 'GET',
+  );
+  release();
+  expect((await rechecked).status()).toBe(403);
+  await expect(
+    page.getByRole('heading', { name: messages.chat.errorTitle, exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('[data-message-id]')).toHaveCount(0);
+  await expect(replyCards(page)).toHaveCount(0);
+  await expect(page.getByRole('textbox')).toHaveCount(0);
+  expect(replyRows(world)).toHaveLength(0);
+  await screenshot(page, info, 'reply-initial-access-recheck');
+});
+
 for (const lost of [
   'session',
   'subscription',
@@ -652,11 +704,38 @@ for (const lost of [
             : routes.subscriptions;
     await expect(link).toHaveAttribute('href', target);
     await link.click();
-    if (lost === 'restriction')
-      await expect(page).toHaveURL(new URL(routes.restricted, appOrigin).href);
-    else if (lost === 'profile')
+    if (lost === 'profile')
       await expect(page).toHaveURL(new RegExp(`${routes.onboarding}(?:/|$)`));
     else await expect(page).toHaveURL(new URL(target, appOrigin).href);
+    if (lost === 'restriction') {
+      // Account restrictions stop paid chat, not an owner's ability to inspect
+      // and cancel existing billing. Preserve that established contract rather
+      // than incorrectly forcing this management recovery to /restricted.
+      await expect(
+        page.getByRole('heading', {
+          name: messages.subscriptions.title,
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('button', {
+          name: messages.subscriptions.open.replace(
+            '{name}',
+            world.artist.name,
+          ),
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('link', {
+          name: messages.chat.open.replace('{name}', world.artist.name),
+          exact: true,
+        }),
+      ).toHaveCount(0);
+      await expect(replyCards(page)).toHaveCount(0);
+      await expect(page.locator('[data-message-id]')).toHaveCount(0);
+      await screenshot(page, info, 'reply-restricted-owner-subscriptions');
+    }
     if (lost === 'subscription')
       await expect(
         page.getByRole('heading', {

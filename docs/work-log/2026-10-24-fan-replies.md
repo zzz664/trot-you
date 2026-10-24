@@ -104,3 +104,46 @@ and three-scale screenshot inspection remain CI-only.
   static-only PWA build. Final-head CI still must verify the additional Korean-punctuation
   SQL assertion, type zero drift, dedicated reply browser cases and all existing
   suites; checkpoint green outcomes do not establish those unexecuted results.
+
+## Restricted-owner recovery expectation correction
+
+- Application-head CI `40129089396` executed all 28 reply browser cases: 27
+  passed, including the nine three-scale/width send flows; one expected a
+  restricted fan's subscription link to redirect to `/restricted`.
+- That expectation contradicted the established subscription-management contract:
+  account restrictions deny paid chat/replies but never prevent an owner from
+  inspecting or canceling existing billing. The application correctly reached
+  `/me/subscriptions`. No application or access-policy change is required.
+- The focused browser correction now verifies the actual subscription heading
+  and management control, the absence of the paid-room link and private room
+  content, and captures the destination. The suite remains 28 cases with 28
+  planned screenshots. The corrected case requires fresh CI execution.
+- The same run's media browser job failed before build/tests because runner host
+  port 54322 was already in use. This is an infrastructure result, not a media
+  assertion or a retry of the earlier blocked independent review. Parent owns
+  any scoped CI recovery; no local Docker/browser retry is performed.
+- Correction-local `npm run check:all` passed again (4,150 tests, 123 files,
+  genuine types, contrast and production/PWA build); guarded discovery still
+  collects 28. These checks do not claim the corrected browser case has run.
+
+## Initial reply-read authorization race in existing chat tests
+
+- The same application run completed chat coverage with 27 passes and three
+  timeout failures: subscription/session/restriction recheck tests revoked access
+  immediately after server-rendered text appeared, while the new initial own-feed
+  request was still pending. That independent request correctly removed the
+  private room, detaching the Refresh button before the test clicked it.
+- Those three cases now wait for the initial own-feed heading before revocation
+  so they deterministically test explicit chat Refresh as intended. They retain
+  all private-content removal/read-evidence assertions. No application behavior
+  is weakened or delayed.
+- Adds a separate real-browser reply case that deliberately holds the initial
+  own-feed request, revokes access, then releases it and requires immediate whole-
+  room clearance without a send or refresh action. Dedicated reply discovery is
+  now 29 cases with 29 planned captures; chat remains 30 cases/26 captures.
+  Actual corrected/new executions remain pending the next exact-head CI.
+- Local `npm run check:all` passed after these fixture changes (unchanged 4,150
+  unit tests/123 files, genuine types, contrast and production/PWA build).
+  Guarded collection confirms reply 29 and chat 30. The new case disables
+  automatic readmarks and observes the actual reply GET's 403, isolating the
+  reply authorization outcome rather than accepting unrelated room clearance.
