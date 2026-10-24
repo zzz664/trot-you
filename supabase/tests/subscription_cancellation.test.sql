@@ -12,7 +12,7 @@ insert into auth.users(id,email,raw_user_meta_data) values
 update public.profiles set role='admin' where id in ('d8000000-0000-4000-8000-000000000003','d8000000-0000-4000-8000-000000000004');
 insert into private.checkout_policies(version,title,body,regular_price_krw,intro_price_krw,approved_at,published_at,billing_period_calendar,payment_tax_basis)
 values('d8100000-0000-4000-8000-000000000001','Fictional checkout','Disposable refund fixture only.',1000,1000,now(),now(),'utc_monthly_clamped','taxable_krw');
-create temp table cancellation_cases(label text primary key,sid uuid,charge uuid,request uuid,token uuid,refund_event uuid);
+create temp table cancellation_cases(label text primary key,sid uuid,charge uuid,request uuid,token uuid,refund_event uuid,refunded_at timestamptz);
 grant all on cancellation_cases to authenticated,service_role;
 create function pg_temp.owner() returns uuid language sql as $$select 'd8000000-0000-4000-8000-000000000001'::uuid$$;
 create function pg_temp.admin() returns uuid language sql as $$select 'd8000000-0000-4000-8000-000000000003'::uuid$$;
@@ -49,10 +49,11 @@ create function pg_temp.claim(label text) returns jsonb language plpgsql as $$de
  if (data->>'dispatch')::boolean then update cancellation_cases set token=(data->>'lease_token')::uuid where cancellation_cases.label=$1; end if;
  return data;
 end;$$;
-create function pg_temp.finalize(label text,action text default 'REFUND_ACTION') returns uuid language plpgsql as $$declare data jsonb; event uuid; begin
+create function pg_temp.finalize(label text,action text default 'REFUND_ACTION') returns uuid language plpgsql as $$declare data jsonb; event uuid; at_time timestamptz; begin
+ at_time:=coalesce((select refunded_at from cancellation_cases where cancellation_cases.label=$1),date_trunc('second',clock_timestamp()));
  data:=public.refund_read(pg_temp.rid(label));
- event:=public.refund_finalize(pg_temp.rid(label),action,data->>'provider_payment_id',(data->>'amount_krw')::integer,'KRW',date_trunc('second',clock_timestamp()),gen_random_uuid());
- update cancellation_cases set refund_event=event where cancellation_cases.label=$1; return event;
+ event:=public.refund_finalize(pg_temp.rid(label),action,data->>'provider_payment_id',(data->>'amount_krw')::integer,'KRW',at_time,gen_random_uuid());
+ update cancellation_cases set refund_event=event,refunded_at=at_time where cancellation_cases.label=$1; return event;
 end;$$;
 select pg_temp.make_case('success');
 select pg_temp.make_case('cancel');
@@ -85,6 +86,8 @@ select is((public.cancel_subscription(pg_temp.sid('cancel'))).status::text,'canc
 select is((public.cancel_subscription(pg_temp.sid('cancel'))).status::text,'canceled','repeated cancel idempotent');
 select is((public.cancel_subscription(pg_temp.sid('cancel'))).next_billing_at,null::timestamptz,'future billing disabled');
 select is(public.has_active_access((select artist_id from public.subscriptions where id=pg_temp.sid('cancel'))),true,'canceled paid-period access retained');
+select throws_ok($$select public.refund_request(pg_temp.sid('success'),pg_temp.charge('success'),600,E'\n\t',gen_random_uuid())$$,'22023','REFUND_INVALID_INPUT','direct RPC rejects tab/newline-only reason before it can poison safe DTO');
+select throws_ok($$select public.refund_request(pg_temp.sid('success'),pg_temp.charge('success'),600,U&'\00A0\FEFF',gen_random_uuid())$$,'22023','REFUND_INVALID_INPUT','direct RPC matches Unicode JS trim for whitespace-only reason');
 select is(pg_temp.request('success')->>'status','requested','request accepts review without inventing policy approval');
 select is(pg_temp.request('success')->>'id',pg_temp.rid('success')::text,'same idempotency key exact replay returns same request');
 select throws_ok($$select pg_temp.request('success',500)$$,'55000','REFUND_IDEMPOTENCY_CONFLICT','replay cannot alter amount');
@@ -103,6 +106,7 @@ insert into private.refund_policies values('d8200000-0000-4000-8000-000000000001
 insert into private.refund_policy_current values(true,'d8200000-0000-4000-8000-000000000001');
 select throws_ok($$update private.refund_policies set body='Changed approval'$$,'23514','REFUND_POLICY_IMMUTABLE','approved policy text immutable');
 set local role authenticated;
+select throws_ok($$select public.refund_decide(pg_temp.rid('success'),'approve',600,'d8200000-0000-4000-8000-000000000001',E'\n\t')$$,'22023','REFUND_INVALID_INPUT','direct admin authorization rejects whitespace-only explanation');
 select is(pg_temp.approve('success')->>'status','authorized','exact amount reviewed under approved policy');
 select is(pg_temp.approve('success')->>'status','authorized','same authorization replay idempotent');
 select throws_ok($$select pg_temp.approve('success',500)$$,'55000','REFUND_STATE_CONFLICT','authorization cannot be rewritten after review');
@@ -140,6 +144,10 @@ select throws_ok($$select public.refund_record_outcome(pg_temp.rid('unknown'),pg
 select lives_ok($$select pg_temp.finalize('unknown','KAKAO_REFUND_ACTION')$$,'exact recovered refund can recognize money');
 reset role;
 update public.profiles set role='fan' where id=pg_temp.admin();
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"d8000000-0000-4000-8000-000000000004","role":"authenticated"}',true);
+select is(public.refund_admin_read(pg_temp.rid('revoke'))->'request'->>'requires_manual_review','true','safe admin DTO shows revoked authorization requires review');
+select set_config('request.jwt.claims','{"sub":"d8000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
 set local role service_role;
 select throws_ok($$select pg_temp.claim('revoke')$$,'42501','FORBIDDEN','executing admin revocation checked at claim');
 select is(public.refund_claim(pg_temp.rid('revoke'),'d8000000-0000-4000-8000-000000000004',120)->>'reason','AUTHORIZATION_REVOKED','different executor cannot use revoked approving admin authority');
@@ -155,6 +163,9 @@ select is(public.refund_record_outcome(pg_temp.rid('failed'),pg_temp.token('fail
 select is(pg_temp.claim('failed')->>'dispatch','false','failed operation never automatically retried');
 select lives_ok($$select public.billing_record_refund(pg_temp.charge('changed'),'EXTERNAL_REFUND',500,'KRW',date_trunc('second',clock_timestamp()),gen_random_uuid())$$,'external verified refund fixture');
 select is(pg_temp.claim('changed')->>'reason','LEDGER_CHANGED','changed cumulative refund requires new review never silent amount rewrite');
+set local role authenticated;
+select is(public.refund_admin_read(pg_temp.rid('changed'))->'request'->>'requires_manual_review','true','safe DTO prevents repeated execute when original refund balance changed');
+set local role service_role;
 select is(pg_temp.claim('lease')->>'dispatch','true','crash fixture dispatch');
 reset role;
 update private.refund_requests set lease_expires_at=clock_timestamp()-interval '1 second' where id=pg_temp.rid('lease');

@@ -213,10 +213,11 @@ async function call(db, role, expression) {
   return JSON.parse(output.split('\n').at(-1));
 }
 async function setup(db) {
+  const [approver, executor] = [uuid(), uuid()].sort();
   const f = {
     fan: uuid(),
-    admin: uuid(),
-    admin2: uuid(),
+    admin: approver,
+    admin2: executor,
     checkout: uuid(),
     policy: uuid(),
   };
@@ -465,6 +466,47 @@ async function tests(db) {
       'unknown operations serialize query leases and never regain monetary dispatch',
     );
   }
+  {
+    const c = await authorized(db, await fixture(db, f));
+    const claimant = await session('ordered-claimant');
+    const revoker = await session('ordered-role-revoker');
+    try {
+      // Hold the lower approving identity first. The larger executing admin's
+      // actual role RPC must wait here BEFORE locking its own higher identity.
+      // Old actor-first code would hold the higher identity and deadlock when
+      // claimant obtains its second identity lock below.
+      await claimant.query(
+        `begin; select 1 from public.profiles where id='${f.admin}' for share;`,
+      );
+      const revocation = revoker
+        .query(
+          `begin; ${actor(f.admin2, `select public.set_profile_role('${f.admin}','fan');`)} commit;`,
+        )
+        .then(
+          (value) => ({ value }),
+          (error) => ({ error }),
+        );
+      await waitForBlock(db, revoker, claimant);
+      const claim = await claimant.query(service(claimSql(c, f.admin2)));
+      assert.equal(parsed(claim).dispatch, true);
+      await claimant.query('commit;');
+      assert.equal((await revocation).error, undefined);
+      assert.equal(
+        await db.query(
+          `select role from public.profiles where id='${f.admin}';`,
+        ),
+        'fan',
+      );
+      await db.query(
+        `update public.profiles set role='admin' where id='${f.admin}';`,
+      );
+      pass(
+        'actual higher-UUID admin role RPC and two-identity refund claim use a consistent nondeadlocking order',
+      );
+    } finally {
+      await Promise.all([claimant.close(), revoker.close()]);
+    }
+  }
   // Real legacy renewal claim primitive used by renewal_claim: cancellations
   // share the subscription lock. The paid interval is kept unchanged.
   for (const cancellationFirst of [true, false]) {
@@ -520,7 +562,7 @@ try {
   );
   shouldReset = true;
   await tests(db);
-  assert.equal(checks, 12);
+  assert.equal(checks, 13);
   console.info(
     `All ${checks} PostgreSQL multi-session cancellation/refund concurrency checks passed.`,
   );

@@ -79,11 +79,32 @@ create trigger refund_policy_no_truncate before truncate on private.refund_polic
 create trigger refund_decisions_immutable before update or delete on private.refund_decisions for each row execute function private.reject_ledger_mutation();
 create trigger refund_decisions_no_truncate before truncate on private.refund_decisions for each statement execute function private.reject_ledger_mutation();
 
+-- Match ECMAScript String.trim at the direct RPC boundary too. Internal newlines
+-- remain valid human explanation; whitespace-only reasons cannot poison DTOs.
+create function private.refund_normalize_reason(p_value text) returns text language sql immutable strict set search_path='' as $$
+ select btrim(p_value,U&'\0009\000A\000B\000C\000D\0020\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000\FEFF');
+$$;
+alter table private.refund_requests add constraint refund_requests_reason_normalized check(reason=private.refund_normalize_reason(reason) and reason<>'');
+alter table private.refund_requests add constraint refund_requests_decision_reason_normalized check(decision_reason is null or (decision_reason=private.refund_normalize_reason(decision_reason) and decision_reason<>''));
+alter table private.refund_decisions add constraint refund_decisions_reason_normalized check(reason=private.refund_normalize_reason(reason) and reason<>'');
 create function private.refund_require_actor() returns uuid language plpgsql set search_path='' as $$
 declare actor uuid:=auth.uid();
 begin
  if current_setting('role',true) is distinct from 'authenticated' or actor is null then raise exception 'FORBIDDEN' using errcode='42501'; end if;
  return actor;
+end;$$;
+-- Refund execution locks executor+approver identities in UUID order. The role
+-- mutation path must use the same order, rather than actor-then-target (ABBA).
+create or replace function public.set_profile_role(p_user_id uuid,p_role public.user_role)
+returns void language plpgsql security definer set search_path='' as $$
+declare actor public.profiles%rowtype;
+begin
+ perform 1 from public.profiles where id in (auth.uid(),p_user_id) order by id for update;
+ select * into actor from public.profiles where id=auth.uid();
+ if actor.id is null or actor.role<>'admin' or (actor.is_restricted and (actor.restricted_until is null or actor.restricted_until>clock_timestamp())) then raise exception 'FORBIDDEN' using errcode='42501'; end if;
+ if p_role is null then raise exception 'ROLE_REQUIRED' using errcode='22004'; end if;
+ update public.profiles set role=p_role where id=p_user_id;
+ if not found then raise exception 'PROFILE_NOT_FOUND' using errcode='P0002'; end if;
 end;$$;
 create function private.refund_require_admin() returns uuid language plpgsql set search_path='' as $$
 declare actor uuid:=private.refund_require_actor(); p public.profiles%rowtype;
@@ -114,7 +135,11 @@ create function private.refund_request_projection(p_request_id uuid) returns jso
   'policy_version',r.policy_version,'requested_at',r.requested_at,'decided_at',r.decided_at,'finished_at',r.finished_at,
   'can_reconcile',((r.state='inflight' and r.lease_expires_at<=statement_timestamp()) or
    (r.state='unknown' and r.query_attempts<3 and r.next_query_at<=statement_timestamp() and (r.query_lease_expires_at is null or r.query_lease_expires_at<=statement_timestamp()) and private.refund_has_payment_identity(r.original_event_id))),
-  'requires_manual_review',(r.state in ('authorized','inflight','unknown') and (not private.refund_has_payment_identity(r.original_event_id) or r.query_attempts>=3)))
+  'requires_manual_review',(r.state in ('authorized','inflight','unknown') and
+   (not private.refund_has_payment_identity(r.original_event_id) or r.query_attempts>=3 or
+    (r.state='authorized' and (not exists(select 1 from public.profiles approver where approver.id=r.authorized_by and approver.role='admin'
+      and not (approver.is_restricted and (approver.restricted_until is null or approver.restricted_until>statement_timestamp())))
+      or r.refunded_before_krw is distinct from (select coalesce(-sum(x.amount_krw::bigint),0) from public.payment_events x where x.original_event_id=r.original_event_id))))))
  from private.refund_requests r join public.subscriptions s on s.id=r.subscription_id
  join public.artists a on a.id=s.artist_id join public.payment_events e on e.id=r.original_event_id where r.id=p_request_id;
 $$;
@@ -154,14 +179,14 @@ create function public.refund_request(p_subscription_id uuid,p_original_event_id
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare actor uuid:=private.refund_require_actor(); s public.subscriptions%rowtype; e public.payment_events%rowtype; r private.refund_requests%rowtype; used bigint;
 begin
- if p_idempotency_key is null or p_amount_krw is null or p_amount_krw<=0 or p_reason is null or length(btrim(p_reason)) not between 1 and 500 then raise exception 'REFUND_INVALID_INPUT' using errcode='22023'; end if;
+ if p_idempotency_key is null or p_amount_krw is null or p_amount_krw<=0 or p_reason is null or length(private.refund_normalize_reason(p_reason)) not between 1 and 500 then raise exception 'REFUND_INVALID_INPUT' using errcode='22023'; end if;
  select * into s from public.subscriptions where id=p_subscription_id for update;
  if s.id is null or s.user_id<>actor then raise exception 'FORBIDDEN' using errcode='42501'; end if;
  select * into e from public.payment_events where id=p_original_event_id for update;
  if e.id is null or e.subscription_id<>s.id or e.kind<>'charge' then raise exception 'FORBIDDEN' using errcode='42501'; end if;
  select * into r from private.refund_requests where user_id=actor and idempotency_key=p_idempotency_key;
  if r.id is not null then
-   if r.original_event_id<>e.id or r.amount_krw<>p_amount_krw or r.reason<>btrim(p_reason) then raise exception 'REFUND_IDEMPOTENCY_CONFLICT' using errcode='55000'; end if;
+   if r.original_event_id<>e.id or r.amount_krw<>p_amount_krw or r.reason<>private.refund_normalize_reason(p_reason) then raise exception 'REFUND_IDEMPOTENCY_CONFLICT' using errcode='55000'; end if;
    return private.refund_request_projection(r.id);
  end if;
  if not exists(select 1 from private.payment_event_verifications where event_id=e.id) then raise exception 'REFUND_CHARGE_UNVERIFIED' using errcode='55000'; end if;
@@ -170,7 +195,7 @@ begin
  select * into r from private.refund_requests where original_event_id=e.id and state in ('requested','authorized','inflight','unknown');
  if r.id is not null then raise exception 'REFUND_ALREADY_OPEN' using errcode='55000'; end if;
  insert into private.refund_requests(user_id,subscription_id,original_event_id,idempotency_key,amount_krw,reason)
- values(actor,s.id,e.id,p_idempotency_key,p_amount_krw,btrim(p_reason)) returning * into r;
+ values(actor,s.id,e.id,p_idempotency_key,p_amount_krw,private.refund_normalize_reason(p_reason)) returning * into r;
  return private.refund_request_projection(r.id);
 end;$$;
 create function public.refund_admin_list(p_limit integer default 50,p_page integer default 1) returns jsonb language plpgsql security definer set search_path='' as $$
@@ -193,14 +218,14 @@ create function public.refund_decide(p_request_id uuid,p_decision text,p_amount_
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare actor uuid:=private.refund_require_admin(); r private.refund_requests%rowtype; p private.refund_policies%rowtype; used bigint; current_version uuid;
 begin
- if p_decision is null or p_decision not in ('approve','reject') or p_reason is null or length(btrim(p_reason)) not between 1 and 500 then raise exception 'REFUND_INVALID_INPUT' using errcode='22023'; end if;
+ if p_decision is null or p_decision not in ('approve','reject') or p_reason is null or length(private.refund_normalize_reason(p_reason)) not between 1 and 500 then raise exception 'REFUND_INVALID_INPUT' using errcode='22023'; end if;
  select * into r from private.refund_requests where id=p_request_id;
  if r.id is null then raise exception 'REFUND_NOT_FOUND' using errcode='P0002'; end if;
  perform 1 from public.subscriptions where id=r.subscription_id for update;
  perform 1 from public.payment_events where id=r.original_event_id for update;
  select * into strict r from private.refund_requests where id=p_request_id for update;
- if (p_decision='approve' and r.state='authorized' and r.amount_krw=p_amount_krw and r.policy_version=p_policy_version and r.authorized_by=actor and r.decision_reason=btrim(p_reason))
- or (p_decision='reject' and r.state='rejected' and r.decision_reason=btrim(p_reason)) then return private.refund_request_projection(r.id); end if;
+ if (p_decision='approve' and r.state='authorized' and r.amount_krw=p_amount_krw and r.policy_version=p_policy_version and r.authorized_by=actor and r.decision_reason=private.refund_normalize_reason(p_reason))
+ or (p_decision='reject' and r.state='rejected' and r.decision_reason=private.refund_normalize_reason(p_reason)) then return private.refund_request_projection(r.id); end if;
  if r.state<>'requested' and not (p_decision='reject' and r.state='authorized') then raise exception 'REFUND_STATE_CONFLICT' using errcode='55000'; end if;
  if p_decision='approve' then
    select version into current_version from private.refund_policy_current where singleton for share;
@@ -209,11 +234,11 @@ begin
    if p_amount_krw is null or p_amount_krw<>r.amount_krw then raise exception 'REFUND_AMOUNT_MISMATCH' using errcode='23514'; end if;
    select coalesce(-sum(amount_krw::bigint),0) into used from public.payment_events where original_event_id=r.original_event_id;
    if r.amount_krw::bigint+used>(select amount_krw from public.payment_events where id=r.original_event_id) then raise exception 'REFUND_EXCEEDS_CHARGE' using errcode='23514'; end if;
-   update private.refund_requests set state='authorized',policy_version=p.version,authorized_by=actor,decision_reason=btrim(p_reason),decided_at=clock_timestamp(),refunded_before_krw=used where id=r.id;
+   update private.refund_requests set state='authorized',policy_version=p.version,authorized_by=actor,decision_reason=private.refund_normalize_reason(p_reason),decided_at=clock_timestamp(),refunded_before_krw=used where id=r.id;
  else
-   update private.refund_requests set state='rejected',decision_reason=btrim(p_reason),decided_at=clock_timestamp(),finished_at=clock_timestamp() where id=r.id;
+   update private.refund_requests set state='rejected',decision_reason=private.refund_normalize_reason(p_reason),decided_at=clock_timestamp(),finished_at=clock_timestamp() where id=r.id;
  end if;
- insert into private.refund_decisions(request_id,actor_id,decision,amount_krw,policy_version,reason) values(r.id,actor,p_decision,r.amount_krw,case when p_decision='approve' then p.version else r.policy_version end,btrim(p_reason));
+ insert into private.refund_decisions(request_id,actor_id,decision,amount_krw,policy_version,reason) values(r.id,actor,p_decision,r.amount_krw,case when p_decision='approve' then p.version else r.policy_version end,private.refund_normalize_reason(p_reason));
  return private.refund_request_projection(r.id);
 end;$$;
 
@@ -323,7 +348,7 @@ begin
  return event;
 end;$$;
 
-revoke all on function private.refund_policy_immutable(),private.refund_require_actor(),private.refund_require_admin(),private.refund_policy_projection(),private.refund_request_projection(uuid),private.refund_has_payment_identity(uuid),private.subscription_management_projection(uuid),private.refund_dispatch_projection(uuid) from public,anon,authenticated,service_role;
+revoke all on function private.refund_policy_immutable(),private.refund_normalize_reason(text),private.refund_require_actor(),private.refund_require_admin(),private.refund_policy_projection(),private.refund_request_projection(uuid),private.refund_has_payment_identity(uuid),private.subscription_management_projection(uuid),private.refund_dispatch_projection(uuid) from public,anon,authenticated,service_role;
 revoke all on function public.subscription_management_list(integer),public.subscription_management_read(uuid,integer),public.refund_request(uuid,uuid,integer,text,uuid),public.refund_admin_list(integer,integer),public.refund_admin_read(uuid),public.refund_decide(uuid,text,integer,uuid,text),public.refund_read(uuid),public.refund_claim(uuid,uuid,integer),public.refund_record_outcome(uuid,uuid,text,uuid),public.refund_finalize(uuid,text,text,integer,text,timestamptz,uuid) from public,anon,authenticated,service_role;
 grant execute on function public.subscription_management_list(integer),public.subscription_management_read(uuid,integer),public.refund_request(uuid,uuid,integer,text,uuid),public.refund_admin_list(integer,integer),public.refund_admin_read(uuid),public.refund_decide(uuid,text,integer,uuid,text) to authenticated;
 grant execute on function public.refund_read(uuid),public.refund_claim(uuid,uuid,integer),public.refund_record_outcome(uuid,uuid,text,uuid),public.refund_finalize(uuid,text,text,integer,text,timestamptz,uuid) to service_role;
