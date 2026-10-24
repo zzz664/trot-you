@@ -46,6 +46,11 @@ select ok((select bool_and(not has_function_privilege(r,p.oid,'EXECUTE')) from p
 select ok((select bool_and(not has_function_privilege(r,p.oid,'EXECUTE')) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
  cross join unnest(array['anon','service_role']) r where n.nspname='public' and p.proname like 'settlement\_%' escape '\'),
  'service role and anon cannot call browser-admin report APIs');
+select is((select provolatile::text from pg_proc where oid='private.settlement_calculate_components(numeric,bigint,bigint,integer,jsonb)'::regprocedure),
+ 's','numeric calculator truthfully matches STABLE polymorphic JSON construction');
+select ok((select bool_and(provolatile='v') from pg_proc where oid in
+ ('public.settlement_calculate(uuid,date)'::regprocedure,'public.settlement_confirm(uuid,uuid)'::regprocedure)),
+ 'mutation callers remain VOLATILE and may use the stable snapshot calculator');
 select ok((select bool_and(p.prosecdef and 'search_path=""'=any(p.proconfig)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
  where n.nspname='public' and p.proname like 'settlement\_%' escape '\'),'all public privilege crossings use SECURITY DEFINER with pinned empty search path');
 select is((select count(*) from unnest(enum_range(null::public.settlement_status))),2::bigint,'status enum has draft and confirmed only, no paid or remitted state');

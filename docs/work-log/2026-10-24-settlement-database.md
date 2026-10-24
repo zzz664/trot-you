@@ -42,3 +42,10 @@ CI는 기존 reset/lint → pgTAP 두 번 → 기존/신규 독립 psql 경합 �
 - `npm run check:all`의 lint·strict typecheck·11 files / 240 unit tests·10개 대비 조합·production build가 통과했다. UI/브라우저 변경은 없고 로컬 browser 재시도는 하지 않았다. 독립 read-only 최종 검토에서 추가 차단 결함은 없었다.
 - 보조 검사 로그는 `/tmp/trot-you-db-check/settlement-final-verification.log`, `settlement-tap-1.txt`, `settlement-tap-2.txt`, `settlement-concurrency-sequential-smoke.log`, `settlement-final-check-all.log`에 있다. 독립 수식 probe는 `review-settlement-math.mjs`이며 공개 저장소에 임시 도구/로그를 넣지 않는다.
 - 실제 Supabase PG17 lint·1,792개 pgTAP 두 번·96개 경합·genuine 타입 artifact/committed drift·기존 E2E 13개는 부모가 확인할 **대기 항목**이다. 생성 타입 반영 및 동일 exact head 전체 CI 통과 전에는 완료/병합으로 표현하지 않는다.
+
+## 실제 CI SQL lint 발견과 volatility 수정
+
+- [CI 40068555288](https://github.com/zzz664/trot-you/actions/runs/40068555288)의 원격 exact head `7a2476b5a24837eff593f8c1ef1d95f88a5da1cb`는 로컬 bootstrap `e8aa9e0c9797bbe8873ebf8f0813b6d2ebb09658`와 tree `3099e741f631eb2a927830e5460de5c8cce9241a`가 동일하다. bootstrap은 `archive/settlement-bootstrap-e8aa9e0`에 보존하고 깨끗한 branch를 원격 head로 정렬한 뒤 수정했다.
+- 실제 Supabase PG17.11.0.006 시작/reset은 성공했으나 SQL lint가 `private.settlement_calculate_components`의 IMMUTABLE 선언과 RETURN의 STABLE expression 불일치를 보고했다. 해당 run의 pgTAP·경합·타입 생성·artifact·drift 단계는 **실행되지 않았다**. quality의 240 unit tests 및 13 E2E는 통과했지만 전체 CI 성공이 아니다.
+- PostgreSQL의 polymorphic JSON 생성 함수는 타입별 출력 변환을 포함하므로 STABLE 계약이다. 계산 helper를 STABLE로 정정했으며 exact numerator/denominator·분기·반올림 수식은 바꾸지 않았다. 읽는 table은 여전히 없고 호출하는 calculate/confirm mutation 함수는 VOLATILE을 유지한다. lint gate를 약화하거나 예외 목록을 추가하지 않았다.
+- helper STABLE과 두 mutation caller VOLATILE 계약을 pgTAP 두 assertion으로 고정했다. 신규 누계는 175개, 전체 누계는 **1,794개**다. 독립 affected-callers 재검토에서 immutable caller/index 의존이 없고 JSON builders의 실제 STABLE catalog 계약과 일치함을 확인했다. 403개 BigInt oracle 수식 검사는 다시 통과했다. 전체 보조 pgTAP **1,794개가 두 번** 통과했고 수정 후 `check:all`도 통과했다. 실제 PG17 lint 이후 전체 DB gate·genuine 타입·exact-head CI는 부모가 다시 확인한다.

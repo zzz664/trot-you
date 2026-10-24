@@ -208,7 +208,10 @@ create trigger settlement_adjustments_no_truncate before truncate on private.set
 
 -- Exact rational components + arbitrary-precision numeric approximations.
 create function private.settlement_calculate_components(p_gross numeric,p_messages bigint,p_photos bigint,p_days integer,p_policy jsonb)
-returns jsonb language plpgsql immutable set search_path='' as $$
+-- PostgreSQL marks polymorphic JSON builders STABLE because output conversion
+-- can depend on the input type. Match their actual volatility contract; this
+-- helper still reads no tables and all monetary arithmetic remains exact.
+returns jsonb language plpgsql stable set search_path='' as $$
 declare unit numeric:=1000000; v numeric; f numeric; r numeric; an numeric:=1; ad numeric:=1;
   vn numeric; vd numeric; pn numeric; bn numeric; sn numeric; sd numeric; dn numeric; dd numeric; fn numeric; fd numeric;
 begin
