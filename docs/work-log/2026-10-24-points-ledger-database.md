@@ -30,3 +30,11 @@
 CI database job에 신규 경합을 추가했다. 실제 Supabase의 lint → pgTAP 2회 → 기존31+신규16 경합 → genuine 타입 생성 → typecheck → artifact 업로드 → committed type drift 검사 순서를 유지한다. 첫 커밋은 schema type drift가 예상되며 실제 CI artifact를 받아 두 번째 한국어 커밋으로 반영하고 exact-head CI 통과 후 병합해야 한다. 수동으로 타입을 작성하지 않았다.
 
 운영 정책 서비스/승인 화면, 출석·내역 UI/HTTP 서비스, 공유·미션 검증, 활동 등급 공식, 남용 탐지·cap 승인, 보존/익명화 정책은 미완료다. 이 DB 기반을 전체 MVP 완료나 운영 활성화로 표시하지 않는다. 실제 계정 생성·외부 발송·결제·금전 지급은 수행하지 않았다.
+
+## 실제 CI 검증과 생성 타입 반영
+
+- [PR #9 bootstrap CI 40061989892](https://github.com/zzz664/trot-you/actions/runs/40061989892)는 원격 head `fb913621e1d76253ccbd82bda53f66ffd0e568e5`에서 실행했다. 로컬 bootstrap과 원격 bootstrap의 tree가 `c3260977c681fd6deddf0d1c097200cddbb5d9e5`로 동일함을 확인하고, 기존 로컬 커밋을 archive 브랜치에 보존한 뒤 원격 head를 기준으로 후속 커밋을 준비했다. 기준 develop은 계속 `e929fcd00c248c40c070b7898f780599a81292ec`다.
+- 실제 Supabase PostgreSQL `17.11.0.006`에서 시작/reset/SQL lint, pgTAP 1,184개 두 번, 독립 psql 동시성 47개(결제7+메시지5+커뮤니티12+일정7+포인트16), genuine 타입 생성/typecheck, DB cleanup이 통과했다. quality의 167 unit·build·브라우저 E2E 13개도 통과했다. 이는 앞선 로컬 PGlite 보조 결과와 별도의 실제 CI 검증이다.
+- bootstrap run의 최종 실패는 예상된 committed generated-type drift 검사뿐이었다. 실패를 전체 CI 통과로 표시하지 않는다.
+- 해당 exact-head run의 `database-types` artifact `12547892094`를 반영했다. ZIP SHA-256 `2857d120bab87ab973091bb9e84ce196661f462abb2d79927d0229b084412167`은 artifact metadata와 업로드 로그에 일치한다. `src/types/database.ts`는 51,488 bytes / 1,688 lines, SHA-256 `674799c316d62586556eab41c7032f59c95b6c04d70b21cb0e03587cedb396ca`로 원본과 byte-identical하며 수동 생성/편집하지 않았다.
+- 이 후속 커밋은 생성 타입과 이 검증 기록만 변경한다. 새 타입을 포함한 `npm run check:all`이 167 unit·10개 대비 조합·build까지 통과했다. 게시 후 새 exact-head CI의 type drift 포함 전체 통과를 확인해야 병합할 수 있다. 실제 운영 설정 활성화·계정·금전 거래·외부 발송은 여전히 수행하지 않았다.
