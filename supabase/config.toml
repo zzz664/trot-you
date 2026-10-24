@@ -39,7 +39,8 @@ enabled = false
 enabled = false
 
 [storage]
-enabled = false
+enabled = true
+file_size_limit = "100MiB"
 
 [realtime]
 enabled = false

@@ -30,6 +30,7 @@ jobs:
       # Independent psql sessions prove lock serialization; the script restores
       # the disposable local database after its committed fictional fixtures.
       - run: npm run test:db:concurrency
+      - run: npm run test:db:messaging-concurrency
       - run: npm run db:types
       - run: npm run typecheck
       - uses: actions/upload-artifact@v4
