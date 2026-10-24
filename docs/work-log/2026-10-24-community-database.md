@@ -33,7 +33,15 @@
 - 새 pgTAP **223개**(lifecycle 81, policy/media 74, security 68)와 기존 **564개**를 합한 **787개**가 보조 PGlite PostgreSQL 18에서 **2회 모두 통과**했다. synthetic Auth/Storage fixture는 현재 테스트가 요구하는 Storage migration 0055의 직접 DELETE statement guard를 명시적으로 포함한다.
 - 실제 PostgreSQL17 Supabase CI는 전체 pgTAP를 2회 실행하고 기존 **12개** 결제/메시지 경합과 신규 커뮤니티 **12개** 독립 psql 세션 검사를 실행한다. 신규 경합은 중복 작성/댓글/좋아요/취소/신고, distinct 임계점, 숨김→삭제, 제한/가수 중지/삭제 경합, 제한 만료 fresh-clock, 마지막 rate quota 경쟁을 다룬다. 로컬 실행은 `docker context show` 단계의 `spawnSync docker ENOENT`로 DB 접근/fixture 쓰기 전 차단되었다. 여기서 실제 Supabase/다중 세션을 실행했다고 보고하지 않는다.
 - Storage 테스트는 rollback-only metadata다. 업로드·이미지 실제 바이트·서명 URL·Storage HTTP 삭제를 검증하지 않았다.
-- 브라우저는 알려진 sandbox 실행 거절을 재시도하지 않았다. 이번 변경에 UI가 없으며 기존 CI browser suite 결과를 별도로 확인해야 한다.
-- 실제 생성 타입은 수동으로 작성하지 않았다. 첫 구현 커밋은 CI artifact 생성 후 type-drift gate 실패가 예상된다. 부모 작업이 genuine `database-types` artifact를 후속 커밋에 가져오고 exact-head 전체 CI를 확인한 뒤에만 병합한다.
+- 로컬 브라우저는 알려진 sandbox 실행 거절을 재시도하지 않았다. 이번 변경에는 UI가 없으며 실제 CI browser suite **13개**는 통과했다.
+- 실제 생성 타입은 수동으로 작성하지 않았다. 첫 구현 커밋의 CI는 artifact 생성 후 예상한 type-drift gate에서만 실패했다. 아래 genuine artifact를 후속 커밋에 반영했고, 이 타입 커밋의 exact-head 전체 CI를 확인한 뒤에만 병합한다.
 
 상세 접근/상태 전이/정책/이미지 계약은 [커뮤니티 DB 문서](../database/community.md)를 참고한다. 운영 DB, 실제 계정·자산·키·외부 전송·배포는 변경하지 않았다.
+
+## 실제 Supabase CI 및 생성 타입 반영
+
+- PR #7 bootstrap exact head `9bdd9b00f007c1f29aaffcf78e3f9129e0af0115`, CI run `40058596107`을 독립 검증자가 확인했다. 실제 Supabase PostgreSQL **17.11.0.006**에서 reset/lint, **787 pgTAP × 2회**, **24개 독립 세션 경합**(결제 7 + 메시지 5 + 커뮤니티 12), 타입 생성/typecheck/정리가 통과했다. quality job의 **166개 단위검사·13개 E2E**도 통과했다. 실패는 기존 파일과 신규 스키마의 예상된 생성 타입 차이 gate뿐이다.
+- genuine `database-types` artifact ID `12546905583`: ZIP SHA-256 `994df6ad440c75a784b6aa994683d237ce17e4b69bcc07b63535f979e129837f`. ZIP에는 `database.ts` 한 파일만 있다.
+- 생성 파일은 **38,907 bytes / 1,267 lines**, SHA-256 `e824d378b976a801fb957b6db11148a9210c6324c8312bc7e0fd4c560778a121`를 검증하고 `src/types/database.ts`에 바이트 그대로 반영했다. 수동 보정은 하지 않았다.
+- 게시된 구현 커밋과 로컬 구현 커밋의 tree가 `4ddc48b98473a6a5832c1165755cf20933ff086f`로 같은 것을 확인했다. 로컬 커밋을 보존 태그로 남긴 뒤 게시된 exact head로 안전하게 맞춰 타입·작업 기록만 후속 커밋으로 작성했다.
+- 생성 타입 반영 후 `npm run check:all`을 다시 실행해 lint/format/typecheck, **166개 단위검사**, 대비 검사와 build가 모두 통과했음을 확인했다. 최종 타입 커밋의 실제 Supabase/브라우저 CI는 부모 작업에서 게시 후 확인해야 하며 아직 성공으로 간주하지 않는다.

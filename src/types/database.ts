@@ -96,6 +96,100 @@ export type Database = {
         };
         Relationships: [];
       };
+      comments: {
+        Row: {
+          body: string;
+          created_at: string;
+          deleted_at: string | null;
+          id: string;
+          is_hidden: boolean;
+          post_id: string;
+          report_count: number;
+          request_id: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          body: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          id?: string;
+          is_hidden?: boolean;
+          post_id: string;
+          report_count?: number;
+          request_id: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          id?: string;
+          is_hidden?: boolean;
+          post_id?: string;
+          report_count?: number;
+          request_id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'comments_post_id_fkey';
+            columns: ['post_id'];
+            isOneToOne: false;
+            referencedRelation: 'posts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'comments_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      community_moderation_log: {
+        Row: {
+          action: string;
+          actor_id: string;
+          created_at: string;
+          id: string;
+          reason: string;
+          target_id: string;
+          target_type: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          action: string;
+          actor_id: string;
+          created_at?: string;
+          id?: string;
+          reason: string;
+          target_id: string;
+          target_type: string;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string;
+          created_at?: string;
+          id?: string;
+          reason?: string;
+          target_id?: string;
+          target_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'community_moderation_log_actor_id_fkey';
+            columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       message_media: {
         Row: {
           bucket_id: string;
@@ -313,6 +407,165 @@ export type Database = {
           },
         ];
       };
+      post_images: {
+        Row: {
+          bucket_id: string;
+          byte_size: number;
+          created_at: string;
+          height: number;
+          id: string;
+          mime_type: string;
+          object_path: string;
+          post_id: string;
+          storage_object_id: string;
+          width: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          bucket_id: string;
+          byte_size: number;
+          created_at?: string;
+          height: number;
+          id: string;
+          mime_type: string;
+          object_path: string;
+          post_id: string;
+          storage_object_id: string;
+          width: number;
+        };
+        Update: {
+          bucket_id?: string;
+          byte_size?: number;
+          created_at?: string;
+          height?: number;
+          id?: string;
+          mime_type?: string;
+          object_path?: string;
+          post_id?: string;
+          storage_object_id?: string;
+          width?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'post_images_post_id_fkey';
+            columns: ['post_id'];
+            isOneToOne: false;
+            referencedRelation: 'posts';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      post_likes: {
+        Row: {
+          created_at: string;
+          post_id: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          post_id: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          post_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'post_likes_post_id_fkey';
+            columns: ['post_id'];
+            isOneToOne: false;
+            referencedRelation: 'posts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'post_likes_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      posts: {
+        Row: {
+          artist_id: string;
+          body: string;
+          comment_count: number;
+          created_at: string;
+          deleted_at: string | null;
+          id: string;
+          is_hidden: boolean;
+          is_notice: boolean;
+          is_pinned: boolean;
+          like_count: number;
+          report_count: number;
+          request_id: string;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          artist_id: string;
+          body: string;
+          comment_count?: number;
+          created_at?: string;
+          deleted_at?: string | null;
+          id?: string;
+          is_hidden?: boolean;
+          is_notice?: boolean;
+          is_pinned?: boolean;
+          like_count?: number;
+          report_count?: number;
+          request_id: string;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          artist_id?: string;
+          body?: string;
+          comment_count?: number;
+          created_at?: string;
+          deleted_at?: string | null;
+          id?: string;
+          is_hidden?: boolean;
+          is_notice?: boolean;
+          is_pinned?: boolean;
+          like_count?: number;
+          report_count?: number;
+          request_id?: string;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'posts_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artist_catalog';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'posts_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artists';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'posts_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       profiles: {
         Row: {
           age_range: string | null;
@@ -419,6 +672,58 @@ export type Database = {
           {
             foreignKeyName: 'replies_user_id_fkey';
             columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      reports: {
+        Row: {
+          created_at: string;
+          id: string;
+          reason: string;
+          reporter_id: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          status: Database['public']['Enums']['report_status'];
+          target_id: string;
+          target_type: Database['public']['Enums']['report_target'];
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          id?: string;
+          reason: string;
+          reporter_id: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: Database['public']['Enums']['report_status'];
+          target_id: string;
+          target_type: Database['public']['Enums']['report_target'];
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          reason?: string;
+          reporter_id?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: Database['public']['Enums']['report_status'];
+          target_id?: string;
+          target_type?: Database['public']['Enums']['report_target'];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reports_reporter_id_fkey';
+            columns: ['reporter_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reports_resolved_by_fkey';
+            columns: ['resolved_by'];
             isOneToOne: false;
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
@@ -637,6 +942,79 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      community_create_comment: {
+        Args: { p_body: string; p_post_id: string; p_request_id: string };
+        Returns: string;
+      };
+      community_create_post: {
+        Args: {
+          p_artist_id: string;
+          p_body: string;
+          p_request_id: string;
+          p_title: string;
+        };
+        Returns: string;
+      };
+      community_delete: {
+        Args: {
+          p_target_id: string;
+          p_target_type: Database['public']['Enums']['report_target'];
+        };
+        Returns: undefined;
+      };
+      community_moderate: {
+        Args: {
+          p_decision: string;
+          p_reason: string;
+          p_target_id: string;
+          p_target_type: Database['public']['Enums']['report_target'];
+        };
+        Returns: undefined;
+      };
+      community_register_image: {
+        Args: {
+          p_actor_id: string;
+          p_height: number;
+          p_image_id: string;
+          p_post_id: string;
+          p_storage_object_id: string;
+          p_width: number;
+        };
+        Returns: string;
+      };
+      community_report: {
+        Args: {
+          p_reason: string;
+          p_target_id: string;
+          p_target_type: Database['public']['Enums']['report_target'];
+        };
+        Returns: string;
+      };
+      community_restrict_user: {
+        Args: {
+          p_reason: string;
+          p_restricted: boolean;
+          p_until: string;
+          p_user_id: string;
+        };
+        Returns: undefined;
+      };
+      community_set_like: {
+        Args: { p_liked: boolean; p_post_id: string };
+        Returns: boolean;
+      };
+      community_set_notice: {
+        Args: { p_is_notice: boolean; p_is_pinned: boolean; p_post_id: string };
+        Returns: undefined;
+      };
+      community_update_comment: {
+        Args: { p_body: string; p_comment_id: string };
+        Returns: undefined;
+      };
+      community_update_post: {
+        Args: { p_body: string; p_post_id: string; p_title: string };
+        Returns: undefined;
+      };
       has_active_access: { Args: { p_artist_id: string }; Returns: boolean };
       mark_message_read: { Args: { p_message_id: string }; Returns: string };
       messaging_cancel: {
@@ -735,6 +1113,8 @@ export type Database = {
       message_type: 'text' | 'photo' | 'voice' | 'video';
       payment_event_kind: 'charge' | 'refund';
       payment_provider: 'toss' | 'kakaopay';
+      report_status: 'open' | 'hidden' | 'restored' | 'deleted';
+      report_target: 'post' | 'comment' | 'reply';
       subscription_status:
         'pending' | 'active' | 'grace' | 'canceled' | 'expired';
       user_role: 'fan' | 'artist' | 'admin';
@@ -872,6 +1252,8 @@ export const Constants = {
       message_type: ['text', 'photo', 'voice', 'video'],
       payment_event_kind: ['charge', 'refund'],
       payment_provider: ['toss', 'kakaopay'],
+      report_status: ['open', 'hidden', 'restored', 'deleted'],
+      report_target: ['post', 'comment', 'reply'],
       subscription_status: [
         'pending',
         'active',
