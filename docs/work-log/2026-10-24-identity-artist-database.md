@@ -27,10 +27,18 @@
 - pgTAP 범위: anon/팬 둘/가수 둘/admin/미인증 subject/server, 자기 역할 상승·UPSERT·타인 행 수정 방어, 팬 PII 차단, 소속/관리자 권한, metadata 조작, restricted/expired 상태, 직접 부를 이름/온보딩/전화/역할 수정 차단, FK/고유/날짜/이름 제약, timestamp, cascade, 역할 회수·재승격.
 - 독립 read-only 보안 리뷰에서 직접 call_name 쓰기 우회와 서버 역할 회수 시 소속 잔류를 발견해 수정했습니다. 수정 후 독립 리뷰에서 남은 보안 차단 이슈가 없음을 확인했습니다. 리뷰어가 보조 PG18.6 suite 139개를 두 번 독립 재실행해 통과했고, 이후 구현자가 실제 binding이 존재하는 cascade 사전조건 1개를 추가해 최종 140개를 두 번 통과했습니다. 전체 Supabase CI 결과는 아래 병합 gate를 통해 확인합니다.
 
+## 실제 Supabase CI 및 생성 타입
+
+[초기 CI 실행 40052086582](https://github.com/zzz664/trot-you/actions/runs/40052086582), remote commit `50c908bc15e94380aac182eea3bc9ee0fdeb2a54`에서 다음을 확인했습니다. 해당 remote tree `c168322da1bed9d705155baf58220af13f7c4a5a`는 로컬 검증 commit의 tree와 동일합니다.
+
+- 공식 Supabase PostgreSQL 이미지 `17.11.0.006`의 실제 로컬 스택 시작, 빈 DB reset/migration/seed, SQL lint 통과(`No schema errors found`). 합성 auth 스키마가 아닌 Supabase의 실제 auth schema를 사용했습니다.
+- pgTAP 140개를 두 번 실행해 두 번 모두 `Result: PASS`. 공식 CLI typegen과 strict typecheck 성공.
+- quality job 성공: `check:all`, 단위 166개, 기존 Playwright UI 13개 통과.
+- 최초 database job은 실제 타입 artifact 업로드 후 예상한 미커밋 타입 gate만 실패했습니다. 전체 CI 성공으로 오해하지 않습니다.
+- artifact `database-types` ID `12543668035`의 run/head provenance와 ZIP SHA-256을 확인했습니다. 생성된 `database.ts` 10,541 bytes를 변경 없이 `src/types/database.ts`로 반영했습니다. 파일 SHA-256: `de2bd28139f24d93d087f60f45097e9cb139ee4ee62929680b1ba719a9a627ab`. 타입을 손으로 작성하지 않았습니다.
+
 ## 병합 전 남은 gate
 
-1. CI에서 공식 Supabase 로컬 스택을 시작하고 빈 DB reset → lint → pgTAP 두 번을 실행합니다. 구성만 추가한 상태를 실행 성공으로 보지 않습니다.
-2. 같은 실제 스키마에서 공식 CLI가 생성한 `database-types` artifact를 받아 `src/types/database.ts`로 검토·커밋합니다. 손으로 생성된 것처럼 작성하지 않습니다. 첫 CI는 artifact 업로드 후 미커밋 타입 gate에서 의도적으로 실패하며, 이후 CI는 누락/드리프트를 차단합니다.
-3. 최종 commit의 DB/quality/기존 브라우저 CI, 독립 리뷰를 확인한 뒤에만 병합합니다. PR 발행·병합·원격 branch 삭제는 부모 작업이 담당합니다.
+생성 타입을 포함한 로컬 `check:all`도 통과했습니다. 최종 remote commit의 DB/quality/브라우저 CI는 다시 확인해야 합니다. CI는 추적되는 타입 파일 누락과 스키마 드리프트를 모두 차단합니다. PR 발행·병합·원격 branch 삭제는 부모 작업이 담당합니다.
 
 외부 프로젝트·키·실제 계정·운영 데이터·배포를 생성/변경하지 않았습니다. OAuth, REST/JWT 경계, staging 연결, 운영 backup/restore 및 운영 적용은 아직 검증하지 않았습니다. 전체 설정과 권한 계약은 [DB 안내](../database/identity-artists.md)를 따릅니다.
