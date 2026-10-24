@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
+import { NextIntlClientProvider } from 'next-intl';
+import { DialogRoot } from '@/components/ui/DialogRoot';
 import type { ReactNode } from 'react';
 import { APP_LOCALE, FONT_SCALE_COOKIE } from '@/config/constants';
 import { getPublicEnv } from '@/config/env';
@@ -29,7 +31,11 @@ export default async function RootLayout({
       <head>
         <style>{getDesignTokenCss()}</style>
       </head>
-      <body>{children}</body>
+      <body>
+        <NextIntlClientProvider>
+          <DialogRoot>{children}</DialogRoot>
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }

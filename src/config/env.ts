@@ -15,3 +15,8 @@ export function getPublicEnv() {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   });
 }
+
+// Server-only opt-in; this flag is never passed through public client config.
+export function isUiPreviewEnabled() {
+  return process.env.UI_PREVIEW_ENABLED === 'true';
+}
