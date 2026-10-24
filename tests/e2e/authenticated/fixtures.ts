@@ -15,6 +15,7 @@ import {
 } from '@playwright/test';
 import type { Database, Tables } from '../../../src/types/database';
 import { routes } from '../../../src/config/routes';
+import { setFictionalCompletion } from './profile-completion-fixtures';
 
 export const appOrigin = 'http://127.0.0.1:3100';
 const authOrigin = 'http://127.0.0.1:54321';
@@ -121,21 +122,25 @@ export const test = base.extend<AuthFixtures>({
       const id = data.user.id;
       createdIds.push(id);
       async function update(fields: ProfilePatch) {
-        const { error: updateError } = await admin
-          .from('profiles')
-          .update(fields)
-          .eq('id', id);
-        assert.equal(updateError, null, 'Local profile fixture update failed.');
+        const { onboarding_completed_at: completedAt, ...ordinary } = fields;
+        if (Object.keys(ordinary).length > 0) {
+          const { error: updateError } = await admin
+            .from('profiles')
+            .update(ordinary)
+            .eq('id', id);
+          assert.equal(
+            updateError,
+            null,
+            'Local profile fixture update failed.',
+          );
+        }
+        if (completedAt !== undefined) setFictionalCompletion(id, completedAt);
       }
-      const { error: setupError } = await admin
-        .from('profiles')
-        .update({
-          call_name: '자동 점검 계정',
-          onboarding_completed_at: new Date().toISOString(),
-          ...patch,
-        })
-        .eq('id', id);
-      assert.equal(setupError, null, 'Local profile setup failed.');
+      await update({
+        call_name: '자동 점검 계정',
+        onboarding_completed_at: new Date().toISOString(),
+        ...patch,
+      });
 
       return {
         id,
