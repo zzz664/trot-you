@@ -26,7 +26,8 @@
     "test:integration": "supabase test db --local",
     "test:db:concurrency": "node scripts/test-billing-concurrency.mjs",
     "test:db:messaging-concurrency": "node scripts/test-messaging-concurrency.mjs",
-    "test:db:community-concurrency": "node scripts/test-community-concurrency.mjs"
+    "test:db:community-concurrency": "node scripts/test-community-concurrency.mjs",
+    "test:db:schedule-concurrency": "node scripts/test-schedule-concurrency.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",

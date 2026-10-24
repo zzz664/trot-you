@@ -61,3 +61,7 @@ Next.js 권장 ESLint 구성의 React/import/a11y 플러그인 호환 범위에 
 ## 팬 커뮤니티 데이터 기반
 
 [게시판·신고·운영 제한 DB 계약](docs/database/community.md)을 참고하세요. 호출자 고정 RPC, 원자적 좋아요/댓글/신고 집계, distinct 신고 자동 숨김, 관리자 복구/삭제·공지와 유한한 이용 제한을 포함합니다. 운영 정책은 별도 승인된 snapshot 설정 전까지 차단되며 업로더·화면·알림·포인트 및 답장 신고는 아직 없습니다.
+
+## 공식 일정·콘텐츠 캘린더 데이터 기반
+
+[일정·캘린더 DB 계약](docs/database/schedule-calendar.md)을 참고하세요. active 가수의 공개 일정 projection, KST 월 조회와 안정적 cursor, 좌표 기반 장소 정보, 본인 알림 opt-out, 관리자 일정·월간 기획 CRUD와 감사 기록을 포함합니다. 소속 가수는 기획 읽기만 가능하며, 달력 UI·지도 링크 실행·알림 큐/전송·활동량 대시보드는 아직 없습니다.
