@@ -21,7 +21,7 @@ Sessions last 15 minutes, with a structural maximum of 30 minutes. `pending_inte
 
 All boundaries pin an empty `search_path`; private helpers are not callable by application roles. Every offer and preparation requires the current unrestricted fan role, validated current calling-name policy, current exact approved profile terms/privacy acceptance, age self-attestation and completed onboarding. Preparation additionally locks the active artist, commercial policy, existing subscription and pending-session state. Existing paid/pending subscriptions and unresolved obligations prevent a competing new preparation.
 
-The profile lock serializes same-actor double clicks and distinct-key/provider races. A matching request key returns the original session, status, nonce digest and expiry. A different nonce never replaces the first digest; `nonce_matches=false` lets the HTTP layer refuse to overwrite an existing nonce cookie after an uncertain response. The same key with changed artist/provider/environment/version conflicts. A rotated current policy fails even for a repeated key. A different key cannot fork an unexpired pending intent for the same actor/artist. Cancellation replay and expiry are explicit errors; neither performs provider work.
+The profile lock serializes same-actor double clicks and distinct-key/provider races. A matching request key returns the original session/status/expiry and preserves the original nonce digest without exposing it. A different nonce never replaces the first digest; `nonce_matches=false` lets the HTTP layer refuse to overwrite an existing nonce cookie after an uncertain response. The same key with changed artist/provider/environment/version conflicts. A rotated current policy fails even for a repeated key. A different key cannot fork an unexpired pending intent for the same actor/artist. Cancellation replay and expiry are explicit errors; neither performs provider work.
 
 ### Controlled error names
 
@@ -38,6 +38,16 @@ HTTP/database adapters must map exact known names, never return arbitrary SQL er
 
 ## Verification boundary
 
-`supabase/tests/checkout_sessions.test.sql` is rollback-only pgTAP coverage for privileges, policy immutability/currentness, profile and artist revalidation, price snapshots, nonce ownership/replay/expiry, idempotency, provider changes, and absence of financial side effects. All identities, prices and documents in fixtures are fictional and not operational approval.
+`supabase/tests/checkout_sessions.test.sql` contains 76 rollback-only pgTAP assertions for privileges, policy immutability/currentness, profile and artist revalidation, price snapshots, nonce ownership/replay/expiry, idempotency, provider changes, and absence of financial side effects. All identities, prices and documents in fixtures are fictional and not operational approval.
+
+`npm run test:db:checkout-concurrency` uses independent PostgreSQL sessions in the disposable local Supabase Docker container only. Eleven cases prove duplicate/distinct-key serialization, nonce preservation, cancellation ordering, policy/artist/restriction/consent changes during waits, expiry during a wait, and a competing subscription. Every race observes actual `pg_blocking_pids` before release. It accepts no remote URL or provider credentials, checks an empty fictional fixture database, and resets after committed fixtures. It cannot run without local Docker; synthetic sequential execution is not concurrency proof.
 
 The supplemental local PGlite harness is PostgreSQL 18 WASM with synthetic Auth/Storage fixtures. It can establish SQL/ACL behavior but is **not** Supabase PG17, real JWT/PostgREST, browser behavior, multi-session contention, sandbox provider verification or live merchant approval. Actual Supabase reset/lint/pgTAP, concurrent sessions and official generated schema types remain exact-head CI gates. Generated `src/types/database.ts` must come from the genuine CLI artifact, never hand edits.
+
+## Remaining activation requirements
+
+Intent records are pseudonymous and linked to account IDs; they are not anonymous or exempt from privacy/retention review. Expiration changes usability, not physical retention. An approved retention/deletion workflow remains a launch prerequisite.
+
+The preparation terms record is not authorization to charge. Both displayed prices belong to the immutable policy; the response additionally projects the exact authoritative initial/regular price and introductory eligibility. If eligibility changes after the page was read, the UI displays the prepared snapshot. Future enrollment/first-charge approval must re-confirm the current amount and valid customer authorization rather than reusing preparation consent as charge authorization.
+
+The current provider callback GET discards all query data and redirects to a fixed unavailable page. It does not accept authorization tokens or verify/consume provider callback state. The current one-time nonce protects only local cancellation; callback verification, durable provider dispatch, secure credential storage, first-charge reconciliation and owner-visible recovery remain explicit later MVP work before provider launch.

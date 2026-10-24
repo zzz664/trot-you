@@ -1420,6 +1420,77 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      checkout_cancel_session: {
+        Args: { p_nonce_hash: string; p_session_id: string; p_user_id: string };
+        Returns: undefined;
+      };
+      checkout_get_offer: {
+        Args: { p_artist_slug: string };
+        Returns: {
+          artist_name: string;
+          artist_slug: string;
+          initial_price_krw: number;
+          intro_eligible: boolean;
+          intro_price_krw: number;
+          policy_body: string;
+          policy_title: string;
+          policy_version: string;
+          regular_price_krw: number;
+        }[];
+      };
+      checkout_prepare_session: {
+        Args: {
+          p_artist_slug: string;
+          p_environment: string;
+          p_idempotency_key: string;
+          p_nonce_hash: string;
+          p_policy_version: string;
+          p_provider: Database['public']['Enums']['payment_provider'];
+          p_terms_accepted: boolean;
+          p_user_id: string;
+        };
+        Returns: {
+          artist_name: string;
+          artist_slug: string;
+          customer_ref: string;
+          environment: string;
+          expires_at: string;
+          initial_price_krw: number;
+          intro_eligible: boolean;
+          intro_price_krw: number;
+          nonce_matches: boolean;
+          order_id: string;
+          policy_body: string;
+          policy_title: string;
+          policy_version: string;
+          provider: Database['public']['Enums']['payment_provider'];
+          regular_price_krw: number;
+          session_id: string;
+          status: string;
+        }[];
+      };
+      checkout_read_session: {
+        Args: { p_session_id: string; p_user_id: string };
+        Returns: {
+          artist_name: string;
+          artist_slug: string;
+          customer_ref: string;
+          environment: string;
+          expires_at: string;
+          initial_price_krw: number;
+          intro_eligible: boolean;
+          intro_price_krw: number;
+          nonce_matches: boolean;
+          order_id: string;
+          policy_body: string;
+          policy_title: string;
+          policy_version: string;
+          provider: Database['public']['Enums']['payment_provider'];
+          regular_price_krw: number;
+          session_id: string;
+          status: string;
+        }[];
+      };
       community_create_comment: {
         Args: { p_body: string; p_post_id: string; p_request_id: string };
         Returns: string;

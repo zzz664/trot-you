@@ -54,7 +54,7 @@ revoke all on private.checkout_policies,private.checkout_policy_current,private.
 comment on table private.checkout_policies is
   'An explicitly approved immutable commercial/legal snapshot, including exact KRW prices. No fallback to draft defaults or unrelated mutable settings. Publication requires owner-controlled review; this migration activates nothing.';
 comment on table private.checkout_sessions is
-  'Short-lived local pending intent only. Opaque customer/order references are not provider keys. No raw nonce, SID, billing key, authKey, pg_token, PII or provider response is stored. Does not create a subscription, mandate, payment or access.';
+  'Short-lived local pending intent only. Opaque customer/order references are not provider keys. No raw nonce, SID, billing key, authKey, pg_token, direct personal details or provider response is stored. Actor-linked pseudonymous records still require a retention policy. Does not create a subscription, mandate, payment or access.';
 
 create function private.checkout_policy_immutable() returns trigger
 language plpgsql set search_path='' as $$
