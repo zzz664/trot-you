@@ -581,3 +581,55 @@ for (const scale of ['normal', 'large', 'xlarge'] as const) {
     });
   }
 }
+
+for (const scale of ['normal', 'large', 'xlarge'] as const) {
+  test(`subscription list room link fits ${scale} text at 360px and opens the matching chat`, async ({
+    world,
+    page,
+    context,
+  }, info) => {
+    await page.setViewportSize({ width: 360, height: 900 });
+    await completeProfile(world.fan, world.artist, scale);
+    subscribe(world);
+    const item = seedMessages(world, 1)[0]!;
+    await world.fan.signIn(context);
+    await page.goto(routes.subscriptions);
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-font-scale',
+      scale,
+    );
+    await expect(
+      page.getByRole('heading', {
+        name: messages.subscriptions.title,
+        exact: true,
+      }),
+    ).toBeVisible();
+    const roomLink = page.getByRole('link', {
+      name: messages.chat.open.replace('{name}', world.artist.name),
+      exact: true,
+    });
+    await expect(roomLink).toBeVisible();
+    await expect(roomLink).toHaveAttribute(
+      'href',
+      artistPreviewPath(world.artist.slug),
+    );
+    expect(
+      await roomLink.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    await screenshot(page, info, `subscriptions-chat-link-${scale}-360`);
+    await roomLink.click();
+    await expect(page).toHaveURL(
+      new URL(artistPreviewPath(world.artist.slug), appOrigin).href,
+    );
+    await expect(
+      page.getByRole('heading', {
+        name: messages.chat.title.replace('{name}', world.artist.name),
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(messageCards(page)).toHaveCount(1);
+    await expect(page.getByText(item.text, { exact: true })).toBeVisible();
+  });
+}
