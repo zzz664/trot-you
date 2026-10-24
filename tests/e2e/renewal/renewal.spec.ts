@@ -187,17 +187,32 @@ for (const provider of CHECKOUT_PROVIDERS)
       // The browser receives only the ordinary duplicate-subscription error,
       // never a private renewal descriptor or a falsely successful new checkout.
       await page.goto(checkoutPath(actor.artist.slug));
+      const duplicatePrepare = page.getByRole('button', {
+        name: messages.checkout.prepare,
+        exact: true,
+      });
+      // A fresh checkout intentionally has no preselected provider. Exercise
+      // the same explicit choice/consent prerequisites as an ordinary fan;
+      // never force-click or weaken the disabled-button safety contract.
+      await expect(duplicatePrepare).toBeDisabled();
+      await page
+        .getByRole('radio', {
+          name: new RegExp(messages.checkout.providers[provider]),
+        })
+        .check();
       await page
         .getByRole('checkbox', { name: messages.checkout.consent, exact: true })
         .check();
-      await page
-        .getByRole('button', { name: messages.checkout.prepare, exact: true })
-        .click();
+      await expect(duplicatePrepare).toBeEnabled();
+      await duplicatePrepare.click();
       await expect(
         page.getByText(messages.checkout.errors.SUBSCRIPTION_EXISTS, {
           exact: true,
         }),
       ).toBeVisible();
+      expect(renewalSnapshot(actor).events).toHaveLength(2);
+      expect(renewalSnapshot(actor).attempts).toHaveLength(1);
+      expect((await calls(request)).charges).toEqual(observed.charges);
       await screenshot(
         page,
         info,

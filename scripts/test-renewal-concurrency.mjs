@@ -457,7 +457,13 @@ async function testConcurrency(db) {
     const lease = await race(
       db,
       `lease-${provider}`,
-      `update private.payment_attempts set lease_expires_at=clock_timestamp()-interval '1 second' where id='${lost.dispatched.attempt_id}';`,
+      // renewal_claim serializes on the subscription before reading the lease.
+      // An attempt-only writer is invisible to that MVCC projection until
+      // commit, so an unexpired lease correctly returns no-dispatch without
+      // waiting on the attempt. Hold the real serialization row first to prove
+      // that the claimant rechecks the committed expiry after an observed wait.
+      `select 1 from public.subscriptions where id='${lost.sid}' for update;
+       update private.payment_attempts set lease_expires_at=clock_timestamp()-interval '1 second' where id='${lost.dispatched.attempt_id}';`,
       service(`select ${lost.claim}->>'dispatch';`),
     );
     assert.equal(lease.following.value, 'false');
