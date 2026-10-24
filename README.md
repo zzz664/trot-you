@@ -1,6 +1,6 @@
 # 트롯유 (trot-you)
 
-한국어 팬 서비스의 Next.js App Router 애플리케이션입니다. **현재 구현 범위는 개발 기반·접근성 UI·연동 설정·사용자/가수·구독/원장 DB 스키마와 준비 화면입니다.** 회원가입·구독·결제·메시지 기능 또는 운영 배포가 완료된 상태가 아닙니다.
+한국어 팬 서비스의 Next.js App Router 애플리케이션입니다. **개발 기반·접근성 UI·도메인 DB와 Kakao/Supabase 인증·세션 연결을 구현하고 있습니다.** 실제 Kakao 승인/로그인, 가입 온보딩·구독·결제·메시지 화면 또는 운영 배포가 완료된 상태가 아닙니다.
 
 ## 로컬 실행
 
@@ -30,9 +30,13 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 - `src/components/ui/`: 도메인과 무관한 기본 UI.
 - `src/config/`: 환경 검증, 라우트, 기술 상수, 단일 디자인 토큰 원본.
 - `src/lib/`: 순수 함수. `src/messages/ko.json`: 사용자 문구.
-- 서버 기능은 `server/services → adapters | db | settings` 순서로 추가합니다. 현재 서버에는 설정 검증·로그·운영 설정 draft 검증만 있습니다.
+- 서버 기능은 `server/services → adapters | db | settings` 순서를 따릅니다. `server/auth`는 Next.js 요청/쿠키와 인증 서비스를 조립하는 경계입니다.
 - 기본 글자 크기는 `large`; 로그인 전 쿠키를 첫 서버 렌더에 적용합니다. 프로필 저장은 아직 없습니다.
-- Supabase 사용자/가수 스키마·RLS·로컬 검증 도구가 있습니다. 인증 서비스·결제·알림·PWA는 별도 기능 PR에서 구현합니다. 현재 서비스 워커·DB 연결·가짜 결제 성공 로직은 없습니다.
+- Supabase 스키마·RLS·로컬 검증 도구와 actor-scoped 인증 조회가 있습니다. 결제·알림·PWA는 별도 기능입니다. 서비스 워커나 가짜 로그인/결제 성공 로직은 없습니다.
+
+## 인증·세션 연결
+
+[Kakao 설정과 세션 보안·검증 범위](docs/configuration/auth-sessions.md)를 참고하세요. `/start`는 키가 없으면 로그인 버튼과 준비 안내를 표시하며, 설정 후 Supabase의 Kakao PKCE 흐름을 시작합니다. 세션 토큰은 HttpOnly 쿠키에만 두고, 서버가 서명 검증·현재 사용자·본인 프로필을 조회해 역할, 미완료 온보딩, 이용 제한에 맞는 화면으로 이동합니다. `/onboarding`은 미완료 상태 안내이며 가입을 임의 완료하지 않습니다. CI의 폐기용 이메일 계정/로컬 메일함은 세션 검증 전용이고 실제 Kakao 연동 성공의 증거가 아닙니다.
 
 ## 연동 설정 기반
 

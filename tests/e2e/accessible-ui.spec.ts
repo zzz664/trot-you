@@ -167,6 +167,6 @@ test('outside dismissal returns focus and direct-entry Back uses safe home fallb
   await page
     .getByRole('button', { name: messages.ui.back, exact: true })
     .click();
-  await expect(page).toHaveURL(routes.home);
+  await expect(page).toHaveURL(/\/start\?/);
   expect(await page.evaluate(() => history.length)).toBe(historyLength);
 });

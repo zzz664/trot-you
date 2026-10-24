@@ -77,3 +77,34 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+  auth-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # These uncommitted, CI-only overrides enable a loopback mail sink, never
+      # real email delivery or Kakao. Public signup stays disabled.
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --config playwright.auth.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: auth-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()

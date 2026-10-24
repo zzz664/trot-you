@@ -16,6 +16,7 @@ for (const width of [360, 414]) {
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       await page.goto(routes.home);
+      await expect(page).toHaveURL(/\/start\?/);
       await expect(page.locator('html')).toHaveAttribute('lang', 'ko');
       await expect(page.locator('html')).toHaveAttribute(
         'data-font-scale',
@@ -28,11 +29,15 @@ for (const width of [360, 414]) {
       await expect(page.locator('body')).toHaveCSS('word-break', 'keep-all');
       await expect(page.locator('body')).toHaveCSS('overflow-wrap', 'anywhere');
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-        messages.foundation.title,
+        messages.auth.startTitle,
       );
-      await expect(
-        page.getByRole('region', { name: messages.foundation.statusTitle }),
-      ).toBeVisible();
+      await expect(page.getByText(messages.auth.unavailable)).toBeVisible();
+      const login = page.getByRole('button', { name: messages.auth.login });
+      await expect(login).toBeDisabled();
+      await expect(login).toHaveAccessibleDescription(
+        messages.auth.unavailable,
+      );
+      expect((await login.boundingBox())!.height).toBeGreaterThanOrEqual(48);
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= window.innerWidth,
