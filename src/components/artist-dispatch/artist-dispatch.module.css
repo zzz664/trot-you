@@ -39,7 +39,13 @@
 .body {
   white-space: pre-wrap;
 }
-.panel input[type='datetime-local'] {
+.scheduleFields {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+}
+.panel input[type='date'],
+.panel input[type='time'] {
   min-width: 0;
   width: 100%;
   max-width: 100%;

@@ -52,19 +52,23 @@ history catalog/detail error pages.
 | Dedicated group                                                                                                        |  Tests | Planned successful-run captures |
 | ---------------------------------------------------------------------------------------------------------------------- | -----: | ------------------------------: |
 | Real API/domain loops, normal photo reuse, worker authentication, recipient timing, and paging                         |      9 |                               0 |
-| Composer publication/cancellation, KST confirmation, bookmark recovery, and personalized fan view: 3 scales × 2 widths |      6 |                              84 |
+| Composer publication/cancellation, KST confirmation, bookmark recovery, and personalized fan view: 3 scales × 2 widths |      6 |                              90 |
 | Recoverable transport errors, uncertainty, history recovery, and access loss: 3 × 2                                    |      6 |                              90 |
 | Lost committed responses, identical-intent replay/status recovery, editor refresh, deferred-error rendering: 3 × 2     |      6 |                              60 |
 | Back/Forward confirmation dismissal and fresh published-state restoration: 3 × 2                                       |      6 |                              12 |
 | Expired/grace recipients, actual worker prerequisite recovery, and rapid duplicate confirmation                        |      3 |                               0 |
 | Paused-artist catalog/history-only cancellation and membership-loss error: 3 × 2                                       |      6 |                              42 |
 | Real 51-artist history-catalog paging and same-artist non-owner isolation                                              |      1 |                               2 |
-| **Total**                                                                                                              | **43** |                         **290** |
+| **Total**                                                                                                              | **43** |                         **296** |
 
 The text scales are normal, large and xlarge; widths are 360 and 1280 pixels.
 Captures check horizontal overflow and absence of internal identifiers/secret
 labels before saving full-page images. The separate catalog pagination captures
-use xlarge at 360 pixels. Capture counts describe the authored successful path,
+use xlarge at 360 pixels. Each fan-publication case scrolls the personalized
+body into view, awaits the real read acknowledgement and settled fonts/layout,
+then saves both a full-page image and a full-card image (six additional card
+captures). Scheduling uses separately labeled KST date and time controls at
+every scale/width; the submitted UTC instant remains asserted. Capture counts describe the authored successful path,
 not files observed from a completed run. Failure screenshots can add files.
 Actual artifact/head verification and visual inspection must still be recorded
 before reporting a browser or visual pass.
@@ -75,7 +79,9 @@ before reporting a browser or visual pass.
   ownership/current membership, current-state idempotent replay, and safe DTOs.
 - In-app visibility with canonical server-side name rendering; current
   subscription/history enforcement; canceled paid access and grace eligibility;
-  exclusion of expired recipients at execution, rather than at scheduling time.
+  exclusion of expired recipients at execution, rather than at scheduling time. The
+  paid-feed HTTP endpoint rejects expired access with `403 SUBSCRIPTION_REQUIRED`
+  and no content DTO; it does not return a successful empty feed or preview.
 - Scheduled work stays unpublished until due; repeated/concurrent protected
   worker invocations do not duplicate publication/outbox rows. Missing
   notification policy does not fabricate delivery or prevent in-app publication.

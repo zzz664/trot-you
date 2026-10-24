@@ -160,6 +160,20 @@ async function fanMessages(request: APIRequestContext, world: World) {
   expect(result.ok).toBe(true);
   return result.data as ChatPage;
 }
+async function expectExpiredFanDenied(
+  request: APIRequestContext,
+  world: World,
+) {
+  const response = await request.get(chatMessagesPath(world.artist.slug));
+  // The paid-feed HTTP contract intentionally rejects lost access rather than
+  // returning a successful empty page or silently switching to preview data.
+  expect(response.status()).toBe(403);
+  expect(response.headers()['cache-control']).toContain('no-store');
+  expect(await response.json()).toEqual({
+    ok: false,
+    code: 'SUBSCRIPTION_REQUIRED',
+  });
+}
 async function expectFailure(
   response: Awaited<ReturnType<typeof post>>,
   status: number,
@@ -484,9 +498,7 @@ test('notification configuration missing still publishes in-app without pretendi
     (await fanMessages(page.request, world)).messages.map((row) => row.id),
   ).toEqual([draft.id]);
   subscribe(world, 'expired');
-  const expired = await fanMessages(page.request, world);
-  expect(expired.hasAccess).toBe(false);
-  expect(expired.messages).toEqual([]);
+  await expectExpiredFanDenied(page.request, world);
   // Later opt-in cannot retroactively enqueue a previously completed snapshot.
   subscribe(world);
   await enableFictionalNotifications(world.fan);
@@ -764,10 +776,40 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       // Real fan route renders server-personalized text at the same scale.
       await world.fan.signIn(context);
       await page.goto(artistPreviewPath(world.artist.slug));
+      const fanCard = page.locator(`[data-message-id="${first.id}"]`);
+      const personalizedBody = fanCard.getByText(
+        `허구 ${callName} 님, 함께해요.`,
+        { exact: true },
+      );
+      await expect(fanCard).toContainText(`허구 ${callName} 님, 함께해요.`);
+      // A DOM text match alone can precede hydration/read-ack layout changes.
+      // Bring the actual body into view and settle the real read operation
+      // before recording both the page and an independently bounded full card.
+      await personalizedBody.scrollIntoViewIfNeeded();
+      await expect(personalizedBody).toBeVisible();
+      await expect(personalizedBody).toBeInViewport();
+      await expect(fanCard.locator('.chat-read-status')).toHaveText(
+        messages.chat.read,
+      );
       await expect(
-        page.locator(`[data-message-id="${first.id}"]`),
-      ).toContainText(`허구 ${callName} 님, 함께해요.`);
+        fanCard.getByRole('button', {
+          name: messages.chat.markRead,
+          exact: true,
+        }),
+      ).toHaveCount(0);
+      expect(readRows(world)).toEqual([
+        { messageId: first.id, readAt: expect.any(String) },
+      ]);
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        });
+      });
       await screenshot(page, info, `fan-published-${scale}-${width}`);
+      await fanCard.screenshot({
+        path: info.outputPath(`fan-published-card-${scale}-${width}.png`),
+      });
       await world.author.signIn(context);
       // A bookmarked former draft recovers exact dispatch state, not an editor
       // containing an immutable message or an accidental new draft copy.
@@ -812,7 +854,10 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       )!;
       await button(page, copy.scheduled).click();
       await expect(
-        page.getByLabel(copy.scheduleLabel, { exact: true }),
+        page.getByLabel(copy.scheduleDateLabel, { exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByLabel(copy.scheduleTimeLabel, { exact: true }),
       ).toBeVisible();
       await button(page, copy.submit).click();
       await expect(panel(page).getByRole('alert')).toHaveText(
@@ -820,7 +865,19 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       );
       await screenshot(page, info, `schedule-invalid-${scale}-${width}`);
       const local = nextKstMinute();
-      await page.getByLabel(copy.scheduleLabel, { exact: true }).fill(local);
+      const [date, time] = local.split('T');
+      await page
+        .getByLabel(copy.scheduleDateLabel, { exact: true })
+        .fill(date!);
+      await page
+        .getByLabel(copy.scheduleTimeLabel, { exact: true })
+        .fill(time!);
+      await expect(
+        page.getByLabel(copy.scheduleDateLabel, { exact: true }),
+      ).toHaveValue(date!);
+      await expect(
+        page.getByLabel(copy.scheduleTimeLabel, { exact: true }),
+      ).toHaveValue(time!);
       await button(page, copy.submit).click();
       await expect(
         page.getByRole('dialog').getByRole('heading', {
@@ -1249,7 +1306,7 @@ test('expired recipients are excluded at execution while grace recipients remain
     '허구 유예허구팬 님, 함께해요.',
   );
   await expired.signIn(context);
-  expect((await fanMessages(page.request, world)).messages).toEqual([]);
+  await expectExpiredFanDenied(page.request, world);
 });
 
 test('actual worker prerequisite failures remain scheduled and recover after current policy and access return', async ({

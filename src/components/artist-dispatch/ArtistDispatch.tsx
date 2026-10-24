@@ -45,7 +45,8 @@ export function ArtistDispatch({
     onAccessLost,
   });
   const [mode, setMode] = useState<'immediate' | 'scheduled'>('immediate');
-  const [schedule, setSchedule] = useState('');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
   const [scheduleInvalid, setScheduleInvalid] = useState(false);
   const [intentError, setIntentError] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -94,7 +95,9 @@ export function ArtistDispatch({
   async function submit() {
     if (!ready || !draft || confirmingNow.current) return;
     const instant =
-      mode === 'scheduled' ? dispatchScheduledInstant(schedule) : null;
+      mode === 'scheduled'
+        ? dispatchScheduledInstant(`${scheduleDate}T${scheduleTime}`)
+        : null;
     if (
       mode === 'scheduled' &&
       (!instant || Date.parse(instant) <= Date.parse(state.page!.serverNow))
@@ -286,20 +289,36 @@ export function ArtistDispatch({
                   )}
                 </p>
                 {mode === 'scheduled' && (
-                  <Input
-                    type="datetime-local"
-                    label={t('scheduleLabel')}
-                    value={schedule}
-                    onChange={(event) => {
-                      setSchedule(event.target.value);
-                      setScheduleInvalid(false);
-                    }}
-                    disabled={cannotAct}
-                    hint={t('scheduleHint')}
-                    {...(scheduleInvalid
-                      ? { error: t('invalidSchedule') }
-                      : {})}
-                  />
+                  <div className={styles.scheduleFields}>
+                    <Input
+                      type="date"
+                      label={t('scheduleDateLabel')}
+                      value={scheduleDate}
+                      onChange={(event) => {
+                        setScheduleDate(event.target.value);
+                        setScheduleInvalid(false);
+                      }}
+                      disabled={cannotAct}
+                      hint={t('scheduleHint')}
+                      {...(scheduleInvalid && !scheduleDate
+                        ? { error: t('invalidSchedule') }
+                        : {})}
+                    />
+                    <Input
+                      type="time"
+                      label={t('scheduleTimeLabel')}
+                      value={scheduleTime}
+                      onChange={(event) => {
+                        setScheduleTime(event.target.value);
+                        setScheduleInvalid(false);
+                      }}
+                      disabled={cannotAct}
+                      hint={t('scheduleTimeHint')}
+                      {...(scheduleInvalid && scheduleDate
+                        ? { error: t('invalidSchedule') }
+                        : {})}
+                    />
+                  </div>
                 )}
               </fieldset>
               <Button

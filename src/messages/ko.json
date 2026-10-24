@@ -914,7 +914,6 @@
     "scheduled": "시간 예약",
     "selectedImmediate": "선택: 확인 후 바로 앱에 공개",
     "selectedScheduled": "선택: 예약한 한국 시간에 앱에 공개",
-    "scheduleLabel": "예약 날짜와 시간 (한국 시간 KST)",
     "scheduleHint": "한국 시간(KST, UTC+09:00) 기준이에요. 기기의 시간대와 관계없이 한국 날짜와 시간을 입력해 주세요. 예약 처리가 지연되면 실제 공개 시각이 늦어질 수 있어요.",
     "invalidSchedule": "앞으로의 올바른 한국 날짜와 시간을 입력해 주세요.",
     "submit": "저장된 초안 보내기",
@@ -990,6 +989,9 @@
     "menuMore": "다음 가수 보기",
     "menuFirst": "처음부터 보기",
     "back": "가수 메뉴로 돌아가기",
-    "errorTitle": "메시지 내역을 불러오지 못했어요."
+    "errorTitle": "메시지 내역을 불러오지 못했어요.",
+    "scheduleDateLabel": "예약 날짜 (한국 시간 KST)",
+    "scheduleTimeLabel": "예약 시간 (한국 시간 KST)",
+    "scheduleTimeHint": "오전·오후가 표시되면 함께 확인해 주세요. 날짜와 시간은 모두 한국 시간(KST)이에요."
   }
 }

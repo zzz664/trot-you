@@ -204,15 +204,20 @@ describe('artist dispatch confirmation and history', () => {
     render(subject());
     await ready();
     await user.click(screen.getByRole('button', { name: copy.scheduled }));
-    const field = screen.getByLabelText(copy.scheduleLabel);
+    const date = screen.getByLabelText(copy.scheduleDateLabel);
+    const time = screen.getByLabelText(copy.scheduleTimeLabel);
+    expect(date).toHaveAttribute('type', 'date');
+    expect(time).toHaveAttribute('type', 'time');
     await user.click(send());
     expect(screen.getByRole('alert')).toHaveTextContent(copy.invalidSchedule);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    fireEvent.change(field, { target: { value: '2026-10-24T20:00' } });
+    fireEvent.change(date, { target: { value: '2026-10-24' } });
+    fireEvent.change(time, { target: { value: '20:00' } });
     await user.click(send());
     expect(mock.submit).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent(copy.invalidSchedule);
-    fireEvent.change(field, { target: { value: '2026-10-25T10:30' } });
+    fireEvent.change(date, { target: { value: '2026-10-25' } });
+    fireEvent.change(time, { target: { value: '10:30' } });
     await user.click(send());
     expect(screen.getByRole('dialog')).toHaveTextContent('2026년 10월 25일');
     expect(screen.getByRole('dialog')).toHaveTextContent('10:30:00');
@@ -220,6 +225,66 @@ describe('artist dispatch confirmation and history', () => {
     expect(mock.submit.mock.calls[0]![0].scheduledAt).toBe(
       '2026-10-25T01:30:00.000Z',
     );
+  });
+  it.each([
+    ['', '10:30'],
+    ['2026-10-25', ''],
+    ['2026-02-30', '10:30'],
+    ['2026-10-25', '25:00'],
+  ])(
+    'rejects incomplete or invalid separate date %s / time %s before confirmation',
+    async (dateValue, timeValue) => {
+      const user = userEvent.setup();
+      render(subject());
+      await ready();
+      await user.click(screen.getByRole('button', { name: copy.scheduled }));
+      fireEvent.change(screen.getByLabelText(copy.scheduleDateLabel), {
+        target: { value: dateValue },
+      });
+      fireEvent.change(screen.getByLabelText(copy.scheduleTimeLabel), {
+        target: { value: timeValue },
+      });
+      await user.click(send());
+      expect(screen.getByRole('alert')).toHaveTextContent(copy.invalidSchedule);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(mock.submit).not.toHaveBeenCalled();
+    },
+  );
+  it.each(['normal', 'large', 'xlarge'])(
+    'keeps both native KST fields separately labeled at %s without font overrides',
+    async (scale) => {
+      document.documentElement.dataset.fontScale = scale;
+      const user = userEvent.setup();
+      render(subject());
+      await ready();
+      await user.click(screen.getByRole('button', { name: copy.scheduled }));
+      const date = screen.getByLabelText(copy.scheduleDateLabel);
+      const time = screen.getByLabelText(copy.scheduleTimeLabel);
+      expect(date).toBeVisible();
+      expect(time).toBeVisible();
+      expect(date).not.toHaveAttribute('style');
+      expect(time).not.toHaveAttribute('style');
+      expect(time).toHaveAccessibleDescription(copy.scheduleTimeHint);
+      expect(document.querySelector('input[type="datetime-local"]')).toBeNull();
+    },
+  );
+  it('retains one scheduled instant and operation when a split-field submission response is lost', async () => {
+    mock.submit.mockResolvedValueOnce({ ok: false, code: 'UNAVAILABLE' });
+    const user = userEvent.setup();
+    render(subject());
+    await ready();
+    await user.click(screen.getByRole('button', { name: copy.scheduled }));
+    const date = screen.getByLabelText(copy.scheduleDateLabel);
+    const time = screen.getByLabelText(copy.scheduleTimeLabel);
+    fireEvent.change(date, { target: { value: '2026-10-25' } });
+    fireEvent.change(time, { target: { value: '10:30' } });
+    await confirmSend(user);
+    const original = mock.submit.mock.calls[0]![0];
+    expect(original.scheduledAt).toBe('2026-10-25T01:30:00.000Z');
+    expect(date).toBeDisabled();
+    expect(time).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: copy.retrySame }));
+    expect(mock.submit.mock.calls[1]![0]).toEqual(original);
   });
   it('never uses a changed draft captured after an open confirmation', async () => {
     const user = userEvent.setup();
