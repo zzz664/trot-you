@@ -10,7 +10,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { InlineError } from '@/components/ui/InlineError';
 import { Input } from '@/components/ui/Input';
 import { Loading } from '@/components/ui/Loading';
-import { isUiPreviewEnabled } from '@/config/env';
+import { isUiPreviewEnabled } from '@/config/env.server';
 import { routes } from '@/config/routes';
 import messages from '@/messages/ko.json';
 

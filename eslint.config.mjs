@@ -3,11 +3,26 @@ import nextVitals from 'eslint-config-next/core-web-vitals';
 import nextTypescript from 'eslint-config-next/typescript';
 import prettier from 'eslint-config-prettier/flat';
 
-const sourceRestrictions = [
+const environmentRestrictions = [
   {
     selector: "MemberExpression[object.name='process'][property.name='env']",
-    message: 'Read environment variables through config/env.ts.',
+    message:
+      'Read environment variables through config/env.ts or config/env.server.ts.',
   },
+  {
+    selector: "MemberExpression[object.name='process'][property.value='env']",
+    message:
+      'Read environment variables through the central environment modules.',
+  },
+  {
+    selector: "VariableDeclarator[init.name='process']",
+    message:
+      'Do not alias or destructure process outside the environment modules.',
+  },
+];
+
+const sourceRestrictions = [
+  ...environmentRestrictions,
   {
     selector: 'JSXText[value=/[가-힣]/]',
     message: 'Put user-visible copy in messages/ko.json.',
@@ -53,7 +68,46 @@ export default defineConfig([
       ],
     },
   },
-  { files: ['src/config/**'], rules: { 'no-restricted-syntax': 'off' } },
+  {
+    files: ['src/config/**'],
+    rules: { 'no-restricted-syntax': ['error', ...environmentRestrictions] },
+  },
+  {
+    files: ['src/config/env.ts', 'src/config/env.server.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
+  },
+  {
+    files: ['src/lib/**/*.{ts,tsx}', 'src/config/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: ['**/server/**', 'next', 'next/*', 'node:*'] },
+      ],
+      'no-restricted-globals': ['error', 'fetch'],
+    },
+  },
+  {
+    files: ['src/lib/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            '**/server/**',
+            '**/env.server',
+            '**/env.server.*',
+            'next',
+            'next/*',
+            'node:*',
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/server/logging/logger.ts'],
+    rules: { 'no-console': 'off' },
+  },
   {
     files: [
       'src/app/**/*.{ts,tsx}',
@@ -86,7 +140,14 @@ export default defineConfig([
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: ['**/server/**', '**/types/database*'] },
+        {
+          patterns: [
+            '**/server/**',
+            '**/env.server',
+            '**/env.server.*',
+            '**/types/database*',
+          ],
+        },
       ],
       'no-restricted-globals': ['error', 'fetch'],
     },

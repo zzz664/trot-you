@@ -40,5 +40,21 @@
     "resultConfirmed": "확인을 선택했어요.",
     "resultCanceled": "취소를 선택했어요.",
     "resultDismissed": "대화상자를 닫았어요."
+  },
+  "errors": {
+    "UNAUTHENTICATED": "로그인이 필요해요.",
+    "FORBIDDEN": "이 작업을 할 수 없어요.",
+    "NOT_FOUND": "찾으시는 내용을 확인할 수 없어요.",
+    "VALIDATION_FAILED": "입력 내용을 다시 확인해 주세요.",
+    "FORBIDDEN_CONTENT": "이 내용은 보낼 수 없어요.",
+    "SUBSCRIPTION_REQUIRED": "구독 후 이용할 수 있어요.",
+    "SUBSCRIPTION_EXISTS": "이미 구독 중이에요.",
+    "PAYMENT_FAILED": "결제를 완료하지 못했어요. 결제 내역을 확인해 주세요.",
+    "INVALID_TRANSITION": "현재 상태에서는 이 작업을 할 수 없어요.",
+    "CANCEL_WINDOW_PASSED": "취소할 수 있는 시간이 지났어요.",
+    "RATE_LIMITED": "잠시 후 다시 시도해 주세요.",
+    "INTERNAL": "요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.",
+    "CONFIGURATION_INVALID": "서비스 연결을 확인하고 있어요. 잠시 후 다시 이용해 주세요.",
+    "INTEGRATION_UNAVAILABLE": "아직 이용할 수 없는 기능이에요."
   }
 }

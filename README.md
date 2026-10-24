@@ -1,6 +1,6 @@
 # 트롯유 (trot-you)
 
-한국어 팬 서비스의 Next.js App Router 애플리케이션입니다. **현재 구현 범위는 개발 기반과 준비 화면뿐입니다.** 회원가입·구독·결제·메시지 기능 또는 운영 배포가 완료된 상태가 아닙니다.
+한국어 팬 서비스의 Next.js App Router 애플리케이션입니다. **현재 구현 범위는 개발 기반·접근성 UI·연동 설정 검증과 준비 화면뿐입니다.** 회원가입·구독·결제·메시지 기능 또는 운영 배포가 완료된 상태가 아닙니다.
 
 ## 로컬 실행
 
@@ -30,9 +30,13 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 - `src/components/ui/`: 도메인과 무관한 기본 UI.
 - `src/config/`: 환경 검증, 라우트, 기술 상수, 단일 디자인 토큰 원본.
 - `src/lib/`: 순수 함수. `src/messages/ko.json`: 사용자 문구.
-- 서버 기능은 이후 `server/services → adapters | db | settings` 순서로 추가합니다.
+- 서버 기능은 `server/services → adapters | db | settings` 순서로 추가합니다. 현재 서버에는 설정 검증·로그·운영 설정 draft 검증만 있습니다.
 - 기본 글자 크기는 `large`; 로그인 전 쿠키를 첫 서버 렌더에 적용합니다. 프로필 저장은 아직 없습니다.
 - Supabase·인증·결제·알림·PWA는 별도 기능 PR에서 구현합니다. 현재 서비스 워커·DB 연결·가짜 결제 성공 로직은 없습니다.
+
+## 연동 설정 기반
+
+[설정·오류·로그·운영 설정 안내](docs/configuration/integration-foundations.md)를 참고하세요. 기본 결제 mode는 `disabled`이고, 키 누락이나 잘못된 mode를 mock 성공으로 바꾸지 않습니다. `configured`는 credential 형태/존재만 뜻하며 모든 연동의 `operational`은 아직 `false`입니다. 운영 설정 기본값은 DB 값이나 승인된 정책이 아닌 문서 기반 draft입니다.
 
 ## 브랜치와 작업 기록
 
