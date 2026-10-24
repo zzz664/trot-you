@@ -24,6 +24,13 @@ create table private.payment_reconciliation_cases (
   check(isfinite(created_at) and isfinite(updated_at) and isfinite(next_query_at) and (lease_expires_at is null or isfinite(lease_expires_at)))
 );
 create index payment_reconciliation_work on private.payment_reconciliation_cases(state,next_query_at,created_at,id);
+create table private.payment_reconciliation_scan_cursor (
+  singleton boolean primary key default true check(singleton),
+  last_case_id uuid
+);
+alter table private.payment_reconciliation_scan_cursor enable row level security;
+revoke all on private.payment_reconciliation_scan_cursor from public,anon,authenticated,service_role;
+comment on table private.payment_reconciliation_scan_cursor is 'Technical fair bounded scan cursor only. Skipped unavailable merchant configurations cannot starve later cases. No query budget or financial authority is changed.';
 create table private.payment_provider_inbox (
   id uuid primary key default gen_random_uuid(),
   case_id uuid not null references private.payment_reconciliation_cases(id) on delete restrict,
@@ -40,6 +47,42 @@ alter table private.payment_provider_inbox enable row level security;
 revoke all on private.payment_reconciliation_cases,private.payment_provider_inbox from public,anon,authenticated,service_role;
 comment on table private.payment_provider_inbox is 'Untrusted Toss payment-status hints for known operations only; at most three semantic states per case. No payload, customer data, payment key, credential, transmission ID or financial assertion is retained. Duplicate notices never reset recovery budgets.';
 comment on table private.payment_reconciliation_cases is 'At most one case per existing operation. Query-only recovery shares renewal/refund budgets and leases. Kakao without TID cannot dispatch. No case authorizes a charge, refund, retry or mandate change.';
+
+-- Owner-facing recovery stops offering another check after the shared query
+-- budget becomes manual review; this changes presentation, never charge state.
+create or replace function private.enrollment_projection(p_session_id uuid) returns jsonb
+language sql volatile security definer set search_path='' as $$
+  select jsonb_build_object(
+    'session_id',e.session_id,'user_id',e.user_id,'artist_id',e.artist_id,
+    'artist_slug',a.slug,'artist_name',a.name,'provider',c.provider,'environment',c.environment,
+    'merchant_account',m.merchant_account,'subscription_id',e.subscription_id,'mandate_id',e.mandate_id,
+    'credential_ref',e.credential_ref,'customer_ref',c.customer_ref,'order_id',c.order_id,
+    'policy_version',c.policy_version,'policy_title',p.title,'policy_body',p.body,
+    'billing_period_calendar',p.billing_period_calendar,'payment_tax_basis',p.payment_tax_basis,
+    'initial_price_krw',c.initial_price_krw,'regular_price_krw',c.regular_price_krw,'intro_eligible',c.intro_eligible,
+    'expires_at',c.expires_at,'state',e.state,'stage',e.stage,
+    'public_status',case
+      when e.state in ('succeeded','failed','canceled') then e.state
+      when exists(select 1 from private.payment_reconciliation_cases rc where rc.initial_session_id=e.session_id and rc.state='manual_review') then 'manual_review'
+      when e.state in ('unknown','manual_review') then e.state
+      when e.state='processing' and e.lease_expires_at<=clock_timestamp() then
+        case when e.stage in ('ready','exchange') then 'manual_review' else 'unknown' end
+      when e.state='processing' then 'processing'
+      when c.expires_at<=clock_timestamp() then 'expired'
+      when e.state='awaiting_confirmation' and e.callback_expires_at<=clock_timestamp() and v.id is null then 'expired'
+      when e.state='ready' then 'processing' else e.state end,
+    'callback_ciphertext',case when e.callback_expires_at>clock_timestamp() and c.expires_at>clock_timestamp()
+      and e.state in ('awaiting_confirmation','processing') then e.callback_ciphertext end,
+    'callback_expires_at',e.callback_expires_at,
+    'credential_ciphertext',v.ciphertext,'tid',e.provider_tid,
+    'redirects',case when c.expires_at>clock_timestamp() and e.state='awaiting_authorization' then e.ready_ciphertext end,
+    'payment_event_id',e.payment_event_id,'period_start',o.period_start,'period_end',o.period_end)
+  from private.subscription_enrollments e join private.checkout_sessions c on c.id=e.session_id
+  join public.artists a on a.id=e.artist_id join private.checkout_policies p on p.version=c.policy_version
+  join private.payment_mandates m on m.id=e.mandate_id
+  left join private.enrollment_credentials v on v.id=e.credential_ref and v.mandate_id=e.mandate_id
+  left join private.billing_obligations o on o.id=e.obligation_id where e.session_id=p_session_id;
+$$;
 
 create function private.reconciliation_snapshot(p_case_id uuid) returns jsonb
 language plpgsql security definer set search_path='' as $$
@@ -102,10 +145,12 @@ end;$$;
 
 create function public.reconciliation_candidates(p_limit integer default 20) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare result jsonb; settled record;
+declare result jsonb; settled record; cursor_id uuid;
 begin
   perform private.require_billing_service();
   if p_limit is null or p_limit not between 1 and 20 then raise exception 'RECONCILIATION_INVALID_INPUT' using errcode='22023'; end if;
+  insert into private.payment_reconciliation_scan_cursor(singleton) values(true) on conflict(singleton) do nothing;
+  select last_case_id into cursor_id from private.payment_reconciliation_scan_cursor where singleton for update;
   -- Each source contributes a bounded batch. Already-cased rows cannot starve
   -- later operations, including operations that need human rather than API work.
   insert into private.payment_reconciliation_cases(initial_session_id,state,reason)
@@ -144,11 +189,14 @@ begin
       lease_token=null,lease_expires_at=null,updated_at=clock_timestamp() where id=settled.id;
     update private.payment_provider_inbox set state='processed',processed_at=coalesce(processed_at,clock_timestamp()) where case_id=settled.id;
   end loop;
-  select coalesce(jsonb_agg(q.id order by q.next_query_at,q.created_at,q.id),'[]'::jsonb) into result from (
+  select coalesce(jsonb_agg(q.id order by (cursor_id is null or q.id>cursor_id) desc,q.id),'[]'::jsonb) into result from (
     select c.id,c.next_query_at,c.created_at from private.payment_reconciliation_cases c
     where c.state in ('pending','retry','processing') and c.next_query_at<=clock_timestamp()
       and (c.lease_expires_at is null or c.lease_expires_at<=clock_timestamp())
-    order by c.next_query_at,c.created_at,c.id limit p_limit) q;
+    order by (cursor_id is null or c.id>cursor_id) desc,c.id limit p_limit) q;
+  if jsonb_array_length(result)>0 then
+    update private.payment_reconciliation_scan_cursor set last_case_id=(result->>-1)::uuid where singleton;
+  end if;
   return result;
 end;$$;
 

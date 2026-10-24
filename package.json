@@ -44,7 +44,8 @@
     "test:db:renewal-concurrency": "node scripts/test-renewal-concurrency.mjs",
     "test:db:cancellation-concurrency": "node scripts/test-cancellation-concurrency.mjs",
     "test:cancellation-fixture": "node --test scripts/cancellation-local-ci-provider.test.mjs",
-    "test:e2e:cancellation": "playwright test --config playwright.cancellation.config.ts"
+    "test:e2e:cancellation": "playwright test --config playwright.cancellation.config.ts",
+    "test:db:reconciliation-concurrency": "node scripts/test-reconciliation-concurrency.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",

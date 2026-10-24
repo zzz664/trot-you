@@ -43,6 +43,7 @@ jobs:
       - run: npm run test:db:enrollment-concurrency
       - run: npm run test:db:renewal-concurrency
       - run: npm run test:db:cancellation-concurrency
+      - run: npm run test:db:reconciliation-concurrency
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
