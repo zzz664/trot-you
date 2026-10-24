@@ -37,7 +37,7 @@ function ready(state) {
     kakaoHeaders,
   );
 }
-function approve(state, tid = 'ci_tid_1') {
+function approve(state, tid = [...state.kakaoOrders.keys()].at(-1)) {
   return request(
     state,
     '/kakaopay/online/v1/payment/approve',
@@ -155,7 +155,7 @@ test('lost Kakao approve can query charge but cannot recover SID', () => {
     '/kakaopay/online/v1/payment/order',
     {
       cid: ENROLLMENT_CI.kakaoCid,
-      tid: 'ci_tid_1',
+      tid: [...state.kakaoOrders.keys()].at(-1),
     },
     kakaoHeaders,
   );
@@ -212,15 +212,9 @@ test('observation exposes counters only, not tokens, identities or credentials',
 });
 test('provider handoff contains the prevalidated local callback URLs', () => {
   const state = createFixtureState();
-  ready(state);
-  const result = request(
-    state,
-    '/__fixture/handoff?tid=ci_tid_1',
-    {},
-    {},
-    'GET',
-  );
-  assert.equal(result.body.pgToken, 'ci_pg_ci_tid_1');
+  const { tid } = ready(state).body;
+  const result = request(state, `/__fixture/handoff?tid=${tid}`, {}, {}, 'GET');
+  assert.equal(result.body.pgToken, `ci_pg_${tid}`);
   assert.equal(
     new URL(result.body.approvalUrl).origin,
     ENROLLMENT_CI.appOrigin,
@@ -240,4 +234,34 @@ test('control fixture reset does not retain prior state', () => {
   assert.deepEqual(state.charges, { toss: 0, kakao: 0 });
   assert.equal(state.kakaoOrders.size, 0);
   assert.equal(state.tossOrders.size, 0);
+});
+
+// The actual app DB keeps every immutable verification even when fixture counters
+// reset; duplicate global AIDs correctly prevent another finalization.
+test('Kakao provider identities remain unique across fixture reset and independent states', () => {
+  const state = createFixtureState();
+  const transactions = new Set();
+  const actions = new Set();
+  const credentials = new Set();
+  for (let index = 0; index < 3; index += 1) {
+    const current = index === 2 ? createFixtureState() : state;
+    if (index === 1) request(current, '/__fixture/reset');
+    const { tid } = ready(current).body;
+    assert.equal(current.requests.kakaoReady, 1);
+    assert.ok(!transactions.has(tid));
+    transactions.add(tid);
+    for (let dispatch = 0; dispatch < 2; dispatch += 1) {
+      const approved = approve(current, tid).body;
+      assert.equal(approved.tid, tid);
+      assert.ok(!actions.has(approved.aid));
+      actions.add(approved.aid);
+      if (dispatch === 0) {
+        assert.ok(!credentials.has(approved.sid));
+        credentials.add(approved.sid);
+      }
+    }
+    assert.equal(current.charges.kakao, 2);
+  }
+  assert.equal(transactions.size, 3);
+  assert.equal(actions.size, 6);
 });

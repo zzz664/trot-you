@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import {
   ENROLLMENT_CI,
@@ -187,7 +188,9 @@ export function fixtureResponse(state, request) {
     identity(body);
     amount(body.total_amount);
     assert.equal(body.tax_free_amount, 0);
-    const tid = `ci_tid_${state.requests.kakaoReady}`;
+    // The app database intentionally retains immutable ledger rows between cases.
+    // Counter resets must not reuse provider transaction/action identities.
+    const tid = `ci_tid_${randomUUID()}`;
     state.kakaoOrders.set(tid, {
       ...body,
       tid,
@@ -240,7 +243,7 @@ export function fixtureResponse(state, request) {
   const output = {
     cid: body.cid,
     tid: order.tid,
-    aid: `ci_aid_${state.charges.kakao}`,
+    aid: `ci_aid_${randomUUID()}`,
     sid: `ci_sid_${order.tid}`,
     partner_order_id: order.partner_order_id,
     partner_user_id: order.partner_user_id,
