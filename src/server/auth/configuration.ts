@@ -1,5 +1,5 @@
 import 'server-only';
-import { getServerEnv } from '@/config/env.server';
+import { getAuthEnv } from '@/config/env.server';
 
 export type AuthConfiguration = {
   appOrigin: string;
@@ -10,7 +10,7 @@ export type AuthConfiguration = {
 // Authentication is actor-scoped. A service-role key is neither required nor
 // projected into this capability; its presence never changes authorization.
 export function getAuthConfiguration(): AuthConfiguration | null {
-  const parsed = getServerEnv();
+  const parsed = getAuthEnv();
   if (!parsed.ok) return null;
   const env = parsed.data;
   if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY)

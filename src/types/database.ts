@@ -1995,6 +1995,61 @@ export type Database = {
           ref_id: string;
         }[];
       };
+      refund_admin_list: {
+        Args: { p_limit?: number; p_page?: number };
+        Returns: Json;
+      };
+      refund_admin_read: { Args: { p_request_id: string }; Returns: Json };
+      refund_claim: {
+        Args: {
+          p_actor_id: string;
+          p_lease_seconds?: number;
+          p_request_id: string;
+        };
+        Returns: Json;
+      };
+      refund_decide: {
+        Args: {
+          p_amount_krw?: number;
+          p_decision: string;
+          p_policy_version?: string;
+          p_reason?: string;
+          p_request_id: string;
+        };
+        Returns: Json;
+      };
+      refund_finalize: {
+        Args: {
+          p_amount_krw: number;
+          p_currency: string;
+          p_evidence_ref: string;
+          p_provider_action_id: string;
+          p_provider_payment_id: string;
+          p_refunded_at: string;
+          p_request_id: string;
+        };
+        Returns: string;
+      };
+      refund_read: { Args: { p_request_id: string }; Returns: Json };
+      refund_record_outcome: {
+        Args: {
+          p_evidence_ref?: string;
+          p_lease_token: string;
+          p_outcome: string;
+          p_request_id: string;
+        };
+        Returns: Json;
+      };
+      refund_request: {
+        Args: {
+          p_amount_krw: number;
+          p_idempotency_key: string;
+          p_original_event_id: string;
+          p_reason: string;
+          p_subscription_id: string;
+        };
+        Returns: Json;
+      };
       renewal_candidates: { Args: { p_limit: number }; Returns: Json };
       renewal_claim: {
         Args: {
@@ -2184,6 +2239,14 @@ export type Database = {
           occurred_at: string;
           origin: string;
         }[];
+      };
+      subscription_management_list: {
+        Args: { p_page?: number };
+        Returns: Json;
+      };
+      subscription_management_read: {
+        Args: { p_page?: number; p_subscription_id: string };
+        Returns: Json;
       };
     };
     Enums: {

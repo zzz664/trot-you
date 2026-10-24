@@ -56,7 +56,7 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 
 ## 구독·결제 원장 DB 기반
 
-[구독·검증된 금액 원장·권한 안내](docs/database/billing-ledger.md)를 참고하세요. 구독 ID와 첫 달 혜택 이력을 보존하고, 결제 시도와 실제 승인 금액을 분리합니다. 서버 전용 RPC가 청구 claim·불명 결과·중복 승인·환불 누적 한도를 처리합니다. [첫 구독 등록·최초 청구](docs/configuration/initial-subscription.md)는 Toss 카드 등록/빌링과 직접 KakaoPay ready→approve, 전용 AES-256-GCM vault, 원래 로그인 세션·nonce 바인딩, 별도 명시적 결제 동의, 원장·구독·알림 아웃박스의 원자적 확정을 연결합니다. 응답 유실은 재청구하지 않고 조회 또는 수동 확인 상태로 유지합니다. 기본 비활성이며 실제 키·운영 정책·가맹점 검증이 필요합니다. [구독 갱신·유예·재시도](docs/configuration/subscription-renewal.md)는 승인된 정책·정확한 월 기념일·전용 비밀키·원자적 lease를 요구하는 별도 비활성 worker로 연결합니다. Toss 원 주문 조회와 Kakao TID 유실 수동 검토를 구분하고 실제 스케줄러는 활성화하지 않습니다. 환불/해지 UI와 실패·만료 알림 발송은 후속 범위입니다. DB/CI 테스트 성공은 실제 공급자 결제 성공을 뜻하지 않습니다.
+[구독·검증된 금액 원장·권한 안내](docs/database/billing-ledger.md)를 참고하세요. 구독 ID와 첫 달 혜택 이력을 보존하고, 결제 시도와 실제 승인 금액을 분리합니다. 서버 전용 RPC가 청구 claim·불명 결과·중복 승인·환불 누적 한도를 처리합니다. [첫 구독 등록·최초 청구](docs/configuration/initial-subscription.md)는 Toss 카드 등록/빌링과 직접 KakaoPay ready→approve, 전용 AES-256-GCM vault, 원래 로그인 세션·nonce 바인딩, 별도 명시적 결제 동의, 원장·구독·알림 아웃박스의 원자적 확정을 연결합니다. 응답 유실은 재청구하지 않고 조회 또는 수동 확인 상태로 유지합니다. 기본 비활성이며 실제 키·운영 정책·가맹점 검증이 필요합니다. [구독 갱신·유예·재시도](docs/configuration/subscription-renewal.md)는 승인된 정책·정확한 월 기념일·전용 비밀키·원자적 lease를 요구하는 별도 비활성 worker로 연결합니다. Toss 원 주문 조회와 Kakao TID 유실 수동 검토를 구분하고 실제 스케줄러는 활성화하지 않습니다. [해지·관리자 승인형 환불](docs/configuration/subscription-cancellation.md)은 소유자 해지, 과거 결제 내역, 별도 환불 요청·정책 승인·실행·불명 결과 조회를 연결합니다. 승인된 실제 환불 정책은 없으며 기본 금전 실행은 비활성입니다. 실패·만료 알림 발송은 후속 범위입니다. DB/CI 테스트 성공은 실제 공급자 결제 성공을 뜻하지 않습니다.
 
 ## 브랜치와 작업 기록
 

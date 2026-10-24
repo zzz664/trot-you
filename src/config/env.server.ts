@@ -1,6 +1,7 @@
 import 'server-only';
 import { z } from 'zod';
 import { KAKAOPAY_TEST_CIDS } from './integrations';
+import { parseCancellationTestRuntime } from './cancellation-test-runtime';
 import {
   RENEWAL_CRON_SECRET_MIN_LENGTH,
   RENEWAL_CRON_SECRET_MAX_LENGTH,
@@ -56,6 +57,7 @@ const serverEnvSchema = publicEnvSchema.extend({
   ALIMTALK_API_KEY: optionalEnvValue(secretSchema),
   CRON_SECRET: optionalEnvValue(secretSchema.min(16)),
   PAYMENTS_RENEWALS_ENABLED: flagSchema,
+  PAYMENTS_REFUNDS_ENABLED: flagSchema,
   RENEWAL_CRON_SECRET: optionalEnvValue(
     z
       .string()
@@ -102,7 +104,10 @@ export function parseServerEnv(
     )
   )
     return failure('CONFIGURATION_INVALID');
-  if (parseRenewalTestRuntime(values).mode === 'invalid')
+  if (
+    parseRenewalTestRuntime(values).mode === 'invalid' ||
+    parseCancellationTestRuntime(values).mode === 'invalid'
+  )
     return failure('CONFIGURATION_INVALID');
   const result = serverEnvSchema.safeParse(values);
   if (!result.success) return failure('CONFIGURATION_INVALID');
@@ -151,4 +156,49 @@ export function isUiPreviewEnabled() {
 
 export function getEnrollmentTestRuntime() {
   return parseEnrollmentTestRuntime(process.env);
+}
+
+export function getCancellationTestRuntime() {
+  return parseCancellationTestRuntime(process.env);
+}
+
+// Owner access to billing history/cancellation must survive unrelated payment
+// configuration errors. Validate only authentication capabilities here, retaining
+// the public-key allowlist and never accepting a service credential as public.
+const authEnvSchema = publicEnvSchema.pick({
+  NEXT_PUBLIC_APP_URL: true,
+  NEXT_PUBLIC_SUPABASE_URL: true,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: true,
+});
+export function parseAuthEnv(input: unknown) {
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    return failure('CONFIGURATION_INVALID');
+  try {
+    const values: Record<string, unknown> = Object.create(null) as Record<
+      string,
+      unknown
+    >;
+    for (const key of Reflect.ownKeys(input)) {
+      const descriptor = Object.getOwnPropertyDescriptor(input, key);
+      if (
+        typeof key !== 'string' ||
+        !descriptor ||
+        !Object.hasOwn(descriptor, 'value') ||
+        (key.startsWith('NEXT_PUBLIC_') &&
+          !Object.hasOwn(publicEnvSchema.shape, key))
+      )
+        return failure('CONFIGURATION_INVALID');
+      if (Object.hasOwn(authEnvSchema.shape, key))
+        values[key] = descriptor.value as unknown;
+    }
+    const result = authEnvSchema.safeParse(values);
+    return result.success
+      ? success(result.data)
+      : failure('CONFIGURATION_INVALID');
+  } catch {
+    return failure('CONFIGURATION_INVALID');
+  }
+}
+export function getAuthEnv() {
+  return parseAuthEnv(process.env);
 }

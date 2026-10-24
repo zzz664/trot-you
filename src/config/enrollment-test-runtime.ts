@@ -102,3 +102,40 @@ export function parseRenewalTestRuntime(
     ? { mode: 'ci' }
     : { mode: 'invalid' };
 }
+
+export type CancellationTestRuntime = {
+  mode: 'real' | 'ci' | 'invalid' | 'unavailable';
+};
+
+// Refund fixture routing is a separate capability from enrollment/renewal.
+// Existing enrollment CI never acquires refund access merely by sharing keys.
+export function parseCancellationTestRuntime(
+  input: Record<string, unknown>,
+): CancellationTestRuntime {
+  const inactive =
+    input.CANCELLATION_LOCAL_E2E === undefined ||
+    input.CANCELLATION_LOCAL_E2E === '' ||
+    input.CANCELLATION_LOCAL_E2E === 'false';
+  if (!inactive)
+    return input.CANCELLATION_LOCAL_E2E === 'true' &&
+      input.PAYMENTS_REFUNDS_ENABLED === 'true' &&
+      parseEnrollmentTestRuntime(input).mode === 'ci'
+      ? { mode: 'ci' }
+      : { mode: 'invalid' };
+  const fictional =
+    input.TOSS_SECRET_KEY === ENROLLMENT_CI.tossSecretKey ||
+    input.KAKAOPAY_SECRET_KEY === ENROLLMENT_CI.kakaoSecretKey ||
+    input.PAYMENTS_VAULT_KEY === ENROLLMENT_CI.vaultKey;
+  if (fictional || parseEnrollmentTestRuntime(input).mode !== 'real')
+    return {
+      mode:
+        input.PAYMENTS_REFUNDS_ENABLED === 'true' ? 'invalid' : 'unavailable',
+    };
+  return { mode: 'real' };
+}
+
+export const CANCELLATION_CI_TOSS_QUERY = /^\/v1\/payments\/[A-Za-z0-9_-]+$/;
+export const CANCELLATION_CI_TOSS_CANCEL =
+  /^\/v1\/payments\/[A-Za-z0-9_-]+\/cancel$/;
+export const CANCELLATION_CI_KAKAO_PATHS =
+  /^\/online\/v1\/payment\/(order|cancel)$/;
