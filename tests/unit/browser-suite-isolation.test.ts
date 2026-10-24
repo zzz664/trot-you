@@ -13,6 +13,7 @@ describe('keyless browser suite cannot collect isolated integration fixtures', (
     'media',
     'chat',
     'replies',
+    'speech',
   ])('excludes %s from the ordinary production-build suite', (name) => {
     expect(configuration.testIgnore).toContain(`**/${name}/**`);
   });

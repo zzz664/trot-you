@@ -9,6 +9,7 @@ export const routes = {
   onboardingInstall: '/onboarding/install',
   artists: '/artists',
   artistMessages: '/api/artists',
+  analytics: '/api/analytics',
   mediaUpload: '/api/media/upload-url',
   mediaComplete: '/api/media/complete',
   mediaRead: '/api/media/signed-url',
