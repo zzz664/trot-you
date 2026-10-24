@@ -26,8 +26,17 @@
 - 로컬 보조 검증: PGlite 0.5.11/PostgreSQL 18.6 WASM + synthetic Auth + permissive default grants에서 전체 마이그레이션과 **362개 검사(기존 140 + lifecycle 151 + 독립 security 71)**가 두 차례 통과했다. psql 방식과 같이 SQL 문 단위로 실행하고 모든 fixture rollback을 확인했다. 이것은 실제 Supabase PG17 또는 JWT/PostgREST 검증이 아니다.
 - 새 실제 동시성 검사: 독립 PostgreSQL 세션과 `pg_blocking_pids` barrier로 이중 claim, 중복 승인, 해지/claim 양방향 순서, 동시 부분 환불 한도, 중복 환불, 잠금 대기 중 유예 만료를 포함한 **7개 경우**를 확인하도록 CI에 추가했다. 로컬에는 Docker/psql이 없어서 실행은 **차단됨**이며 성공으로 기록하지 않는다.
 - `npm run check:all`: 최종 7번째 동시성 회귀 검사까지 통합한 상태에서 lint/typecheck/**166 unit tests**/contrast/build 통과.
-- 실제 Supabase PG17 reset/lint/pgTAP 2회/동시성/타입 생성 및 drift gate/브라우저 CI: 게시 후 실행 예정. `src/types/database.ts`는 손으로 편집하지 않았으며, CI의 실제 생성 artifact를 후속 커밋으로 반영해야 한다.
+- 최초 게시 시 실제 Supabase PG17/동시성/타입 생성/브라우저 CI는 미실행 상태였으며, 아래 bootstrap 실행으로 검증했다. 생성 타입은 손으로 편집하지 않고 CI artifact 원본을 후속 반영했다. 전체 green 여부는 타입 반영 후 새 exact-head CI에서 다시 확인해야 한다.
 - 독립 보안 리뷰에서 비유한 기간, 최대 retry 정수 overflow, 등록 자격 확인/변경 경합, 결제사업자 초 단위 승인 시각, 잠금 대기 전 시각으로 claim하는 결함을 찾아 수정했다. 전체 수정 후 독립 재검토에서 DB-only 범위의 남은 보안 차단 사항은 발견하지 않았다.
 - 추가 로컬 브라우저 검증: 기본 실행은 Playwright 번들 Chromium 미설치로 시작하지 못했다. 이미 설치된 `/usr/bin/chromium`을 문서화된 실행 경로 옵션으로 사용한 두 번째 실행도 브라우저의 `socket() failed: Operation not permitted`로 차단되었다. 테스트 본문은 실행되지 않았으며, 13개 항목을 통과로 기록하지 않는다. 해당 실행 경로를 더 우회하지 않고 기존 CI 브라우저 검사를 유지한다.
 
 실결제·환불·샌드박스 provider API·호스팅 DB 변경·실사용자 생성·시크릿 설정·운영 배포는 수행하지 않았다. 로컬/CI SQL 검증은 결제 사업자 운영 승인을 뜻하지 않는다.
+
+## 실제 CI 및 생성 타입 후속 반영
+
+- [PR #5 bootstrap CI run 40053859325](https://github.com/zzz664/trot-you/actions/runs/40053859325)는 head `498948dd9d7e397e97005562ed86cee797e3f863`에서 실행했다. 로컬 구현 커밋 `c7af3a5`와 동일한 tree `0364bd0b82fe1f57f96b83b02fdbf404441f5b14`임을 확인하고 기존 로컬 커밋을 별도 bundle로 보존한 뒤 원격 head 위에 후속 커밋을 준비했다.
+- 실제 공식 Supabase PostgreSQL **17.11.0.006**에서 start/reset 및 public/private lint, **362개 pgTAP 검사 두 차례**, **7개 독립 세션 동시성 검사**, 타입 생성·typecheck·artifact 업로드·정리 모두 통과했다. quality job의 aggregate 검사, **166개 unit test와 13개 E2E**도 통과했다.
+- 이 bootstrap run의 전체 결과는 **실패**다. 실패 원인은 artifact 업로드 이후 실행된 **기존 커밋의 생성 타입 drift gate 하나**이며, 이를 다른 검사 실패나 전체 CI 통과로 표현하지 않는다.
+- `database-types` artifact **12544446696**의 GitHub metadata가 위 run/정확한 head에 연결됨을 독립 검증했다. ZIP SHA-256은 `6326de1374ec8d15970f8e4d92eece4ed51c0b6d705a4ecdf7b1ee0732245d8f`로 GitHub digest와 일치했다.
+- 포함된 `database.ts`는 **18,967 bytes / 581 lines**, SHA-256 `6cf20ecf2f7af071dd042e9954f97b91594a9454fcb620353f7975790aad4542`다. 이 파일을 그대로 `src/types/database.ts`로 복사했고 hash 일치를 재확인했다. 수동 생성·형태 수정은 하지 않았다. private 테이블을 공개 schema에 노출하는 변경도 없다.
+- 생성 타입 반영 후 로컬 `npm run check:all`(lint/format/typecheck/166 unit tests/contrast/build)도 통과했다. 후속 변경은 생성 타입과 이 검증 기록뿐이다. 로컬 브라우저/socket 경로를 재시도하지 않았으며, 이 CI 증거는 테스트/개발용 환경에 한정된다. 운영 인증·결제 사업자·실거래·배포 검증은 여전히 수행하지 않았다.
