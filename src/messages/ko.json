@@ -9,5 +9,36 @@
     "description": "가수의 소식과 따뜻한 이야기를 편하게 만날 수 있는 공간을 준비하고 있어요.",
     "statusTitle": "아직 준비 중이에요",
     "statusDescription": "현재는 개발용 기본 화면입니다. 회원가입, 구독, 결제 기능은 아직 제공하지 않아요."
+  },
+  "ui": {
+    "loading": "불러오는 중…",
+    "retry": "다시 시도",
+    "retrying": "다시 시도하는 중…",
+    "back": "뒤로",
+    "cancel": "취소",
+    "confirm": "확인",
+    "close": "닫기"
+  },
+  "uiPreview": {
+    "title": "공통 화면 요소 점검",
+    "description": "개발·접근성 점검 전용 화면입니다. 입력값은 저장하지 않으며 가입, 구독, 결제 기능을 제공하지 않습니다.",
+    "controlsTitle": "버튼과 입력란",
+    "inputLabel": "점검용 입력",
+    "inputHint": "개인정보 대신 임의의 글자를 입력해 주세요.",
+    "inputError": "입력 오류 안내 예시입니다.",
+    "disabled": "사용할 수 없는 버튼",
+    "loadingButton": "처리 중 예시",
+    "statusTitle": "로딩과 오류 안내",
+    "error": "요청 실패 안내 예시입니다. 다시 시도해도 실제 요청은 보내지 않습니다.",
+    "retryResult": "점검을 마쳤어요. 실제 데이터를 요청하지 않았어요.",
+    "dialogTitle": "대화상자 점검",
+    "dialogDescription": "취소, 닫기 또는 Escape 키로 닫을 수 있어요. 실제 작업은 수행하지 않아요.",
+    "openDialog": "대화상자 열기",
+    "openQueue": "두 대화상자 순서대로 열기",
+    "cancelQueued": "대기 중인 대화상자 취소 점검",
+    "secondTitle": "두 번째 대화상자",
+    "resultConfirmed": "확인을 선택했어요.",
+    "resultCanceled": "취소를 선택했어요.",
+    "resultDismissed": "대화상자를 닫았어요."
   }
 }

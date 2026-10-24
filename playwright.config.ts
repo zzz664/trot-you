@@ -15,6 +15,7 @@ export default defineConfig({
       : {},
   },
   webServer: {
+    env: { UI_PREVIEW_ENABLED: 'true' },
     command: 'npm run start -- --hostname 127.0.0.1 --port 3100',
     url: 'http://127.0.0.1:3100',
     reuseExistingServer: false,

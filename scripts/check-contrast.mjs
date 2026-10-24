@@ -12,7 +12,13 @@ function luminance(hex) {
 }
 
 const tokens = designTokens.base;
-for (const foreground of ['--color-text', '--color-muted', '--color-accent']) {
+for (const foreground of [
+  '--color-text',
+  '--color-muted',
+  '--color-accent',
+  '--color-error',
+  '--color-control-border',
+]) {
   for (const background of ['--color-background', '--color-surface']) {
     const values = [
       luminance(tokens[foreground]),

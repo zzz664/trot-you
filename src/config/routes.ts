@@ -1,1 +1,2 @@
-export const routes = { home: '/' } as const;
+export const routes = { home: '/', uiPreview: '/ui-preview' } as const;
+export type AppRoute = (typeof routes)[keyof typeof routes];
