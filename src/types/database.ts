@@ -1518,6 +1518,28 @@ export type Database = {
         };
         Returns: string;
       };
+      discovery_get_interest: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          selected_at: string;
+          selected_name: string;
+          selected_slug: string;
+        }[];
+      };
+      discovery_preview: {
+        Args: { p_actor_id: string; p_artist_slug: string };
+        Returns: {
+          artist_intro: string;
+          artist_name: string;
+          artist_slug: string;
+          call_name: string;
+          messages: Json;
+        }[];
+      };
+      discovery_select_artist: {
+        Args: { p_artist_slug: string };
+        Returns: undefined;
+      };
       has_active_access: { Args: { p_artist_id: string }; Returns: boolean };
       mark_message_read: { Args: { p_message_id: string }; Returns: string };
       messaging_cancel: {

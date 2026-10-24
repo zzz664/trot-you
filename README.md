@@ -40,7 +40,11 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 
 ## 프로필 온보딩
 
-[화면·운영 준비 안내](docs/configuration/profile-onboarding.md)와 [DB 권한/동의 경계](docs/database/profile-onboarding.md)를 참고하세요. 글자 크기 → 부를 이름 → 만 14세 이상 자기 확인·명시적 버전별 동의를 실제 RPC로 저장합니다. 가수 선택과 설치 안내는 아직 별도 준비 단계이며 전체 온보딩 완료를 기록하지 않습니다. **승인된 실제 정책 본문/금칙어 설정은 아직 없으므로 해당 단계는 준비 중 상태로 닫힙니다.** CI의 허구 문서는 법률 문구나 실제 사용자 동의가 아닙니다.
+[화면·운영 준비 안내](docs/configuration/profile-onboarding.md)와 [DB 권한/동의 경계](docs/database/profile-onboarding.md)를 참고하세요. 글자 크기 → 부를 이름 → 만 14세 이상 자기 확인·명시적 버전별 동의를 실제 RPC로 저장합니다. 다음 가수 선택 단계에서 관심 선호만 저장하고, 설치 안내는 준비 중 상태로 유지하며 전체 온보딩 완료를 기록하지 않습니다. **승인된 실제 정책 본문/금칙어 설정은 아직 없으므로 해당 단계는 준비 중 상태로 닫힙니다.** CI의 허구 문서는 법률 문구나 실제 사용자 동의가 아닙니다.
+
+## 가수 탐색·맛보기·관심 선택
+
+[화면·보안·준비 범위](docs/configuration/artist-discovery.md)와 [DB 계약](docs/database/artist-discovery.md)을 참고하세요. `/artists`는 공개된 active 가수의 안전한 목록만, `/artists/[slug]`는 현재 프로필/동의 조건을 만족한 팬에게 서버 이름 치환 맛보기만 제공합니다. `/onboarding/artists`의 관심 가수 선택은 유료 구독이나 결제가 아닙니다. 선택 후 `/onboarding/install`은 명시적인 설치 안내 준비 중 화면이며 전체 가입을 완료하지 않습니다. 사진·음성·영상은 텍스트와 이용 불가 안내만 제공하고 서명 URL/재생은 아직 없습니다. 서버 전용 맛보기 RPC에만 기존 `SUPABASE_SERVICE_ROLE_KEY`가 필요하며 브라우저·인증 actor client에는 전달하지 않습니다.
 
 ## 연동 설정 기반
 

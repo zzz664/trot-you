@@ -111,7 +111,7 @@ export default defineConfig([
   {
     files: [
       'src/app/**/*.{ts,tsx}',
-      'src/components/{fan,artist,admin,onboarding}/**/*.{ts,tsx}',
+      'src/components/{fan,artist,artists,admin,onboarding}/**/*.{ts,tsx}',
     ],
     rules: {
       'no-restricted-imports': [

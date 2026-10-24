@@ -38,6 +38,6 @@
 선택은 actor의 profile UPDATE 잠금으로 반복 요청을 직렬화하고, 공통 준비 검증은 profile → profile policy → artist 순으로 잠근다. 비활성화/제한/필수 정책 교체가 먼저 진행되면 대기한 요청이 최신 상태를 보고 실패한다. 맛보기는 artist SHARE 잠금과 현재 메시지 정책 잠금으로 가수 상태/기존 발송 취소 경로와 직렬화한다.
 
 - `artist_discovery.test.sql`: 역할/grant/직접 접근, 현재 이름·법적 정책, 미완료·제한, 독립 사용자, 재선택·반복, 비활성 가수, 빈 맛보기·발송/취소/상한, 안전한 DTO, 구독·읽음·전체 완료 비변경을 실제 SQL로 검사한다.
-- `test-discovery-concurrency.mjs`: 공식 로컬 Supabase의 독립 psql 세션에서 실제 잠금 대기를 확인한 뒤, 가수 중지 vs 선택, 가수 중지 vs 빈 맛보기, 제한 vs 선택, 정책 교체 vs 선택, 동일 선택 반복의 다섯 경합을 검사한다. 새로 reset한 격리 로컬 DB만 허용하고 종료 시 허구 fixture를 reset으로 제거한다.
+- `test-discovery-concurrency.mjs`: 공식 로컬 Supabase의 독립 psql 세션에서 실제 잠금 대기를 확인한 뒤, 가수 중지 vs 선택, 가수 중지 vs 빈 맛보기, 제한 vs 선택, 정책 교체 vs 선택, 동일 선택 반복을 검사한다. 실제 발송 RPC로 만든 비어 있지 않은 맛보기에 대해서도 실제 취소·관리자 맛보기 교체와의 경합을 추가해 총 일곱 경합을 검사한다. 새로 reset한 격리 로컬 DB만 허용하고 종료 시 허구 fixture를 reset으로 제거한다.
 - CI는 기존 DB/경합 회귀와 함께 이 테스트를 실행하고 실제 Supabase에서 타입을 생성한다. `src/types/database.ts`는 직접 작성하지 않는다.
 - PGlite 보조 검사는 synthetic Auth/Storage schema의 SQL 논리 점검일 뿐 공식 Supabase PG17·PostgREST/JWT·실제 파일·독립 세션 경합의 증거가 아니다.

@@ -26,7 +26,7 @@ export function ProfileOnboarding({
   step,
   data,
 }: {
-  step: OnboardingStep;
+  step: Exclude<OnboardingStep, 'artists'>;
   data: OnboardingData;
 }) {
   const t = useTranslations('onboarding');
@@ -68,9 +68,7 @@ export function ProfileOnboarding({
       ? routes.onboarding
       : step === 'name'
         ? routes.onboardingFont
-        : step === 'consent'
-          ? routes.onboardingName
-          : routes.onboardingConsent;
+        : routes.onboardingName;
 
   useEffect(() => {
     active.current = true;
@@ -91,8 +89,7 @@ export function ProfileOnboarding({
   }
 
   async function save() {
-    if (saving.current || refreshing || step === 'artists' || !setupReady)
-      return;
+    if (saving.current || refreshing || !setupReady) return;
     saving.current = true;
     setPending(true);
     setError(null);
@@ -153,143 +150,135 @@ export function ProfileOnboarding({
         <p>{t(`${step}Description`)}</p>
       </header>
       {refreshing && <Loading />}
-      {step === 'artists' ? (
-        <Card title={t('profileSavedTitle')}>
-          <p>{t('profileSavedDescription')}</p>
-        </Card>
-      ) : (
-        <form
-          className="onboarding-stack"
-          onSubmit={onSubmit}
-          aria-busy={busy || undefined}
-        >
-          {step === 'font' && (
-            <>
-              <RadioGroup
-                label={t('fontLabel')}
-                options={Object.keys(designTokens.scales).map((scale) => ({
-                  value: scale as FontScale,
-                  label: t(`fontOptions.${scale}`),
-                }))}
-                value={fontScale}
-                onChange={previewScale}
-                disabled={busy}
-              />
-              <Card title={t('previewTitle')}>
-                <p>{t('previewBody')}</p>
-                <p className="ui-hint">{t('previewHint')}</p>
-              </Card>
-            </>
-          )}
-          {step === 'name' && (
-            <Input
-              label={t('nameLabel')}
-              value={callName}
-              onChange={(event) => {
-                setCallName(event.target.value);
-                setError(null);
-              }}
-              autoComplete="nickname"
-              hint={
-                data.nameMin !== null && data.nameMax !== null
-                  ? t('nameHint', { min: data.nameMin, max: data.nameMax })
-                  : t('namePendingHint')
-              }
+      <form
+        className="onboarding-stack"
+        onSubmit={onSubmit}
+        aria-busy={busy || undefined}
+      >
+        {step === 'font' && (
+          <>
+            <RadioGroup
+              label={t('fontLabel')}
+              options={Object.keys(designTokens.scales).map((scale) => ({
+                value: scale as FontScale,
+                label: t(`fontOptions.${scale}`),
+              }))}
+              value={fontScale}
+              onChange={previewScale}
               disabled={busy}
-              required
             />
-          )}
-          {step === 'consent' && (
-            <>
-              <Checkbox
-                label={t('ageLabel')}
-                hint={t('ageHint')}
-                checked={ageConfirmed}
-                onChange={(event) => setAgeConfirmed(event.target.checked)}
-                disabled={busy || !setupReady}
-              />
-              {data.terms && (
-                <Card title={data.terms.title}>
-                  <p className="ui-hint">
-                    {t('policyVersion', { version: data.terms.version })}
-                  </p>
-                  <p className="onboarding-policy-body">{data.terms.body}</p>
-                  <Checkbox
-                    label={t('termsLabel')}
-                    checked={termsAccepted}
-                    onChange={(event) =>
-                      setAcceptedTerms(
-                        event.target.checked ? data.terms!.version : null,
-                      )
-                    }
-                    disabled={busy || !setupReady}
-                  />
-                </Card>
-              )}
-              {data.privacy && (
-                <Card title={data.privacy.title}>
-                  <p className="ui-hint">
-                    {t('policyVersion', { version: data.privacy.version })}
-                  </p>
-                  <p className="onboarding-policy-body">{data.privacy.body}</p>
-                  <Checkbox
-                    label={t('privacyLabel')}
-                    checked={privacyAccepted}
-                    onChange={(event) =>
-                      setAcceptedPrivacy(
-                        event.target.checked ? data.privacy!.version : null,
-                      )
-                    }
-                    disabled={busy || !setupReady}
-                  />
-                </Card>
-              )}
-              {data.analytics ? (
-                <Card title={data.analytics.title}>
-                  <p className="ui-hint">
-                    {t('policyVersion', { version: data.analytics.version })}
-                  </p>
-                  <p className="onboarding-policy-body">
-                    {data.analytics.body}
-                  </p>
-                  <Checkbox
-                    label={t('analyticsLabel')}
-                    hint={t('analyticsHint')}
-                    checked={analyticsAccepted}
-                    onChange={(event) =>
-                      setAcceptedAnalytics(
-                        event.target.checked ? data.analytics!.version : null,
-                      )
-                    }
-                    disabled={busy || !setupReady}
-                  />
-                </Card>
-              ) : (
-                <p className="ui-hint">{t('analyticsUnavailable')}</p>
-              )}
-            </>
-          )}
-          {!setupReady && (
-            <InlineError
-              message={t('setupNotReady')}
-              onRetry={retryConfiguration}
+            <Card title={t('previewTitle')}>
+              <p>{t('previewBody')}</p>
+              <p className="ui-hint">{t('previewHint')}</p>
+            </Card>
+          </>
+        )}
+        {step === 'name' && (
+          <Input
+            label={t('nameLabel')}
+            value={callName}
+            onChange={(event) => {
+              setCallName(event.target.value);
+              setError(null);
+            }}
+            autoComplete="nickname"
+            hint={
+              data.nameMin !== null && data.nameMax !== null
+                ? t('nameHint', { min: data.nameMin, max: data.nameMax })
+                : t('namePendingHint')
+            }
+            disabled={busy}
+            required
+          />
+        )}
+        {step === 'consent' && (
+          <>
+            <Checkbox
+              label={t('ageLabel')}
+              hint={t('ageHint')}
+              checked={ageConfirmed}
+              onChange={(event) => setAgeConfirmed(event.target.checked)}
+              disabled={busy || !setupReady}
             />
-          )}
-          {error && (
-            <InlineError
-              message={t(`errors.${error}`)}
-              onRetry={
-                error === 'POLICY_CHANGED' || error === 'SETUP_NOT_READY'
-                  ? retryConfiguration
-                  : save
-              }
-            />
-          )}
-          <Button type="submit" isLoading={busy} disabled={!setupReady}>
-            {pending ? t('saving') : t('continue')}
-          </Button>
-        </form>
-      )}
+            {data.terms && (
+              <Card title={data.terms.title}>
+                <p className="ui-hint">
+                  {t('policyVersion', { version: data.terms.version })}
+                </p>
+                <p className="onboarding-policy-body">{data.terms.body}</p>
+                <Checkbox
+                  label={t('termsLabel')}
+                  checked={termsAccepted}
+                  onChange={(event) =>
+                    setAcceptedTerms(
+                      event.target.checked ? data.terms!.version : null,
+                    )
+                  }
+                  disabled={busy || !setupReady}
+                />
+              </Card>
+            )}
+            {data.privacy && (
+              <Card title={data.privacy.title}>
+                <p className="ui-hint">
+                  {t('policyVersion', { version: data.privacy.version })}
+                </p>
+                <p className="onboarding-policy-body">{data.privacy.body}</p>
+                <Checkbox
+                  label={t('privacyLabel')}
+                  checked={privacyAccepted}
+                  onChange={(event) =>
+                    setAcceptedPrivacy(
+                      event.target.checked ? data.privacy!.version : null,
+                    )
+                  }
+                  disabled={busy || !setupReady}
+                />
+              </Card>
+            )}
+            {data.analytics ? (
+              <Card title={data.analytics.title}>
+                <p className="ui-hint">
+                  {t('policyVersion', { version: data.analytics.version })}
+                </p>
+                <p className="onboarding-policy-body">{data.analytics.body}</p>
+                <Checkbox
+                  label={t('analyticsLabel')}
+                  hint={t('analyticsHint')}
+                  checked={analyticsAccepted}
+                  onChange={(event) =>
+                    setAcceptedAnalytics(
+                      event.target.checked ? data.analytics!.version : null,
+                    )
+                  }
+                  disabled={busy || !setupReady}
+                />
+              </Card>
+            ) : (
+              <p className="ui-hint">{t('analyticsUnavailable')}</p>
+            )}
+          </>
+        )}
+        {!setupReady && (
+          <InlineError
+            message={t('setupNotReady')}
+            onRetry={retryConfiguration}
+          />
+        )}
+        {error && (
+          <InlineError
+            message={t(`errors.${error}`)}
+            onRetry={
+              error === 'POLICY_CHANGED' || error === 'SETUP_NOT_READY'
+                ? retryConfiguration
+                : save
+            }
+          />
+        )}
+        <Button type="submit" isLoading={busy} disabled={!setupReady}>
+          {pending ? t('saving') : t('continue')}
+        </Button>
+      </form>
       <footer className="onboarding-stack">
         <p className="ui-hint">{t('resumeHint')}</p>
         <AuthForm

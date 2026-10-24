@@ -78,9 +78,13 @@ if (action === 'configure') {
       'NEXT_PUBLIC_APP_URL=http://127.0.0.1:3100',
       'NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321',
       `NEXT_PUBLIC_SUPABASE_ANON_KEY=${status.ANON_KEY}`,
-      // Not SUPABASE_SERVICE_ROLE_KEY: the application must not receive or need
-      // an admin credential for authentication/actor-scoped profile reads.
+      // Fixture-only admin access. The application process explicitly clears
+      // AUTH_TEST_SERVICE_KEY; this is never a hosted project credential.
       `AUTH_TEST_SERVICE_KEY=${status.SERVICE_ROLE_KEY}`,
+      // Preview templates require a server-only service RPC after verified
+      // actor authentication. Authentication/interest still use the public key.
+      // Only the disposable local stack key reaches the application server.
+      `SUPABASE_SERVICE_ROLE_KEY=${status.SERVICE_ROLE_KEY}`,
       '',
     ].join('\n'),
   );

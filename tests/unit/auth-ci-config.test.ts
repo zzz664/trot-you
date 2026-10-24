@@ -18,6 +18,26 @@ const original = readFileSync(
 );
 
 describe('isolated authentication CI configuration', () => {
+  it('passes only the verified local key to preview server and keeps fixture access separate', () => {
+    const setup = readFileSync(
+      new URL('../../scripts/auth-local-ci.mjs', import.meta.url),
+      'utf8',
+    );
+    expect(setup).toContain("'SUPABASE_SERVICE_ROLE_KEY',");
+    expect(setup).toContain(
+      '`AUTH_TEST_SERVICE_KEY=${status.SERVICE_ROLE_KEY}`',
+    );
+    expect(setup).toContain(
+      '`SUPABASE_SERVICE_ROLE_KEY=${status.SERVICE_ROLE_KEY}`',
+    );
+    expect(setup).not.toContain('NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=');
+    const browser = readFileSync(
+      new URL('../../playwright.auth.config.ts', import.meta.url),
+      'utf8',
+    );
+    expect(browser).toContain("AUTH_TEST_SERVICE_KEY: ''");
+  });
+
   it('activates the email provider while global public signup stays disabled', () => {
     const generated = prepareLocalAuthConfig(original);
     expect(

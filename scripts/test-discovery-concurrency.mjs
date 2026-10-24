@@ -190,15 +190,22 @@ async function race(db, label, firstSql, secondSql, onBlocked) {
 async function fixture(db) {
   const fanId = uuid();
   const artistId = uuid();
+  const authorId = uuid();
+  const adminId = uuid();
   const termsId = uuid();
   const privacyId = uuid();
   const replacementTermsId = uuid();
   const slug = `discovery-race-${artistId}`;
   await db.query(`
     insert into auth.users(id,email,raw_user_meta_data)
-      values('${fanId}','discovery-race@example.invalid','{}');
+      values('${fanId}','discovery-race@example.invalid','{}'),
+        ('${authorId}','discovery-race-author@example.invalid','{}'),
+        ('${adminId}','discovery-race-admin@example.invalid','{}');
+    update public.profiles set role='artist' where id='${authorId}';
+    update public.profiles set role='admin' where id='${adminId}';
     insert into public.artists(id,slug,name,grade,status)
       values('${artistId}','${slug}','허구 경합 가수','B','active');
+    insert into public.artist_members(artist_id,user_id) values('${artistId}','${authorId}');
     insert into private.onboarding_documents(version,kind,title,body,approved_at,published_at) values
       ('${termsId}','terms','Fictional terms','Only a disposable race fixture.',now(),now()),
       ('${privacyId}','privacy','Fictional privacy','Only a disposable race fixture.',now(),now()),
@@ -216,8 +223,45 @@ async function fixture(db) {
       )}
     commit;
   `);
-  return { fanId, artistId, termsId, replacementTermsId, slug };
+  return {
+    fanId,
+    artistId,
+    authorId,
+    adminId,
+    termsId,
+    replacementTermsId,
+    slug,
+  };
 }
+
+// Create/schedule/dispatch through actual privileged messaging RPCs. The fixture
+// has no paid subscription, production content, external provider or media bytes.
+async function sentMessage(db, f) {
+  const id = await db.query(
+    `begin; ${service(`select public.messaging_save_draft(
+    '${f.authorId}','${f.artistId}',null,'text','허구 경합 인사 {이름}');`)} commit;`,
+  );
+  await db.query(
+    `begin; ${service(`select public.messaging_schedule(
+    '${f.authorId}','${id}',statement_timestamp());`)} commit;`,
+  );
+  assert.equal(
+    await db.query(
+      `begin; ${service(`select public.messaging_dispatch('${id}');`)} commit;`,
+    ),
+    't',
+  );
+  return id;
+}
+
+const setPreviews = (f, ids) =>
+  service(`select public.messaging_set_previews(
+  '${f.adminId}','${f.artistId}',array[${ids.map((id) => `'${id}'::uuid`).join(',')}]);`);
+const preview = (f) =>
+  service(
+    `select messages from public.discovery_preview('${f.fanId}','${f.slug}');`,
+  );
+const previewIds = (value) => JSON.parse(value).map((message) => message.id);
 
 async function testConcurrency(db) {
   const f = await fixture(db);
@@ -322,6 +366,62 @@ async function testConcurrency(db) {
   console.info(
     'PASS: concurrent repeated selection keeps one timestamp without paid/full-onboarding state',
   );
+
+  const canceledId = await sentMessage(db, f);
+  await db.query(`begin; ${setPreviews(f, [canceledId])} commit;`);
+  assert.deepEqual(previewIds(await db.query(`begin; ${preview(f)} commit;`)), [
+    canceledId,
+  ]);
+  const canceled = await race(
+    db,
+    'cancel-before-nonempty-preview',
+    service(`select public.messaging_cancel('${f.authorId}','${canceledId}');`),
+    preview(f),
+  );
+  assert.equal(canceled.following.error, undefined);
+  assert.deepEqual(previewIds(canceled.following.value), []);
+  assert.equal(
+    await db.query(
+      `select status='canceled' and not is_preview from public.messages where id='${canceledId}';`,
+    ),
+    't',
+  );
+  console.info(
+    'PASS: previously nonempty preview waits for actual cancellation and returns no canceled content',
+  );
+
+  const oldIds = [await sentMessage(db, f), await sentMessage(db, f)];
+  const newIds = [await sentMessage(db, f), await sentMessage(db, f)];
+  await db.query(`begin; ${setPreviews(f, oldIds)} commit;`);
+  assert.deepEqual(
+    previewIds(await db.query(`begin; ${preview(f)} commit;`)),
+    oldIds,
+  );
+  const replacementOrder = [newIds[1], newIds[0]];
+  const replaced = await race(
+    db,
+    'replace-before-nonempty-preview',
+    setPreviews(f, replacementOrder),
+    preview(f),
+  );
+  assert.equal(replaced.following.error, undefined);
+  assert.deepEqual(previewIds(replaced.following.value), replacementOrder);
+  console.info(
+    'PASS: preview waiting for actual admin replacement receives the complete new list in order',
+  );
+
+  assert.equal(
+    await db.query(
+      `select count(*) from public.subscriptions where user_id='${f.fanId}';`,
+    ),
+    '0',
+  );
+  assert.equal(
+    await db.query(
+      `select count(*) from public.message_reads where user_id='${f.fanId}';`,
+    ),
+    '0',
+  );
 }
 
 try {
@@ -350,7 +450,7 @@ try {
   shouldReset = true;
   await testConcurrency(db);
   console.info(
-    'All five PostgreSQL multi-session discovery concurrency checks passed.',
+    'All seven PostgreSQL multi-session discovery concurrency checks passed.',
   );
 } catch (error) {
   console.error(error);

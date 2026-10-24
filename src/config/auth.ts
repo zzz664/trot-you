@@ -21,6 +21,7 @@ export const AUTH_RETURN_PATHS = [
   routes.onboardingName,
   routes.onboardingConsent,
   routes.onboardingArtists,
+  routes.onboardingInstall,
 ] as const;
 export const AUTH_PRIVATE_HEADERS = {
   'Cache-Control': 'private, no-cache, no-store, must-revalidate, max-age=0',

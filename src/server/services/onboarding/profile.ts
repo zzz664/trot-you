@@ -16,9 +16,13 @@ export type OnboardingPort = {
 };
 
 export function resumeOnboarding(data: OnboardingData): string {
-  if (data.profileCompleted) return routes.onboardingArtists;
+  if (data.profileCompleted)
+    return data.artistSelected
+      ? routes.onboardingInstall
+      : routes.onboardingArtists;
   if (!data.fontSelected) return routes.onboardingFont;
-  if (!data.callName) return routes.onboardingName;
+  if (!data.callName || data.nameRevalidationRequired)
+    return routes.onboardingName;
   return routes.onboardingConsent;
 }
 
@@ -30,8 +34,10 @@ export function onboardingStepRedirect(
   if (step === 'font') return null;
   if (!data.fontSelected) return routes.onboardingFont;
   if (step === 'name') return null;
-  if (!data.callName) return routes.onboardingName;
+  if (!data.callName || data.nameRevalidationRequired)
+    return routes.onboardingName;
   if (step === 'consent') return null;
+  if (step === 'artists' && data.profileCompleted) return null;
   const resumed = resumeOnboarding(data);
   return requested === resumed ? null : resumed;
 }

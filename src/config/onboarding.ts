@@ -12,6 +12,7 @@ export const ONBOARDING_PATHS = [
   routes.onboardingName,
   routes.onboardingConsent,
   routes.onboardingArtists,
+  routes.onboardingInstall,
 ] as const;
 export const ONBOARDING_STEP_PATHS = {
   font: routes.onboardingFont,
@@ -29,6 +30,8 @@ export type OnboardingData = {
   nameMax: number | null;
   nameReady: boolean;
   profileCompleted: boolean;
+  artistSelected?: boolean;
+  nameRevalidationRequired?: boolean;
   terms: Policy | null;
   privacy: Policy | null;
   analytics: Policy | null;

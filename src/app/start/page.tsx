@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { ArtistCatalogEntry } from '@/components/artists/ArtistCatalogEntry';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { AUTH_START_MESSAGES } from '@/config/auth';
 import { routes } from '@/config/routes';
@@ -32,6 +33,7 @@ export default async function StartPage({
         disabled={!configured}
         {...(!configured ? { describedBy: 'login-help' } : {})}
       />
+      <ArtistCatalogEntry />
       {state.status === 'unavailable' && (
         <AuthForm
           action={routes.authLogout}

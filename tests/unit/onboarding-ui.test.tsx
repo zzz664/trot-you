@@ -55,7 +55,7 @@ const base: OnboardingData = {
   privacy: policy('privacy', '22222222-2222-4222-8222-222222222222'),
   analytics: policy('analytics', '33333333-3333-4333-8333-333333333333'),
 };
-function subject(step: OnboardingStep, data = base) {
+function subject(step: Exclude<OnboardingStep, 'artists'>, data = base) {
   return (
     <NextIntlClientProvider locale="ko" messages={messages}>
       <ProfileOnboarding step={step} data={data} />
@@ -305,19 +305,16 @@ describe('profile onboarding controls', () => {
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 
-  it('uses a real logout POST for cancel and does not invent artist completion', () => {
-    render(subject('artists', { ...base, profileCompleted: true }));
+  it('uses a real logout POST for cancel during profile setup', () => {
+    render(subject('consent'));
     const cancel = screen.getByRole('button', {
       name: messages.onboarding.cancel,
     });
     expect(cancel.closest('form')).toHaveAttribute('method', 'post');
     expect(cancel.closest('form')).toHaveAttribute('action', routes.authLogout);
     expect(
-      screen.getByText(messages.onboarding.profileSavedDescription),
+      screen.getByRole('button', { name: messages.onboarding.continue }),
     ).toBeVisible();
-    expect(
-      screen.queryByRole('button', { name: messages.onboarding.continue }),
-    ).not.toBeInTheDocument();
   });
 
   it('uses keyboard-operable native checkboxes and radio groups', async () => {

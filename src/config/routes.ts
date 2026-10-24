@@ -6,6 +6,9 @@ export const routes = {
   onboardingName: '/onboarding/name',
   onboardingConsent: '/onboarding/consent',
   onboardingArtists: '/onboarding/artists',
+  onboardingInstall: '/onboarding/install',
+  artists: '/artists',
+  artistSelectionSubmit: '/api/onboarding/artist',
   onboardingSubmit: '/api/onboarding',
   restricted: '/restricted',
   artist: '/artist',
@@ -16,3 +19,11 @@ export const routes = {
   uiPreview: '/ui-preview',
 } as const;
 export type AppRoute = (typeof routes)[keyof typeof routes];
+
+export function artistPreviewPath(slug: string) {
+  return `${routes.artists}/${encodeURIComponent(slug)}`;
+}
+export function artistCatalogPath(page: number, onboarding = false) {
+  const base = onboarding ? routes.onboardingArtists : routes.artists;
+  return page > 1 ? `${base}?page=${page}` : base;
+}
