@@ -44,7 +44,7 @@
 ## Verification status
 
 - Local focused service/DB-adapter/HTTP/body/page/capture and UI tests pass.
-- The latest full unit snapshot passed **4,656 tests in 142 files**. This is a
+- The latest full unit snapshot passed **4,671 tests in 143 files**. This is a
   local unit result, not a database/browser/staging result.
 - Full local `npm run check:all` passes after genuine type integration: ESLint,
   Prettier, strict types, all unit tests, 10 contrast pairs and the production
@@ -81,3 +81,19 @@ contract stubs do not prove device/browser codec support. Existing secure-media
 limitations and the blocked independent media review remain explicitly retained
 in [the media contract](../configuration/media.md). Hosted staging, native-device
 capture and approved production policy/cleanup controls remain separate gates.
+
+## First application CI correction
+
+Run `40135186816` reached the new compose job but all 37 cases stopped in
+fixture setup: its fictional artist profile marked onboarding complete without
+a calling name, correctly rejected by the pre-existing profile constraint.
+No application UI assertions or planned screenshots ran. The correction only
+initializes the guarded fictional artist name and timestamp atomically; fan
+fixtures remain incomplete and must use the real onboarding RPCs when needed.
+A pure initializer and 15 no-I/O regression cases now cover that invariant and
+its executor wiring. No schema or application authorization was relaxed.
+
+The same run's auth-browser job hit a separate Docker port-54322 bind conflict
+before tests. That infrastructure failure is not an application pass or source
+regression. Corrected-head browser execution and normal screenshot review are
+still pending.

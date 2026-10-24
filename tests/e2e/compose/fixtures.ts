@@ -13,6 +13,7 @@ import {
 } from '@playwright/test';
 import sharp from 'sharp';
 import type { Database } from '../../../src/types/database';
+import { composeProfileFixtureSql } from './profile-fixture';
 import {
   prepareFictionalDocuments,
   enableFictionalPolicy,
@@ -140,9 +141,8 @@ async function createIdentity(role: 'artist' | 'fan'): Promise<Identity> {
     );
     return client;
   }
-  localSql(
-    `update public.profiles set role='${role}',onboarding_completed_at=clock_timestamp() where id='${uuid(id)}' and exists(select 1 from auth.users where id='${uuid(id)}' and email ~ '^compose-e2e-[0-9a-f-]{36}@example[.]invalid$');`,
-  );
+  const profileSetup = composeProfileFixtureSql(id, role);
+  if (profileSetup !== null) localSql(profileSetup);
   return {
     id,
     actorClient,
