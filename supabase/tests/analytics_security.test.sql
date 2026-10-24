@@ -99,6 +99,10 @@ select throws_ok($$delete from private.analytics_events$$,'42501',null,'service 
 select throws_ok($$select public.analytics_set_consent(true,gen_random_uuid())$$,'42501',null,'service cannot create consent with a forged session subject');
 select throws_ok($$select public.analytics_purge_expired(1)$$,'55000','ANALYTICS_POLICY_REQUIRED','retention refuses to invent missing policy');
 reset role;
+-- Fictional approved/public policy bodies exist only in this rolled-back test.
+insert into private.onboarding_documents(version,kind,title,body,approved_at,published_at) values
+ ('f9000000-0000-4000-8000-000000000001','analytics','Fictional CI analytics policy','Fictional test fixture only; not legal policy.',now(),now()),
+ ('f9000000-0000-4000-8000-000000000002','analytics','Fictional CI analytics policy','Fictional test fixture only; not legal policy.',now(),now());
 insert into private.analytics_policy(consent_version,enabled,retention_days)
  values('f9000000-0000-4000-8000-000000000001',true,30);
 select throws_ok($$update private.analytics_policy set retention_days=0$$,'23514',null,'zero retention window is structurally invalid');
