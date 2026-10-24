@@ -246,9 +246,9 @@ select throws_ok($$insert into storage.objects(bucket_id,name,metadata) values('
 with changed as (update storage.objects set name='changed' where bucket_id='media-quarantine' returning id)
 select is((select count(*) from changed),0::bigint,
  'direct quarantine overwrite remains impossible');
-with removed as (delete from storage.objects where bucket_id='message-media' returning id)
-select is((select count(*) from removed),0::bigint,
- 'direct final deletion remains impossible');
+select throws_ok($$delete from storage.objects where bucket_id='message-media'$$,
+ '42501','Direct deletion from storage tables is not allowed. Use the Storage API instead.',
+ 'direct final deletion is denied by the Storage API-only guard');
 reset role;
 select * from finish();
 rollback;
