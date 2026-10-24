@@ -91,3 +91,13 @@ export function getPublicEnv(): PublicEnv {
 export function isProductionBuild() {
   return process.env.NODE_ENV === 'production';
 }
+
+// Document metadata needs only the application origin. A malformed optional
+// payment client key must not prevent an owner reaching cancellation/history.
+export function getPublicAppOrigin(): string {
+  const parsed = publicEnvSchema.shape.NEXT_PUBLIC_APP_URL.safeParse(
+    process.env.NEXT_PUBLIC_APP_URL,
+  );
+  if (!parsed.success) throw new Error('Invalid public application origin');
+  return parsed.data;
+}

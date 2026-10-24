@@ -33,6 +33,7 @@ export function parsePreparationEnvironment(env: ServerEnv) {
     // boundary. It is not a provider credential and must not be reparsed after
     // the private CI flags have deliberately been stripped from ServerEnv.
     PAYMENTS_RENEWALS_ENABLED: 'false',
+    PAYMENTS_REFUNDS_ENABLED: 'false',
     RENEWAL_CRON_SECRET: undefined,
     TOSS_BILLING_ENABLED: String(env.TOSS_BILLING_ENABLED),
     KAKAOPAY_SUBSCRIPTION_ENABLED: String(env.KAKAOPAY_SUBSCRIPTION_ENABLED),

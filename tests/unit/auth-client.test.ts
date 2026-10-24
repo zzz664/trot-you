@@ -118,3 +118,19 @@ describe('request-scoped SDK and profile query', () => {
     expect(maybeSingle).toHaveBeenCalledOnce();
   });
 });
+
+describe('cancellation-safe auth configuration isolation', () => {
+  it.each([
+    ['TOSS_SECRET_KEY', 'not_a_payment_key'],
+    ['PAYMENTS_MODE', 'unsupported'],
+    ['PAYMENTS_VAULT_KEY', 'broken-key'],
+    ['PAYMENTS_REFUNDS_ENABLED', 'invalid-flag'],
+    ['KAKAOPAY_RECURRING_CID', 'unexpected cid'],
+  ])(
+    'keeps verified owner login available when unrelated %s is misconfigured',
+    (key, value) => {
+      vi.stubEnv(key, value);
+      expect(getAuthConfiguration()).toEqual(configuration);
+    },
+  );
+});

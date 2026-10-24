@@ -22,6 +22,16 @@ export const routes = {
   enrollmentStatus: '/api/checkout/enrollment/status',
   enrollmentComplete: '/checkout/complete',
   chargeRenewals: '/api/cron/charge-renewals',
+  subscriptions: '/me/subscriptions',
+  subscriptionStatus: '/api/subscriptions/status',
+  subscriptionCancel: '/api/subscriptions/cancel',
+  refundRequest: '/api/subscriptions/refund-request',
+  adminRefunds: '/admin/refunds',
+  adminRefundStatus: '/api/admin/refunds/status',
+  refundAuthorize: '/api/admin/refunds/authorize',
+  refundExecute: '/api/admin/refunds/execute',
+  refundReconcile: '/api/admin/refunds/reconcile',
+  refundReject: '/api/admin/refunds/reject',
   restricted: '/restricted',
   artist: '/artist',
   admin: '/admin',
@@ -46,4 +56,23 @@ export function checkoutPath(slug: string) {
 
 export function enrollmentCompletePath(sessionId: string) {
   return `${routes.enrollmentComplete}?session=${encodeURIComponent(sessionId)}`;
+}
+
+export function subscriptionPath(subscriptionId: string, page = 1) {
+  const base = `${routes.subscriptions}/${encodeURIComponent(subscriptionId)}`;
+  return page > 1 ? `${base}?page=${page}` : base;
+}
+
+export function adminRefundPath(requestId: string) {
+  return `${routes.adminRefunds}/${encodeURIComponent(requestId)}`;
+}
+
+export function subscriptionListPath(page: number) {
+  return page > 1
+    ? `${routes.subscriptions}?page=${page}`
+    : routes.subscriptions;
+}
+
+export function adminRefundListPath(page: number) {
+  return page > 1 ? `${routes.adminRefunds}?page=${page}` : routes.adminRefunds;
 }
