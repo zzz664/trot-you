@@ -33,3 +33,7 @@
 - 최종 앱 코드에서 로컬 `npm run check:all` **통과**: ESLint/Prettier, strict typecheck, **463개 단위 테스트**, 대비, 키 없는 production build. `git diff --check` 통과.
 - 새 실제 Auth E2E 11개와 18장(세 글자 크기 × 두 폭 × 세 화면)을 준비했다. 외부 요청은 브라우저에서 차단하고 고정 loopback·격리 CI·폐기 계정·허구 정책만 쓴다. 로컬 브라우저 제한을 재시도하지 않았으며 이 새 앱의 실제 브라우저 실행·화면 검수 및 최종 DB 타입 일치 gate는 다음 정확한 커밋 CI 결과를 기다린다.
 - 종료된 settlement 로컬 기능 ref도 기존 archive ref와 동일 SHA임을 확인하고 중복만 제거했다. 현재 활성 `feature/*`는 이 기능 하나다.
+
+## 최종 앱 CI의 접근성 locator 보정
+
+원격 앱 `7650af77fd4ae7d2c1c469615508372ea93b8da9` / CI `40074239413`에서 quality 전체와 기존 E2E 16개가 통과했다. 실제 인증 E2E 29개 중 27개가 통과했고, 새 두 테스트는 제품 오류 문구가 아니라 Next의 `#__next-route-announcer__`도 `role=alert`로 찾는 strict locator 모호성으로 실패했다. 제품의 의미 있는 알림/라우트 announcer는 유지하고 테스트의 오류 assertion만 main 영역으로 좁혔다. 글자 6개 매트릭스, 중단/재개, 악성 RPC, 선택 분석 및 기존 인증 18개는 이미 통과했다. 보정 후 정확한 새 커밋의 전체 CI와 화면 검토를 다시 확인한다.

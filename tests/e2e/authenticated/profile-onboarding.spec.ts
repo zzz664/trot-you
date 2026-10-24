@@ -284,7 +284,7 @@ test('server validates names and age, keeps failed input and offers a large real
     await page
       .getByRole('button', { name: copy.continue, exact: true })
       .click();
-    await expect(page.getByRole('alert')).toHaveText(error!);
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText(error!);
     await expect(name).toHaveValue(value!);
     expect((await ownProfile(actor)).call_name).toBeNull();
   }
@@ -293,7 +293,9 @@ test('server validates names and age, keeps failed input and offers a large real
     route.abort('failed'),
   );
   await page.getByRole('button', { name: copy.continue, exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText(copy.errors.UNAVAILABLE);
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+    copy.errors.UNAVAILABLE,
+  );
   await expect(name).toHaveValue('허구팬');
   await page.unroute(`**${routes.onboardingSubmit}`);
   const retry = page.getByRole('button', {
@@ -306,10 +308,12 @@ test('server validates names and age, keeps failed input and offers a large real
   await retry.click();
   await expect(page).toHaveURL(`${appOrigin}${routes.onboardingConsent}`);
   await page.getByRole('button', { name: copy.continue, exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText(copy.errors.AGE_REQUIRED);
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+    copy.errors.AGE_REQUIRED,
+  );
   await page.getByRole('checkbox', { name: copy.ageLabel }).check();
   await page.getByRole('button', { name: copy.continue, exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText(
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(
     copy.errors.CONSENT_REQUIRED,
   );
   expect((await ownProfile(actor)).profile_completed_at).toBeNull();
@@ -328,7 +332,9 @@ test('missing configuration fails closed and displayed consent cannot accept a n
   disableFictionalPolicy();
   await page.goto(routes.onboardingFont);
   await page.getByRole('button', { name: copy.continue, exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText(copy.setupNotReady);
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+    copy.setupNotReady,
+  );
   await expect(
     page.getByRole('button', { name: copy.continue, exact: true }),
   ).toBeDisabled();
@@ -353,7 +359,9 @@ test('missing configuration fails closed and displayed consent cannot accept a n
   await expect(page).toHaveURL(`${appOrigin}${routes.onboardingConsent}`);
   disableFictionalPolicy();
   await page.reload();
-  await expect(page.getByRole('alert')).toHaveText(copy.setupNotReady);
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+    copy.setupNotReady,
+  );
   await expect(
     page.getByRole('checkbox', { name: copy.termsLabel }),
   ).toHaveCount(0);
@@ -367,7 +375,9 @@ test('missing configuration fails closed and displayed consent cannot accept a n
   await acceptRequired(page);
   rotateFictionalTerms();
   await page.getByRole('button', { name: copy.continue, exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText(copy.errors.POLICY_CHANGED);
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+    copy.errors.POLICY_CHANGED,
+  );
   expect((await ownProfile(actor)).profile_completed_at).toBeNull();
   await page
     .getByRole('button', { name: messages.ui.retry, exact: true })
