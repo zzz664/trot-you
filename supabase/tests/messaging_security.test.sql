@@ -121,6 +121,16 @@ insert into storage.objects(id,bucket_id,name,metadata) values
   '82000000-0000-4000-8000-000000000001/83000000-0000-4000-8000-000000000002/84000000-0000-4000-8000-000000000002.mp3','{"mimetype":"audio/mpeg","size":1000}'),
  ('85000000-0000-4000-8000-000000000003','message-media',
   '82000000-0000-4000-8000-000000000001/83000000-0000-4000-8000-000000000003/84000000-0000-4000-8000-000000000003.mp4','{"mimetype":"video/mp4","size":1000}');
+-- The Storage BEFORE DELETE statement guard rejects even zero-row DELETEs.
+-- Do not disable it or enable its internal API bypass for a SQL fixture. Check
+-- our DELETE RLS separately so the global guard cannot mask a removed/loosened
+-- application policy. Actual Storage API delete integration is a later scope.
+select ok(exists (select 1 from pg_policy where polrelid='storage.objects'::regclass
+ and polname='message_media_no_client_delete' and polcmd='d' and not polpermissive and cardinality(polroles)=2
+ and polroles @> array[(select oid from pg_roles where rolname='anon'),
+   (select oid from pg_roles where rolname='authenticated')]::oid[]
+ and pg_get_expr(polqual,polrelid) = '(bucket_id <> ''message-media''::text)'),
+ 'private object DELETE RLS remains restrictive for both clients with exact bucket exclusion');
 select is((select public from storage.buckets where id='message-media'),false,'message-media is private');
 select is((select file_size_limit from storage.buckets where id='message-media'),104857600::bigint,'bucket has explicit maximum byte size');
 select ok((select not ('text/html'=any(allowed_mime_types)) from storage.buckets where id='message-media'),'active content MIME excluded');
@@ -130,7 +140,9 @@ select is((select count(*) from storage.buckets where id='message-media'),0::big
 select throws_ok($$insert into storage.objects(bucket_id,name,metadata) values('message-media','anon.jpg','{}')$$,
  '42501',null,'anon cannot insert private objects');
 with changed as (update storage.objects set name='changed.jpg' where bucket_id='message-media' returning id) select is((select count(*) from changed),0::bigint,'anon cannot rename private object');
-with changed as (delete from storage.objects where bucket_id='message-media' returning id) select is((select count(*) from changed),0::bigint,'anon cannot delete private object');
+select throws_ok($$delete from storage.objects where bucket_id='message-media'$$,
+ '42501','Direct deletion from storage tables is not allowed. Use the Storage API instead.',
+ 'anon direct delete is rejected by the real Storage statement guard');
 with changed as (update storage.buckets set public=true where id='message-media' returning id) select is((select count(*) from changed),0::bigint,'anon cannot publish private bucket');
 reset role;
 set local role authenticated;
@@ -138,7 +150,9 @@ select is((select count(*) from storage.objects where bucket_id='message-media')
 select throws_ok($$insert into storage.objects(bucket_id,name,metadata) values('message-media','admin.jpg','{}')$$,
  '42501',null,'authenticated admin cannot bypass verified upload service');
 with changed as (update storage.objects set name='changed.jpg' where bucket_id='message-media' returning id) select is((select count(*) from changed),0::bigint,'authenticated admin cannot overwrite private object');
-with changed as (delete from storage.objects where bucket_id='message-media' returning id) select is((select count(*) from changed),0::bigint,'authenticated admin cannot delete private object');
+select throws_ok($$delete from storage.objects where bucket_id='message-media'$$,
+ '42501','Direct deletion from storage tables is not allowed. Use the Storage API instead.',
+ 'authenticated admin direct delete is rejected by the real Storage statement guard');
 with changed as (update storage.buckets set public=true where id='message-media' returning id) select is((select count(*) from changed),0::bigint,'authenticated admin cannot publish private bucket');
 reset role;
 select set_config('request.jwt.claim.sub','81000000-0000-4000-8000-000000000002',true);

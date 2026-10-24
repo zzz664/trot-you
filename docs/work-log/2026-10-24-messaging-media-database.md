@@ -39,3 +39,12 @@
 - `private.require_message_service`는 `current_setting('role', true)` 조회와 거절 예외만 수행하므로 정확히 STABLE로 선언했다. SQL lint를 끄거나 메시지 조회의 snapshot 의미를 변경하지 않았다. row lock/쓰기/실시간 clock을 사용하는 author/lifecycle/read-mark/reply 함수는 VOLATILE로 유지했다.
 - 재발 방지로 읽기 전용 guard와 잠금/실시간 함수의 `provolatile` 분류를 검사하는 pgTAP 2개를 추가했다. 생성 타입은 여전히 수정하지 않았다. 수정 후 실제 DB lint 및 뒤따르는 모든 CI 단계는 새 exact-head 실행에서 다시 확인해야 한다.
 - 수정 후 보조 PGlite 검사는 **563개(기존 362 + lifecycle 128 + security 73)**를 두 번 통과했고, `npm run check:all`도 166 unit tests를 포함해 통과했다. 독립 read-only 검토는 guard 및 조회 함수의 STABLE call graph와 잠금 함수의 VOLATILE 유지가 적절하며 권한 의미를 바꾸지 않는다고 확인했다. 이 결과는 실제 PG17 lint 재실행 성공을 대신하지 않는다.
+
+## 실제 Storage DELETE guard에 맞춘 테스트 수정
+
+- [CI run 40056308916](https://github.com/zzz664/trot-you/actions/runs/40056308916), head `cf70bfb786e313d3cc115acf2d3d21b6b7cc8b44`에서 실제 Supabase DB lint는 통과했다. 첫 integration 실행은 다른 네 SQL 파일을 통과한 뒤 `messaging_security`의 42번째 검사 앞에서 중단되었다(531개 검사까지 실행). 이후 반복/concurrency/type generation/artifact 단계는 미실행이다.
+- 원인은 제품 권한 결함이 아니라 테스트가 직접 `storage.objects DELETE`를 0행 변경으로 기대한 것이다. 실제 Storage의 [공식 migration 0055](https://github.com/supabase/storage/blob/master/migrations/tenant/0055-prevent-direct-deletes.sql)는 DELETE statement trigger로 0행 대상도 SQLSTATE 42501을 발생시킨다.
+- 익명/인증 역할 두 DELETE 검사를 실제 guard의 정확한 오류를 기대하도록 수정했다. generic guard가 우리 RLS 삭제 정책의 퇴행을 가리지 않도록 `pg_policy`에서 DELETE 정책의 restrictive 속성·두 대상 역할·정확한 private bucket 제외 조건을 별도로 검사한다. 이는 SQL/catalog 증거이며 Storage HTTP API 삭제 테스트라고 표현하지 않는다.
+- 제품 migration/Storage trigger/권한은 변경하지 않았다. 내부 `storage.allow_delete_query`를 켜거나 trigger를 비활성화하지 않는다. 허구 metadata fixture는 원래 transaction rollback으로 정리하므로 실제 파일 삭제나 Storage API cleanup이 필요 없다.
+- 보조 PGlite fixture에도 해당 statement guard를 명시적으로 모델링했다. 이것은 이전 synthetic Storage fixture가 실제 서비스의 모든 trigger를 포함하지 않았다는 제한을 보완한 것이며, 여전히 full-stack 검증이 아니다. 같은 원격 tree를 확인하고 이전 로컬 커밋은 bundle로 보존한 뒤 수정했다.
+- 수정 후 보조 SQL 검사는 **564개(기존 362 + lifecycle 128 + security 74)**를 두 번 통과했고 `npm run check:all`도 166 unit tests를 포함해 통과했다. 독립 read-only 검토는 플랫폼 guard를 유지하면서 별도 RLS catalog 검사를 두는 수정이 적절함을 확인했다. 실제 Supabase의 나머지 integration/concurrency/type artifact 결과는 다음 CI에서 확인해야 한다.
