@@ -662,29 +662,69 @@ test('server-rendered, RSC and browser JavaScript carry no service credential or
   const documentBody = await document!.text();
   // A boolean assertion never prints a credential if this regression fails.
   expect(documentBody.includes(credential!)).toBe(false);
-  const responsePromise = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === artistPreviewPath(main.slug) &&
-      response.request().headers().rsc === '1',
+  const capture = {
+    failed: false,
+    responses: [] as { status: number; isRsc: boolean; payload: string }[],
+  };
+  await page.route(
+    (url) =>
+      url.origin === appOrigin && url.pathname === artistPreviewPath(main.slug),
+    async (route) => {
+      if (route.request().headers().rsc !== '1') {
+        await route.continue();
+        return;
+      }
+      try {
+        // Capture the browser-initiated request's real server response before
+        // the router consumes it. Chromium may retire its response-body handle
+        // after navigation. No synthetic body, header or cookie is substituted:
+        // fulfill the exact fetched response, then prove it renders in the UI.
+        const response = await route.fetch({ maxRedirects: 0, maxRetries: 0 });
+        const bytes = await response.body();
+        const captured = {
+          status: response.status(),
+          isRsc:
+            response
+              .headers()
+              ['content-type']?.startsWith('text/x-component') === true,
+          payload: bytes.toString('utf8'),
+        };
+        await route.fulfill({ response });
+        capture.responses.push(captured);
+      } catch {
+        capture.failed = true;
+        await route.abort('failed').catch(() => {});
+      }
+    },
   );
   await page
     .getByRole('button', { name: previewLabel(main.name), exact: true })
     .click();
-  const previewResponse = await responsePromise;
-  const payload = await previewResponse.text();
-  expect(payload.includes(credential!)).toBe(false);
-  expect(payload.includes(discoveryFixtures.privatePath)).toBe(false);
-  expect(payload.includes(discoveryFixtures.contract)).toBe(false);
-  expect(payload.includes('body_template')).toBe(false);
-  expect(payload.includes('storage_object_id')).toBe(false);
-  expect(payload.includes('object_path')).toBe(false);
-  expect(payload.includes(actor.id)).toBe(false);
-  expect(payload.includes('{이름}')).toBe(false);
+  await expect
+    .poll(() => capture.failed || capture.responses.length > 0)
+    .toBe(true);
+  expect(capture.failed).toBe(false);
+  expect(capture.responses.length).toBeGreaterThan(0);
+  for (const { status, isRsc, payload } of capture.responses) {
+    expect(status).toBe(200);
+    expect(isRsc).toBe(true);
+    expect(payload.length > 0).toBe(true);
+    // Keep each assertion boolean so any leaked credential remains out of logs.
+    expect(payload.includes(credential!)).toBe(false);
+    expect(payload.includes(discoveryFixtures.privatePath)).toBe(false);
+    expect(payload.includes(discoveryFixtures.contract)).toBe(false);
+    expect(payload.includes('body_template')).toBe(false);
+    expect(payload.includes('storage_object_id')).toBe(false);
+    expect(payload.includes('object_path')).toBe(false);
+    expect(payload.includes(actor.id)).toBe(false);
+    expect(payload.includes('{이름}')).toBe(false);
+  }
   await expect(
     page.getByText(discoveryFixtures.body.replaceAll('{이름}', '<b>팬</b>'), {
       exact: true,
     }),
   ).toBeVisible();
+  expect(capture.failed).toBe(false);
   const scripts = await page
     .locator('script[src]')
     .evaluateAll((elements) =>

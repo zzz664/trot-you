@@ -43,3 +43,12 @@
 - 새 정리 단위 테스트 9개가 통과했다. 순서/FK 분리/정확한 Storage 경로/환경 거절/오류 비노출/잔여행 검증/비우회/async hook을 확인한다. 실제 local Storage API 정리와 전체 47개 authenticated E2E 재실행은 다음 exact-head CI에서 확인해야 한다. 로컬 브라우저는 실행하지 않았다.
 - 같은 run의 database는 실제 pgTAP **1,973개 ×2**, **104개 경합**(discovery 7개 포함), 생성 타입 drift 검사를 모두 통과했고 quality는 단위 678개/기본 E2E 16개를 통과했다. 첫 normal/360 discovery 화면 4장은 생성되었지만 나머지 신규 화면 및 실제 키 비노출 E2E는 정리 오류 연쇄로 확인하지 못했다.
 - 정리 수정 후 로컬 **`npm run check:all` 전체 통과**: 단위 **687개/33파일**, 타입·린트·대비·빌드. bounded 독립 리뷰에서도 구체적 차단 사항이 없었다. 실제 Storage 정리 수용 여부와 최종 authenticated 전체 성공은 아직 CI 재실행 대기다.
+
+## 실제 RSC 바이트 관측 수명 오류 수정
+
+- 후속 CI run `40077826372`, head `50ee34767fe48469ac05bac417d61747e5ae9990`에서 실제 Storage API 정리가 정상 동작하고 authenticated **46/47개**가 통과했다. 남은 한 건은 비밀키 비노출 검사의 `previewResponse.text()`가 페이지 이동 후 Chromium의 폐기된 응답 핸들을 읽어 실패한 관측 수명 문제였다. 정보 유출 assertion 실패나 제품 동작 실패로 해석하지 않는다.
+- 테스트의 **브라우저가 실제 시작한** 고정 loopback preview/RSC 요청을 관측한다. `route.fetch()`로 실제 서버 응답을 받고, 라우터에 전달하기 전에 body를 읽은 뒤 `route.fulfill({ response })`로 **그 응답을 변경 없이** 브라우저에 전달한다. 가짜 본문·헤더·쿠키로 대체하지 않으며 redirect/retry를 허용하지 않는다. 응답이 200·비어 있지 않은 `text/x-component`인지와 실제 개인화 UI가 렌더되는지도 확인한다.
+- 실제 local 서비스 키·사설 경로·계약 정보·원문 필드·actor ID·미치환 토큰이 HTML/RSC/브라우저 JS에 없는지 확인하는 기존 assertion은 삭제하거나 약화하지 않았다. 본문/키는 파일·로그에 출력하지 않고 boolean 결과만 assertion에 사용한다. 스키마/제품 코드/미디어 권한은 변경하지 않았다.
+- 수정한 관측 경로와 최종 47/47 실행 통과는 새 exact-head CI에서 확인해야 한다. 로컬 브라우저 실행이나 미실행 검사 통과 주장은 하지 않는다.
+- 독립 리뷰에서 관측 결과의 완료 신호가 fulfill보다 앞서지 않도록 보완했다. 실제 응답 전달이 성공한 뒤 capture를 공개하고, UI 렌더 확인 뒤에도 handler 실패 여부를 다시 검사한다. 리뷰는 이 순서와 실제 서버 응답 provenance/검사 강도가 유지됨을 확인했다.
+- 최종 수정 상태의 로컬 `npm run check:all`은 다시 전체 통과했다(단위 **687개/33파일**, 타입·린트·대비·production build). 두 파일(E2E 검사와 이 기록)만 바뀌며, 새 실제 브라우저 실행 결과는 CI 대기다.
