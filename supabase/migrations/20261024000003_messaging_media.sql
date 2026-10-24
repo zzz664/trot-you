@@ -140,8 +140,10 @@ create policy message_media_no_client_update on storage.objects as restrictive f
 create policy message_media_no_client_delete on storage.objects as restrictive for delete to anon, authenticated
   using (bucket_id <> 'message-media');
 
+-- Read-only role configuration guard: STABLE callers may invoke it. This
+-- helper does not acquire locks, write rows or read clock_timestamp().
 create function private.require_message_service() returns void
-language plpgsql set search_path = '' as $$
+language plpgsql stable set search_path = '' as $$
 begin
   if current_setting('role', true) is distinct from 'service_role' then
     raise exception 'MESSAGE_SERVICE_REQUIRED' using errcode = '42501';

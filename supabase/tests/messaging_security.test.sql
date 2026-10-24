@@ -42,6 +42,14 @@ select ok((select bool_and(p.prosecdef and 'search_path=""'=any(p.proconfig)) fr
  join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and
  (p.proname like 'messaging\_%' escape '\' or p.proname in ('mark_message_read','has_active_access'))),
  'all new privilege crossing functions pin empty search path');
+select is((select provolatile::text from pg_proc where oid='private.require_message_service()'::regprocedure),
+ 's','read-only service role guard is STABLE for the stable message DTO reader');
+select ok((select bool_and(provolatile='v') from pg_proc where oid in (
+ 'private.require_message_author(uuid,uuid,boolean)'::regprocedure,
+ 'public.mark_message_read(uuid)'::regprocedure,
+ 'public.messaging_create_reply(uuid,uuid,text)'::regprocedure,
+ 'public.messaging_dispatch(uuid)'::regprocedure)),
+ 'locking and fresh-clock mutation functions remain VOLATILE');
 select ok(not has_function_privilege('authenticated','private.has_subscription_access(uuid,uuid,timestamptz)','EXECUTE'),
  'shared predicate cannot become an arbitrary-user subscription oracle');
 select ok(not has_function_privilege('anon','public.mark_message_read(uuid)','EXECUTE'), 'anonymous caller cannot mark reads');

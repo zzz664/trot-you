@@ -31,3 +31,11 @@
 - 생성 타입 `src/types/database.ts`는 **수동 편집하지 않았다**. 첫 CI는 실제 생성 artifact를 업로드한 뒤 기존 타입 drift gate에서 실패할 것으로 예상한다. 부모가 exact-head artifact 검증/후속 타입 커밋/재실행을 완료하기 전까지 전체 CI green이나 merge-ready라고 표현하지 않는다.
 
 이 기록은 로컬 구현 완료 시점이다. push/PR/실제 CI artifact 취득/병합/원격 branch 삭제는 부모 작업에서 담당한다. 운영 정책 승인, 실파일 처리, 실제 인증·개인화·알림·전달 및 운영 배포는 아직 검증하지 않았다.
+
+## 첫 실제 CI의 lint 실패 및 수정
+
+- [PR #6 CI run 40055958655](https://github.com/zzz664/trot-you/actions/runs/40055958655)의 head `a02358c`는 최초 로컬 커밋 `4bb72270`과 동일한 tree `c925c8724238174dd63c3ccd40304e8a2b79c845`다. 로컬 커밋을 별도 git bundle로 보존하고 원격 head 위에서 같은 기능의 수정 커밋을 준비했다.
+- 실제 Supabase start/reset은 통과했지만 DB lint가 `messaging_list_messages`의 STABLE 본문이 기본 VOLATILE 역할 guard를 호출한다고 경고하여 실패했다. **이 실행에서는 pgTAP/concurrency/type generation/artifact/type drift 검사가 모두 미실행**이며 생성 타입 artifact가 없다. quality job은 166 unit tests 및 13 E2E를 포함해 통과했다.
+- `private.require_message_service`는 `current_setting('role', true)` 조회와 거절 예외만 수행하므로 정확히 STABLE로 선언했다. SQL lint를 끄거나 메시지 조회의 snapshot 의미를 변경하지 않았다. row lock/쓰기/실시간 clock을 사용하는 author/lifecycle/read-mark/reply 함수는 VOLATILE로 유지했다.
+- 재발 방지로 읽기 전용 guard와 잠금/실시간 함수의 `provolatile` 분류를 검사하는 pgTAP 2개를 추가했다. 생성 타입은 여전히 수정하지 않았다. 수정 후 실제 DB lint 및 뒤따르는 모든 CI 단계는 새 exact-head 실행에서 다시 확인해야 한다.
+- 수정 후 보조 PGlite 검사는 **563개(기존 362 + lifecycle 128 + security 73)**를 두 번 통과했고, `npm run check:all`도 166 unit tests를 포함해 통과했다. 독립 read-only 검토는 guard 및 조회 함수의 STABLE call graph와 잠금 함수의 VOLATILE 유지가 적절하며 권한 의미를 바꾸지 않는다고 확인했다. 이 결과는 실제 PG17 lint 재실행 성공을 대신하지 않는다.
