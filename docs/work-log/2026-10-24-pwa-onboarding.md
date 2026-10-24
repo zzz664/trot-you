@@ -40,3 +40,12 @@
 - database는 pgTAP **2,051개 ×2**, 기존 경합 **104개 + 신규 첫 4개 = 108개**까지 통과했다. 다섯 번째 `acceptance-withdrawal-before-finish`는 **64/65-byte application_name이 PostgreSQL의 63-byte 제한으로 잘려**, 전체 이름을 찾던 observer가 실제 잠금 대기를 관측하지 못했다. observer를 각 살아 있는 세션의 실제 `pg_backend_pid()`(양의 안전 정수 검증)로 연결하고 `wait_event_type='Lock'` 및 정확한 `pg_blocking_pids` 관계를 유지했다. 제품 SQL·fixture·타입은 바꾸지 않았다. 마지막 6개 경합, 최종 타입 drift는 이 run에서 완료되지 않았으므로 다음 CI 대기다.
 - 원격 앱 tree가 로컬 `43dc8cd`와 같음을 확인하고 archive tag에 보존한 뒤 ancestry를 맞췄다. 로컬 브라우저/DB 실행을 재시도하지 않았다. 독립 리뷰가 세 관측 변경의 증거 강도를 확인하며 제품 권한·캐시 규칙·알림 동작은 변경하지 않는다.
 - 수정 후 로컬 `npm run check:all`은 다시 전체 통과했다(948개 단위 검사, lint/typecheck/대비/Next+Serwist build). 인증 E2E 정적 수집도 65개를 유지한다. 독립 리뷰가 RSC 실제 응답 provenance, logout 첫 wire response의 읽기 전용 증거, 정확한 PID 잠금 관측을 확인했다. 실제 수정된 세 경로의 통과는 새 CI 대기다.
+
+## Worker loader와 precache 관측 범위 분리
+
+- 후속 head `c254a369af031be3289c0c1d8c4353a6e5f01f07`, CI run `40095054587`의 authenticated **65개는 첫 시도에 모두 통과**했다. 실제 RSC/개인 캐시/오프라인 검사와 native 로그아웃의 원래 303·쿠키·history 검사가 끝까지 실행되었다.
+- 같은 run의 quality는 green이지만 기본 브라우저 결과는 **첫 시도 20개 통과 + 1개 flaky**다. `credential-free static worker installation`의 첫 시도는 30초 뒤 `request.allHeaders: Worker closed`, 자동 retry는 622ms에 통과했다. 이를 21개 첫 시도 통과로 적지 않는다.
+- 보존된 실패 trace를 읽기 전용으로 분석했다. 실제 precache fetch **25개 모두 200/full request headers/쿠키 없음**으로 완료했고, 유일하게 미완료 metadata를 가진 요청은 Chromium이 worker 소유로 보고한 **`/sw.js`, resourceType `script`**였다. 기존 모든 `event.serviceWorker()` 요청을 수집하던 observer가 브라우저가 관리하는 main-script loader까지 포함해 raw-header ExtraInfo promise를 기다리다가 teardown에서 종료된 것이다. 제품 설치 실패나 쿠키 유출 assertion 실패로 해석하지 않는다.
+- 테스트는 **정확한 같은 origin `/sw.js` GET/script loader만** 제외한다. 나머지 worker I/O는 GET/fetch·현재 공개 static JS/CSS 또는 offline 경로·query 없음이어야 하며 예상하지 못한 I/O는 실패한다. 실제 precache의 `allHeaders()` 쿠키 검사는 유지하고, 과거 `>1` 표본 대신 관측 URL 집합이 **현재 실제 cache entry 전체와 정확히 일치**해야 한다. bundle 개수 25를 하드코딩하지 않고 offline의 revision cache key만 canonical 요청 URL로 비교한다. 쿠키 원문은 보관하지 않고 존재 boolean만 검사한다.
+- 제품 worker/캐시 정책/서버 응답/브라우저 권한/전체 테스트 재시도 설정은 변경하지 않았다. 이 narrow observer 수정의 실제 최초 실행 통과 여부는 새 exact-head CI가 확인해야 한다.
+- 수정 후 로컬 `check:all`은 전체 통과했다(948개 단위 검사·타입·린트·대비·Next/Serwist production build). 독립 리뷰도 실패 trace와 정확한 loader 제외/전체 precache coverage 보존을 확인했다. 로컬 브라우저 실행은 하지 않았다.

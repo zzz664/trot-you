@@ -49,15 +49,41 @@ test('real manifest/icons and credential-free static worker installation', async
       value: 'Notification' in window ? Notification.permission : null,
     });
   });
-  const workerRequests: Promise<{ url: string; cookie: string | undefined }>[] =
-    [];
+  const appOrigin = 'http://127.0.0.1:3100';
+  const workerRequests: Promise<{ url: string; hasCookie: boolean }>[] = [];
+  let unexpectedWorkerIo = false;
   context.on('request', (event) => {
-    if (event.serviceWorker())
-      workerRequests.push(
-        event
-          .allHeaders()
-          .then((headers) => ({ url: event.url(), cookie: headers.cookie })),
-      );
+    if (!event.serviceWorker()) return;
+    // Chromium may attribute its browser-managed main-script loader to the
+    // worker without supplying raw header ExtraInfo. That is not a Serwist
+    // precache fetch and must not leave allHeaders() waiting until teardown.
+    if (
+      event.url() === `${appOrigin}${PWA.workerUrl}` &&
+      event.method() === 'GET' &&
+      event.resourceType() === 'script'
+    )
+      return;
+    const url = new URL(event.url());
+    const isPrecacheFetch =
+      event.method() === 'GET' &&
+      event.resourceType() === 'fetch' &&
+      url.origin === appOrigin &&
+      !url.search &&
+      !url.hash &&
+      (url.pathname === PWA.offlineUrl ||
+        PWA.staticAssetPattern.test(url.pathname));
+    if (!isPrecacheFetch) {
+      unexpectedWorkerIo = true;
+      return;
+    }
+    workerRequests.push(
+      event.allHeaders().then((headers) => ({
+        url: event.url(),
+        hasCookie: Object.keys(headers).some(
+          (name) => name.toLowerCase() === 'cookie',
+        ),
+      })),
+    );
   });
   await context.addCookies([
     {
@@ -88,10 +114,22 @@ test('real manifest/icons and credential-free static worker installation', async
   expect(worker.headers()['cache-control']).toContain('no-store');
   expect(worker.headers()['service-worker-allowed']).toBe('/');
   expect(worker.headers()['set-cookie']).toBeUndefined();
+  const cachedUrls = await cacheUrls(page);
+  assertStaticOnly(cachedUrls);
   const observed = await Promise.all(workerRequests);
-  expect(observed.length).toBeGreaterThan(1);
-  expect(observed.every((entry) => !entry.cookie)).toBe(true);
-  assertStaticOnly(await cacheUrls(page));
+  expect(unexpectedWorkerIo).toBe(false);
+  // Require every current build entry exactly once, not a hardcoded bundle
+  // count or a merely nonempty sample. Offline revision belongs only to its
+  // cache key; the actual installation request uses the canonical public URL.
+  const expectedUrls = cachedUrls
+    .map((value) => {
+      const url = new URL(value);
+      if (url.pathname === PWA.offlineUrl) url.search = '';
+      return url.href;
+    })
+    .sort();
+  expect(observed.map((entry) => entry.url).sort()).toEqual(expectedUrls);
+  expect(observed.every((entry) => !entry.hasCookie)).toBe(true);
   const permission = await page.evaluate(() => ({
     initial:
       'pwaPermissionAtDocumentStart' in window
