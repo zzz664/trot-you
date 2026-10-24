@@ -60,6 +60,37 @@ describe('documented settings drafts', () => {
     }
   });
 
+  it('keeps documented point amounts separate from activation and unresolved rules', () => {
+    for (const key of [
+      'points.attendance',
+      'points.post',
+      'points.comment',
+    ] as const) {
+      expect(getSettingDraftMetadata(key)).toEqual({
+        source: 'documented-draft',
+        status: 'provisional',
+        pendingDecision: 'points-policy-activation-unapproved',
+      });
+    }
+    const draft = createDocumentedSettingsDraft();
+    expect(draft.values['points.attendance']).toBe(10);
+    expect(draft.values['points.post']).toBe(20);
+    expect(draft.values['points.comment']).toBe(5);
+    for (const decision of [
+      'points-daily-caps-unapproved',
+      'points-deleted-content-treatment-unapproved',
+      'missions-verification-unset',
+    ]) {
+      expect(draft.unresolvedDecisions).toContain(decision);
+    }
+    expect(
+      getSettingDraftMetadata('board.grade_thresholds').pendingDecision,
+    ).toBe('activity-score-definition-unset');
+    expect(getSettingDraftMetadata('points.share').pendingDecision).toBe(
+      'share-verification-and-caps-unset',
+    );
+  });
+
   it('marks proposals and commercial values as pending rather than approved', () => {
     expect(getSettingDraftMetadata('settlement.pg_fee_rate')).toEqual({
       source: 'documented-draft',
