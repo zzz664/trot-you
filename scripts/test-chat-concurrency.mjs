@@ -189,6 +189,7 @@ async function race(db, label, firstSql, secondSql, onBlocked) {
 
 async function fixture(db) {
   const fanId = uuid();
+  const otherFanId = uuid();
   const artistId = uuid();
   const authorId = uuid();
   const adminId = uuid();
@@ -199,6 +200,7 @@ async function fixture(db) {
   await db.query(`
     insert into auth.users(id,email,raw_user_meta_data)
       values('${fanId}','chat-race@example.invalid','{}'),
+        ('${otherFanId}','chat-race-other@example.invalid','{}'),
         ('${authorId}','chat-race-author@example.invalid','{}'),
         ('${adminId}','chat-race-admin@example.invalid','{}');
     update public.profiles set role='artist' where id='${authorId}';
@@ -221,13 +223,21 @@ async function fixture(db) {
         select public.onboarding_save_name('허구경합팬');
         select public.onboarding_complete_profile(true,true,'${termsId}',true,'${privacyId}');`,
       )}
+      ${authenticated(
+        otherFanId,
+        `select public.onboarding_save_font('normal');
+        select public.onboarding_save_name('허구다른팬');
+        select public.onboarding_complete_profile(true,true,'${termsId}',true,'${privacyId}');`,
+      )}
     commit;
-    update public.profiles set onboarding_completed_at=clock_timestamp() where id='${fanId}';
+    update public.profiles set onboarding_completed_at=clock_timestamp() where id in ('${fanId}','${otherFanId}');
     insert into public.subscriptions(id,user_id,artist_id,provider,status,first_started_at,episode_started_at,current_period_start,current_period_end)
-      values('${uuid()}','${fanId}','${artistId}','toss','active',now()-interval '1 day',now()-interval '1 day',now()-interval '1 day',now()+interval '29 days');
+      values('${uuid()}','${fanId}','${artistId}','toss','active',now()-interval '1 day',now()-interval '1 day',now()-interval '1 day',now()+interval '29 days'),
+      ('${uuid()}','${otherFanId}','${artistId}','toss','active',now()-interval '1 day',now()-interval '1 day',now()-interval '1 day',now()+interval '29 days');
   `);
   return {
     fanId,
+    otherFanId,
     artistId,
     authorId,
     adminId,
@@ -304,6 +314,41 @@ async function testConcurrency(db) {
   assert.equal(await countReads(), '3');
   console.info(
     'PASS: two different simultaneous reads serialize authoritative actor counts',
+  );
+
+  // Keep the second fan's actual receipt transaction uncommitted while the
+  // first fan reads the same message. A needless message FOR SHARE would wait
+  // for this write and fail the statement timeout; successful completion before
+  // COMMIT proves the page remains independent without a timing-only sleep.
+  const otherRead = await session('other-fan-read-uncommitted');
+  const ownPage = await session('own-page-no-message-lock');
+  try {
+    const other = json(
+      await otherRead.query(
+        `begin; ${read({ ...f, fanId: f.otherFanId }, firstId)}`,
+      ),
+    );
+    assert.equal(other.read_count, 1);
+    const snapshot = json(await ownPage.query(`begin; ${page(f)} commit;`));
+    assert.equal(snapshot.read_count, 3);
+    assert.equal(
+      snapshot.messages.find((message) => message.id === firstId)?.read_at,
+      json(repeat.winner).read_at,
+    );
+    assert.equal(
+      await db.query(
+        `select count(*) from public.message_reads where user_id='${f.otherFanId}';`,
+      ),
+      '0',
+      'other fan receipt is still uncommitted when page completes',
+    );
+    await otherRead.query('commit;');
+    assert.equal(await countReads(), '3');
+  } finally {
+    await Promise.all([otherRead.close(), ownPage.close()]);
+  }
+  console.info(
+    'PASS: page completes while another fan holds the same message read lock, retaining its own receipt snapshot',
   );
 
   const canceledId = await sentMessage(db, f);
@@ -500,7 +545,7 @@ try {
   shouldReset = true;
   await testConcurrency(db);
   console.info(
-    'All twelve PostgreSQL multi-session chat concurrency checks passed.',
+    'All thirteen PostgreSQL multi-session chat concurrency checks passed.',
   );
 } catch (error) {
   console.error(error);

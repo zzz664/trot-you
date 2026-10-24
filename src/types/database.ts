@@ -1726,6 +1726,33 @@ export type Database = {
         };
         Returns: Json;
       };
+      fan_chat_mark_read: {
+        Args: { p_artist_slug: string; p_message_id: string };
+        Returns: {
+          read_at: string;
+          read_count: number;
+        }[];
+      };
+      fan_chat_page: {
+        Args: {
+          p_actor_id: string;
+          p_artist_slug: string;
+          p_before_id?: string;
+          p_before_sent_at?: string;
+          p_limit?: number;
+        };
+        Returns: {
+          artist_id: string;
+          artist_intro: string;
+          artist_name: string;
+          artist_slug: string;
+          call_name: string;
+          has_access: boolean;
+          has_more: boolean;
+          messages: Json;
+          read_count: number;
+        }[];
+      };
       has_active_access: { Args: { p_artist_id: string }; Returns: boolean };
       mark_message_read: { Args: { p_message_id: string }; Returns: string };
       media_begin_upload: {

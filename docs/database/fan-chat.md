@@ -53,11 +53,16 @@ Current profile/policy/artist/subscription state is locked before projection or
 read evidence. Per-actor write locks serialize concurrent different-message read
 counts as well as same-message replays. Existing immutable receipt timestamps
 are preserved. Artist binding is checked before the existing paid-read primitive.
+Page projection intentionally does not take message-row locks: another fan's
+uncommitted receipt must not block this actor's independent page/read-count
+snapshot. Artist cancellation still serializes through the shared artist lock.
+Explicit sent/time predicates allow the existing partial sent-order index to
+support the cursor query; this is not a benchmark or production latency claim.
 
 `supabase/tests/fan_chat.test.sql` exercises capability grants, current readiness,
 paid/grace/history gating, stable cursor ties, template-only server input,
 personal receipt/count semantics, and historical evidence retention. Existing
-RPCs and fixtures are unchanged. `scripts/test-chat-concurrency.mjs` runs twelve
+RPCs and fixtures are unchanged. `scripts/test-chat-concurrency.mjs` runs thirteen
 real multi-session cases against a disposable local Supabase database and resets
 its fictional fixtures afterward. It never targets a hosted project.
 

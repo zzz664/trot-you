@@ -38,13 +38,17 @@ begin
   -- Cursor tuple remains timestamptz + UUID at full database precision. The
   -- extra row establishes has_more without returning an unbounded collection.
   -- Profile -> name/legal policy -> artist -> subscription -> message policy
-  -- -> message lock order matches this feature's readmark path. Existing message cancellation
+  -- matches the readmark prefix. Page reads do not lock message rows: another
+  -- fan's receipt must not delay this independent MVCC projection. Cancellation
   -- locks the artist, so a waiting page obtains the post-cancellation snapshot.
+  -- Explicit sent/time predicates make the existing partial sent-order index
+  -- usable; the private predicate still decides every eligibility condition.
   with candidates as materialized (
     select m.id,m.type,m.body,m.sent_at from public.messages m
-    where m.artist_id=chosen.id and private.message_is_visible(p_actor_id,m.id,false,at_time)
+    where m.artist_id=chosen.id and m.status='sent' and m.sent_at<=at_time
+      and private.message_is_visible(p_actor_id,m.id,false,at_time)
       and (p_before_sent_at is null or (m.sent_at,m.id)<(p_before_sent_at,p_before_id))
-    order by m.sent_at desc,m.id desc limit p_limit+1 for share of m
+    order by m.sent_at desc,m.id desc limit p_limit+1
   ), page as (select * from candidates order by sent_at desc,id desc limit p_limit)
   select coalesce((select jsonb_agg(jsonb_build_object('id',m.id,'type',m.type,
     'body_template',m.body,'sent_at',m.sent_at,'read_at',r.read_at,'media',

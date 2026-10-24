@@ -13,6 +13,7 @@ import { ManagementErrorScreen } from '@/components/subscription/ManagementError
 import { ManagementLoading } from '@/components/subscription/ManagementLoading';
 import { DialogProvider } from '@/components/ui/DialogProvider';
 import {
+  artistPreviewPath,
   routes,
   subscriptionListPath,
   subscriptionPath,
@@ -711,6 +712,37 @@ describe('management discovery, error and pagination screens', () => {
     await userEvent.click(button(fan.previousPage));
     expect(mocks.push).toHaveBeenLastCalledWith(subscriptionListPath(1));
   });
+  it.each([true, false])(
+    'offers a safe room link only when current subscription projection has access=%s',
+    (hasAccess) => {
+      render(
+        subject(
+          <SubscriptionsScreen
+            data={{
+              subscriptions: [
+                { ...managementSubscription, has_access: hasAccess },
+              ],
+              page: 1,
+              more_available: false,
+            }}
+          />,
+        ),
+      );
+      const name = messages.chat.open.replace(
+        '{name}',
+        managementSubscription.artist_name,
+      );
+      if (hasAccess) {
+        expect(screen.getByRole('link', { name })).toHaveAttribute(
+          'href',
+          artistPreviewPath(managementSubscription.artist_slug),
+        );
+      } else {
+        expect(screen.queryByRole('link', { name })).not.toBeInTheDocument();
+      }
+      expect(mocks.push).not.toHaveBeenCalled();
+    },
+  );
   it('empty list uses text and no fake subscriptions or charges', () => {
     render(
       subject(
