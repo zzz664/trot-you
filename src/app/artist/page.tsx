@@ -1,6 +1,72 @@
-import { SessionPage } from '@/components/auth/SessionPage';
-import { routes } from '@/config/routes';
+import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
+import { AuthForm } from '@/components/auth/AuthForm';
+import { Card } from '@/components/ui/Card';
+import { ComposeErrorScreen } from '@/components/artist-compose-menu/ComposeErrorScreen';
+import {
+  artistComposeMenuPath,
+  artistComposePath,
+  routes,
+} from '@/config/routes';
+import { getComposeMenu } from '@/server/artist-compose/page';
 
-export default function ArtistPage() {
-  return <SessionPage path={routes.artist} />;
+export default async function ArtistPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ after?: string | string[] }>;
+}) {
+  const { after } = await searchParams;
+  const result = await getComposeMenu(after ?? null);
+  if (!result.ok) return <ComposeErrorScreen code={result.code} />;
+  const t = await getTranslations('artistComposeMenu');
+  const auth = await getTranslations('auth');
+  return (
+    <main className="app-shell">
+      <h1>{auth('artistTitle')}</h1>
+      <p>{t('description')}</p>
+      <Card title={t('title')}>
+        {result.data.artists.length === 0 ? (
+          <p>{t('empty')}</p>
+        ) : (
+          result.data.artists.map((artist) => (
+            <Link
+              key={artist.id}
+              href={artistComposePath(artist.slug)}
+              prefetch={false}
+              className="ui-button ui-button--primary"
+            >
+              {t('compose', { name: artist.name })}
+            </Link>
+          ))
+        )}
+        {result.data.nextSlug && (
+          <Link
+            href={artistComposeMenuPath(result.data.nextSlug)}
+            prefetch={false}
+            className="ui-button ui-button--secondary"
+          >
+            {t('more')}
+          </Link>
+        )}
+        {after && (
+          <Link
+            href={routes.artist}
+            prefetch={false}
+            className="ui-button ui-button--secondary"
+          >
+            {t('first')}
+          </Link>
+        )}
+      </Card>
+      <Card title={auth('sessionTitle')}>
+        <p>{auth('sessionDescription')}</p>
+        <p>{auth('roleLabel', { role: auth('artist') })}</p>
+        <AuthForm
+          action={routes.authLogout}
+          label={auth('logout')}
+          pendingLabel={auth('logoutPending')}
+        />
+      </Card>
+    </main>
+  );
 }

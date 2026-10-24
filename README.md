@@ -58,6 +58,10 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 
 [음성 입력·브라우저 지원·검증 범위](docs/configuration/speech-input.md)와 [선택적 분석 이벤트 경계](docs/configuration/voice-analytics.md)를 참고하세요. 지원되는 보안 브라우저에서 안내 확인 후 명시적으로 마이크를 시작하고 한국어 인식 결과를 답장 초안의 선택 영역에 넣습니다. 중간 인식·취소·오류는 초안을 변경하지 않으며 자동 전송·녹음 저장·외부 STT 연동은 없습니다. 브라우저 자체 인식은 외부 서비스에 음성을 전송할 수 있어 시작 전에 안내합니다. 미지원 시 직접 입력 또는 키보드 마이크를 안내합니다. 표준/접두 API가 존재해도 실제 기기·한국어 서비스 동작을 보장하지 않으며 CI는 실제 오디오 없이 제어된 API 스텁으로 계약을 검증합니다.
 
+## 아티스트 메시지 초안 작성
+
+[화면·저장·업로드 계약](docs/configuration/artist-compose.md), [DB 소유권·충돌 방지](docs/database/artist-compose.md), [전용 브라우저 CI](docs/configuration/artist-compose-ci.md)를 참고하세요. `/artist`에서 현재 소속된 가수를 선택해 글·사진·음성·영상 메시지를 작성합니다. 사진 리사이즈, 명시적 동의 후 브라우저 녹음, 기존 보호 미디어 업로드, 서버 이름 치환 미리보기와 본인 초안 저장·복구를 연결했습니다. 저장과 첨부는 멱등 키·revision 검사로 중복이나 오래된 수정이 새 내용을 덮지 않게 합니다. **초안 저장은 팬에게 발송이 아닙니다.** 즉시/예약 발송·알림 outbox·발송 취소 시간은 다음 별도 기능이며 이 화면은 가짜 발송 버튼을 제공하지 않습니다. 실제 운영 정책·기기별 녹음·호스팅 검증 및 기존 독립 미디어 재검토 제한은 그대로 남아 있습니다.
+
 ## 연동 설정 기반
 
 [설정·오류·로그·운영 설정 안내](docs/configuration/integration-foundations.md)를 참고하세요. 기본 결제 mode는 `disabled`이고, 키 누락이나 잘못된 mode를 mock 성공으로 바꾸지 않습니다. `configured`는 credential 형태/존재만 뜻하며 모든 연동의 `operational`은 아직 `false`입니다. 운영 설정 기본값은 DB 값이나 승인된 정책이 아닌 문서 기반 draft입니다.

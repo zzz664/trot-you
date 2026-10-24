@@ -1330,6 +1330,41 @@ export type Database = {
         Args: { p_consent_version: string; p_granted: boolean };
         Returns: undefined;
       };
+      artist_compose_artists: {
+        Args: { p_after_slug?: string };
+        Returns: Json;
+      };
+      artist_compose_context: {
+        Args: {
+          p_artist_slug: string;
+          p_before_id?: string;
+          p_before_updated_at?: string;
+          p_message_id?: string;
+        };
+        Returns: Json;
+      };
+      artist_compose_remove_media: {
+        Args: {
+          p_artist_slug: string;
+          p_expected_revision: number;
+          p_media_id: string;
+          p_message_id: string;
+          p_operation_id: string;
+        };
+        Returns: Json;
+      };
+      artist_compose_save: {
+        Args: {
+          p_artist_slug: string;
+          p_body?: string;
+          p_expected_revision: number;
+          p_media_ids?: string[];
+          p_message_id: string;
+          p_operation_id: string;
+          p_type: Database['public']['Enums']['message_type'];
+        };
+        Returns: Json;
+      };
       billing_claim_attempt: {
         Args: { p_attempt_id: string; p_lease_seconds: number };
         Returns: Json;

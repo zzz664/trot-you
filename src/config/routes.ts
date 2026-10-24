@@ -43,6 +43,7 @@ export const routes = {
   refundReject: '/api/admin/refunds/reject',
   restricted: '/restricted',
   artist: '/artist',
+  artistComposeApi: '/api/artist',
   admin: '/admin',
   authLogin: '/api/auth/login',
   authCallback: '/api/auth/callback',
@@ -102,4 +103,22 @@ export function chatReadPath(slug: string, messageId: string) {
 
 export function fanRepliesPath(slug: string) {
   return `${routes.artistMessages}/${encodeURIComponent(slug)}/replies`;
+}
+
+export function artistComposePath(slug: string, messageId?: string) {
+  const path = `${routes.artist}/${encodeURIComponent(slug)}/compose`;
+  return messageId ? `${path}?draft=${encodeURIComponent(messageId)}` : path;
+}
+export function artistComposeApiPath(
+  slug: string,
+  action?: 'save' | 'preview' | 'remove',
+) {
+  const path = `${routes.artistComposeApi}/${encodeURIComponent(slug)}/compose`;
+  return action ? `${path}/${action}` : path;
+}
+
+export function artistComposeMenuPath(afterSlug?: string) {
+  return afterSlug
+    ? `${routes.artist}?after=${encodeURIComponent(afterSlug)}`
+    : routes.artist;
 }

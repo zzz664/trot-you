@@ -12,6 +12,7 @@ export default defineConfig({
     '**/chat/**',
     '**/replies/**',
     '**/speech/**',
+    '**/compose/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

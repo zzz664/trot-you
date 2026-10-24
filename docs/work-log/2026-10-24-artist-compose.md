@@ -1,0 +1,156 @@
+# 2026-10-24 — Artist message authoring
+
+## Scope and decisions
+
+- Implemented original document sections `03 §3.5`, `05` artist compose route and
+  accessible UI rules, and `07` artist-authoring scope. Private originals remain
+  outside the repository.
+- Added current-role artist menu, owned draft creation/edit/recovery, text/photo/
+  voice/video kinds, policy-based field limits and server-only `{이름}` preview.
+- Reused the approved secure media APIs for bounded photo re-encoding, upload,
+  completion, retry, revocation, logical attachment removal and protected views.
+  No Storage path, original filename or bearer grant is persisted in client
+  storage. Draft bodies remain server-side except current in-memory editing.
+- Added explicit native MediaRecorder capture disclosure/start/stop/cancel,
+  resource/track cleanup and file fallback, plus the existing disclosure-based
+  MicButton for text dictation. Artist dictation does not masquerade as a fan
+  reply analytics event.
+- Kept one feature branch and a draft PR to develop. Early immutable DB
+  checkpoints include rollback tests, independent-session races, compatibility
+  documentation and CI type generation. Generated schema types are never
+  handwritten.
+- This feature deliberately ends at **save/preview**. Immediate/scheduled
+  dispatch, notification outbox production, delivery and the post-send cancel
+  window are the next separate feature. There is no enabled fake send control.
+
+## Reliability and review
+
+- Immutable operation keys and exact resource/revision/media binding prevent
+  repeated or stale writes from silently changing a newer draft. Replay is
+  reconciled against current context before editing resumes.
+- Upload cancellation and completion may race. Cancellation never deletes
+  registered current media; the refreshed draft tells the user what actually
+  completed. Lost upload responses retain the same intent, not a new upload.
+- Refresh recovers saved drafts and owned pending upload IDs without retaining
+  browser Blob bytes, filenames, credentials or raw bodies in browser storage.
+- Current role, membership, restriction, artist state, policy and original owner
+  are rechecked at authoritative boundaries. Access loss clears the editor and
+  protected media. Legacy `/artist` session redirect behavior is preserved.
+- A focused read-only composer contract review found no remaining confirmed
+  blocker. It identified a stale expiry display during lock waits; the new
+  projection uses a wall-clock check and an independent-session regression.
+  This review was not the previously blocked independent media-security review.
+
+## Verification status
+
+- Local focused service/DB-adapter/HTTP/body/page/capture and UI tests pass.
+- The latest full unit snapshot passed **4,680 tests in 143 files**. This is a
+  local unit result, not a database/browser/staging result.
+- Full local `npm run check:all` passes after genuine type integration: ESLint,
+  Prettier, strict types, all unit tests, 10 contrast pairs and the production
+  Next/PWA build. An earlier pre-artifact run stopped honestly at the four new
+  RPC names and did not claim later aggregate stages passed.
+- Genuine `database.ts` came from CI run `40133772292`, artifact `12576536684`,
+  exact head `819888eacda5990c67ea86f41b9e9506bd00dd0c`, tree
+  `19915e67ed5fdc8a929fca4a02edf20e168690f2`. The unchanged file SHA-256 is
+  `4398134217fbfd4d651f2605697e132ba4cbff9b8eb32285915161fa56df4dba`.
+  The artifact ZIP digest and single-member CRC were also verified before import.
+- **17** fixture/discovery guards pass. Generic Playwright discovery lists
+  **27** tests and excludes the **37** dedicated compose tests. Discovery uses
+  `--list` only and launches no browser/server/database.
+- Checkpoint CI passed `db:lint`, **2,960 pgTAP assertions in 31 files twice**,
+  and **244 independent-session checks** (225 prior + 19 composer). This includes
+  all 83 new rollback-only compose assertions. Genuine generated-type typecheck
+  passed; only the intentionally stale committed-type diff failed at bootstrap.
+  All ten other checkpoint jobs passed (4,366 units, 97 fixtures, 331 browsers).
+  These establish compatibility of the DB checkpoint, not the new UI browser
+  integration. Local Docker remains unavailable.
+- Authored browser checks cover current Auth/Postgres/Storage, synthetic normal
+  uploads, validation, replay/conflict, refresh, interrupted/canceled flows and
+  three text scales at 360px/1280px. All **74** planned screenshots from run
+  `40136095653` were captured and normally reviewed: no clipping, overlap or
+  readability blocker was found. This is presentation evidence, not a pass for
+  the three runtime failures described below; corrected-head CI is still required.
+- Local browser execution was previously denied and was not retried/escalated.
+  Corrected-head actual browser CI and visual revalidation remain required
+  before completion.
+
+## Boundaries retained
+
+No real artist/account invitation, user media, microphone capture, provider
+request, secret edit, hosted project, deployment, operational policy activation,
+notification send or money movement occurred. Synthetic MediaRecorder/speech
+contract stubs do not prove device/browser codec support. Existing secure-media
+limitations and the blocked independent media review remain explicitly retained
+in [the media contract](../configuration/media.md). Hosted staging, native-device
+capture and approved production policy/cleanup controls remain separate gates.
+
+## First application CI correction
+
+Run `40135186816` reached the new compose job but all 37 cases stopped in
+fixture setup: its fictional artist profile marked onboarding complete without
+a calling name, correctly rejected by the pre-existing profile constraint.
+No application UI assertions or planned screenshots ran. The correction only
+initializes the guarded fictional artist name and timestamp atomically; fan
+fixtures remain incomplete and must use the real onboarding RPCs when needed.
+A pure initializer and 15 no-I/O regression cases now cover that invariant and
+its executor wiring. No schema or application authorization was relaxed.
+
+The same run's auth-browser job hit a separate Docker port-54322 bind conflict
+before tests. That infrastructure failure is not an application pass or source
+regression. Corrected-head browser execution and normal screenshot review are
+still pending.
+
+## Application recovery corrections
+
+Run `40136095653` passed 34 of the 37 compose browser cases, including the full
+three-text-scale narrow/desktop matrix. Its three failures led to targeted fixes:
+
+- The recording test omitted the separately disclosed upload button after
+  selecting the local recording. It now verifies that selection uploads nothing,
+  then clicks upload explicitly. The application still never auto-uploads.
+- The accepted media API rejects revocation of an already-completed intent. The
+  composer now re-reads its current owned draft to distinguish a completed-media
+  cancellation race from actual lost authority. Registered media remains intact;
+  an unavailable current-context read freezes editing with explicit reload rather
+  than claiming success, and denied authority clears protected content.
+- Back/Forward can restore cached initial route props. The composer uses Next's
+  documented native-history null-state contract and reconciles the exact URL draft
+  on restoration, suppresses outgoing-route late responses, and offers a retry if
+  the current-resource read is unavailable. It never reloads its own empty draft
+  while navigation is leaving for the artist menu.
+
+Nine unit regressions cover those recovery outcomes. The browser assertions now
+also bind the restored URL, body and listed draft identity. The media API, schema,
+parser boundary and existing security policies were not changed. Actual CI for
+these corrections remains pending; prior screenshot review cannot establish that
+those runtime fixes pass. The earlier Docker bind failure and real-device capture
+limitations remain distinct from these source corrections.
+
+## Corrected runtime verification and final visual coverage
+
+Run `40137039777`, exact remote head
+`d6f24e366bc7cd2c1858334bafa1dbbb1d5e78ed` and tree
+`1867a668ff3c88dbbeacb2d6fcabd956efc54b89`, passed **all 37 compose browser
+cases**, including the three previously failing recording-upload, completed-cancel
+and Back/Forward restoration flows. All 12 jobs are green: 4,680 unit tests, 114 fixture checks, 2,960 pgTAP
+assertions twice, 244 independent-session checks, zero generated-type drift and
+369 browser cases (including 37 compose). Normal review of all 74 composer and
+299 existing screenshots found no new layout blocker. These results are for the
+exact application head above, not an unexecuted later test-only checkpoint.
+
+The final test-only coverage extension adds no application/schema behavior. The
+same six-scale matrix now captures the new restoration-read failure/reload view,
+explicitly clicks reload, and verifies the real API restores the exact saved URL,
+body and draft row. This keeps 37 cases and raises the planned ordinary screenshot
+total from 74 to **86**. No successful draft data is synthesized for recovery.
+Local aggregate checks and all 17 fixture/discovery guards pass; execution and
+normal visual review of those 12 additional screenshots require this checkpoint's
+actual CI. No further feature scope is included in this coverage checkpoint.
+
+The first extended-matrix run (`40138084603`) exposed a test locator collision:
+Next's route announcer also has `role=alert`, so the new unscoped assertion
+matched both it and the correct application error. All six matrix cases stopped
+at that assertion; 31 other compose cases passed. The locator is now scoped to
+the composer main for both error presence and absence. No application behavior
+or error text was changed; corrected-head execution remains required.
