@@ -135,7 +135,7 @@ begin
   if u.expires_at<=clock_timestamp() then raise exception 'MEDIA_UPLOAD_EXPIRED' using errcode='55000'; end if;
   if m.status<>'draft' or m.type<>u.kind then raise exception 'MEDIA_DRAFT_REQUIRED' using errcode='55000'; end if;
   c:=private.get_message_policy();
-  if u.byte_size>case u.kind when 'photo' then c.max_photo_bytes when 'voice' then c.max_voice_bytes else c.max_video_bytes end then
+  if u.byte_size>(case u.kind when 'photo' then c.max_photo_bytes when 'voice' then c.max_voice_bytes else c.max_video_bytes end) then
     raise exception 'MEDIA_LIMIT_EXCEEDED' using errcode='23514';
   end if;
   return private.media_upload_projection(u.id);
