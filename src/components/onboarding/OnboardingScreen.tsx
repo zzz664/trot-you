@@ -4,7 +4,11 @@ import { getOnboardingPage } from '@/server/onboarding/page';
 import { resumeOnboarding } from '@/server/services/onboarding/profile';
 import type { OnboardingStep } from '@/config/onboarding';
 
-export async function OnboardingScreen({ step }: { step?: OnboardingStep }) {
+export async function OnboardingScreen({
+  step,
+}: {
+  step?: Exclude<OnboardingStep, 'artists'>;
+}) {
   const result = await getOnboardingPage(step);
   if (!result.ok) return <OnboardingEntry error={result.code} />;
   if (!step) return <OnboardingEntry next={resumeOnboarding(result.data)} />;

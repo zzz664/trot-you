@@ -150,7 +150,12 @@ for (const width of [360, 414]) {
         .getByRole('button', { name: copy.continue, exact: true })
         .click();
       await expect(page).toHaveURL(`${appOrigin}${routes.onboardingArtists}`);
-      await expect(page.getByText(copy.profileSavedDescription)).toBeVisible();
+      await expect(
+        page.getByRole('heading', { name: messages.artists.onboardingTitle }),
+      ).toBeVisible();
+      await expect(
+        page.getByText(messages.artists.interestNotice, { exact: true }),
+      ).toBeVisible();
       const completed = await ownProfile(actor);
       expect(completed.call_name).toBe('허구팬');
       expect(completed.font_scale).toBe(scale);

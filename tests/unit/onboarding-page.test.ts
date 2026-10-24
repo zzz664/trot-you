@@ -5,6 +5,7 @@ import {
   getServerFontScale,
 } from '@/server/onboarding/page';
 import { routes } from '@/config/routes';
+import { resumeOnboarding } from '@/server/services/onboarding/profile';
 import type { OnboardingData } from '@/config/onboarding';
 const mocks = vi.hoisted(() => ({
   cookies: vi.fn(),
@@ -13,12 +14,16 @@ const mocks = vi.hoisted(() => ({
   read: vi.fn(),
   font: vi.fn(),
   redirect: vi.fn(),
+  interest: vi.fn(),
 }));
 vi.mock('next/headers', () => ({ cookies: mocks.cookies }));
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }));
 vi.mock('@/server/auth/context', () => ({ createAuthContext: mocks.context }));
 vi.mock('@/server/services/auth/session', () => ({
   readSession: mocks.session,
+}));
+vi.mock('@/server/db/artists', () => ({
+  createArtistInterestPort: () => ({ read: mocks.interest }),
 }));
 vi.mock('@/server/db/onboarding', () => ({
   createOnboardingPort: () => ({ read: mocks.read }),
@@ -56,6 +61,10 @@ beforeEach(() => {
     throw new Error(`redirect:${path}`);
   });
   mocks.font.mockResolvedValue({ data: { font_scale: 'xlarge' }, error: null });
+  mocks.interest.mockResolvedValue({
+    ok: true,
+    data: { selectedSlug: null, selectedName: null, selectedAt: null },
+  });
 });
 describe('onboarding RSC authorization and first-render font', () => {
   it.each(['anonymous', 'unavailable', 'unconfigured'])(
@@ -127,4 +136,90 @@ describe('onboarding RSC authorization and first-render font', () => {
       expect(await getServerFontScale()).toBe('normal');
     },
   );
+});
+
+describe('onboarding overview resumes durable artist interest', () => {
+  const ready = {
+    ...data,
+    fontSelected: true,
+    callName: '별님',
+    profileCompleted: true,
+  };
+  it.each([
+    ['fictional-star', true],
+    [null, false],
+  ] as const)(
+    'uses current active selected slug %s, not local memory or a paid entitlement',
+    async (selectedSlug, artistSelected) => {
+      mocks.read.mockResolvedValue({ ok: true, data: ready });
+      mocks.interest.mockResolvedValue({
+        ok: true,
+        data: {
+          selectedSlug,
+          selectedName: selectedSlug ? '허구 가수' : null,
+          selectedAt: selectedSlug ? '2026-10-24T00:00:00Z' : null,
+        },
+      });
+      expect(await getOnboardingPage()).toEqual({
+        ok: true,
+        data: { ...ready, artistSelected },
+      });
+      expect(mocks.interest).toHaveBeenCalledOnce();
+      expect(ready).not.toHaveProperty('artistSelected');
+    },
+  );
+  it('reopens name validation after current readiness fails without erasing the saved name', async () => {
+    mocks.read.mockResolvedValue({ ok: true, data: ready });
+    mocks.interest.mockResolvedValue({ ok: false, code: 'PROFILE_REQUIRED' });
+    const result = await getOnboardingPage();
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        ...ready,
+        profileCompleted: false,
+        artistSelected: false,
+        nameRevalidationRequired: true,
+      },
+    });
+    expect(result.ok && resumeOnboarding(result.data)).toBe(
+      routes.onboardingName,
+    );
+    expect(result.ok && result.data.callName).toBe(ready.callName);
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+  it.each([
+    ['SETUP_NOT_READY', 'SETUP_NOT_READY'],
+    ['UNAVAILABLE', 'UNAVAILABLE'],
+    ['FORBIDDEN', 'UNAVAILABLE'],
+  ] as const)(
+    'fails closed on interest readiness %s',
+    async (code, expected) => {
+      mocks.read.mockResolvedValue({ ok: true, data: ready });
+      mocks.interest.mockResolvedValue({ ok: false, code });
+      expect(await getOnboardingPage()).toEqual({ ok: false, code: expected });
+    },
+  );
+  it('keeps unavailable interest transport generic', async () => {
+    mocks.read.mockResolvedValue({ ok: true, data: ready });
+    mocks.interest.mockRejectedValue(new Error('private query detail'));
+    expect(await getOnboardingPage()).toEqual({
+      ok: false,
+      code: 'UNAVAILABLE',
+    });
+  });
+  it('does not consult interest for incomplete profiles, nonfan roles, or unlocked Back screens', async () => {
+    expect(await getOnboardingPage()).toEqual({ ok: true, data });
+    mocks.read.mockResolvedValue({ ok: true, data: ready });
+    expect(await getOnboardingPage('artists')).toEqual({
+      ok: true,
+      data: ready,
+    });
+    expect(await getOnboardingPage('name')).toEqual({ ok: true, data: ready });
+    mocks.session.mockResolvedValue({
+      status: 'authenticated',
+      profile: { ...profile, role: 'artist' },
+    });
+    expect(await getOnboardingPage()).toEqual({ ok: true, data: ready });
+    expect(mocks.interest).not.toHaveBeenCalled();
+  });
 });

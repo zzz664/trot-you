@@ -66,6 +66,54 @@ describe('profile stage resume and prerequisite gates', () => {
   });
 });
 
+describe('artist stage resume respects prior profile gates', () => {
+  it('resumes selected active interest at pending install, never home/full completion', () => {
+    expect(
+      resumeOnboarding({
+        ...data,
+        profileCompleted: true,
+        artistSelected: true,
+      }),
+    ).toBe(routes.onboardingInstall);
+    expect(
+      resumeOnboarding({
+        ...data,
+        profileCompleted: true,
+        artistSelected: false,
+      }),
+    ).toBe(routes.onboardingArtists);
+  });
+  it('does not let persisted interest skip a now-incomplete profile', () => {
+    expect(resumeOnboarding({ ...data, artistSelected: true })).toBe(
+      routes.onboardingFont,
+    );
+    expect(
+      resumeOnboarding({
+        ...data,
+        fontSelected: true,
+        callName: '별님',
+        artistSelected: true,
+      }),
+    ).toBe(routes.onboardingConsent);
+  });
+  it('allows Back from pending install to choose again after mandatory profile readiness', () => {
+    const selected = {
+      ...data,
+      fontSelected: true,
+      callName: '별님',
+      profileCompleted: true,
+      artistSelected: true,
+    };
+    expect(onboardingStepRedirect(selected, 'artists')).toBeNull();
+    expect(
+      onboardingStepRedirect(
+        { ...selected, profileCompleted: false },
+        'artists',
+      ),
+    ).toBe(routes.onboardingConsent);
+  });
+});
+
 describe('validated onboarding mutations', () => {
   it.each([
     null,

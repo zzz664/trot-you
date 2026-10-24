@@ -215,3 +215,39 @@ h2 {
 .onboarding-policy-body {
   white-space: pre-wrap;
 }
+
+.artist-stack,
+.artist-list,
+.artist-message-list {
+  display: grid;
+  min-inline-size: 0;
+  gap: calc(var(--space-unit) * 2);
+}
+.artist-list,
+.artist-message-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.artist-list > li,
+.artist-message-list > li {
+  min-inline-size: 0;
+}
+.artist-copy {
+  white-space: pre-wrap;
+}
+.artist-selected,
+.artist-media-unavailable {
+  padding: var(--space-unit);
+  border: var(--border-width) dashed var(--color-control-border);
+  border-radius: var(--radius-control);
+  background: var(--color-background);
+}
+.artist-selected {
+  color: var(--color-accent);
+  font-weight: bold;
+}
+.artist-pagination {
+  display: grid;
+  gap: var(--space-unit);
+}

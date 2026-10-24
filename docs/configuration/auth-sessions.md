@@ -4,7 +4,7 @@
 
 - `@supabase/ssr` 0.12.7 / `@supabase/supabase-js` 2.118.0의 실제 PKCE·세션 API를 사용한다. 직접 JWT나 refresh protocol을 구현하지 않는다.
 - `POST /api/auth/login`은 Kakao 로그인을 시작하고 `GET /api/auth/callback`은 일회용 code를 교환한다. `POST /api/auth/logout`은 현재 기기 세션을 종료한다. GET 로그아웃은 없다.
-- 인증 기반은 `/start`, 팬·아티스트·운영자 세션 확인과 이용 제한 안내를 제공한다. 후속 [프로필 온보딩](profile-onboarding.md)은 이름·나이 자기 확인·필수 동의를 추가하지만 가수 선택·설치 및 전체 온보딩 완료는 아직 제공하지 않는다.
+- 인증 기반은 `/start`, 팬·아티스트·운영자 세션 확인과 이용 제한 안내를 제공한다. 후속 [프로필 온보딩](profile-onboarding.md)은 이름·나이 자기 확인·필수 동의를 추가뒤 [가수 탐색·맛보기](artist-discovery.md)가 관심 가수 선택을 제공한다. 설치 안내와 전체 온보딩 완료는 아직 제공하지 않는다.
 - 기존 DB와 생성 타입을 그대로 사용한다. 실제 사용자·관리자를 생성하거나 역할을 승격하지 않는다.
 
 ## 운영자가 별도로 준비할 설정
@@ -20,7 +20,7 @@
 
 ## 보안 경계
 
-- 세션은 서버 소유다. 요청마다 새 SSR client를 만들며 browser SDK client, localStorage 토큰, 클라이언트 session props 또는 service-role client를 만들지 않는다. `HttpOnly`, host-only, `/`, `SameSite=Lax`, HTTPS에서 `Secure` 및 `__Host-` 이름 접두사를 사용해 다른 하위 도메인의 쿠키 주입도 차단한다. 쿠키 수명은 세션 유효성 증거가 아니며 실제 JWT/refresh 검증을 거친다.
+- 세션은 서버 소유다. 요청마다 새 SSR client를 만들며 browser SDK client, localStorage 토큰, 클라이언트 session props 를 만들지 않는다. 인증·프로필 조회는 공개 키의 actor client만 사용한다. 별도의 서버 전용 맛보기 RPC 어댑터만 service-role client를 사용하며 인증 기능에 이 권한을 전달하지 않는다. `HttpOnly`, host-only, `/`, `SameSite=Lax`, HTTPS에서 `Secure` 및 `__Host-` 이름 접두사를 사용해 다른 하위 도메인의 쿠키 주입도 차단한다. 쿠키 수명은 세션 유효성 증거가 아니며 실제 JWT/refresh 검증을 거친다.
 - Next.js 16의 `src/proxy.ts`는 `getClaims()`로 refresh하고 변경된 쿠키를 다음 요청 헤더와 최종 응답 모두에 전달한다. callback/login/logout은 자체 쿠키 전파를 책임진다. 모든 누적 cookie write 및 SDK가 첫 write에서만 보내는 cache header를 보존한다.
 - Proxy나 layout만 믿지 않는다. 모든 세션 페이지의 DAL이 `getClaims()`로 서명을 검증하고 `getUser()`의 현재 subject를 확인한 뒤, 동일 actor client로 `profiles.id = subject`를 조회한다. 필요한 역할/온보딩/제한 열만 읽는다. 계정 ID·이메일·연락처·토큰은 화면에 출력하지 않는다.
 - 역할은 수정 가능한 user metadata나 JWT custom role이 아니라 현재 DB 프로필에서 읽는다. 제한(무기한/미래 만료)이 온보딩보다 우선하고, 그다음 미완료 온보딩, 그다음 팬/가수/운영자별 경로로 이동한다. 제한 만료는 요청 시 다시 평가한다. 누락 프로필, Auth/DB 오류는 fail closed로 안내한다.
@@ -34,7 +34,7 @@
 
 `npm run check:all`은 lint/format/strict type/unit/contrast/keyless production build를 수행한다. 기본 `npm run test:e2e`는 키 없는 start, 콜백 오류, 접근성 UI를 3개 글자 크기 × 360/414px에서 검사한다. 브라우저가 허용되지 않는 실행 환경에서는 이를 시도/재시도하지 않고 CI에서 실행한다.
 
-별도 `auth-browser` CI는 공식 local Supabase stack만 사용한다. helper는 GitHub Actions, loopback URL과 local Unix Docker를 확인하고 config를 그 job에서만 변경한다. 공개 signup은 끈 채 폐기용 가상 계정을 admin API로 만들며, local Mailpit에서 email PKCE code를 받아 **실제 callback 교환**을 검증한다. 테스트 admin key는 앱 서버에 전달하지 않는다. fixture는 삭제하고 stack은 `--no-backup`으로 중지한다.
+별도 `auth-browser` CI는 공식 local Supabase stack만 사용한다. helper는 GitHub Actions, loopback URL과 local Unix Docker를 확인하고 config를 그 job에서만 변경한다. 공개 signup은 끈 채 폐기용 가상 계정을 admin API로 만들며, local Mailpit에서 email PKCE code를 받아 **실제 callback 교환**을 검증한다. 가수 맛보기 통합 이후 동일한 폐기용 local key를 서버 전용 `SUPABASE_SERVICE_ROLE_KEY`로도 전달한다. 이는 원문 맛보기 RPC의 서버 개인화 전용이며 브라우저나 인증 actor client에는 전달하지 않는다. fixture 전용 `AUTH_TEST_SERVICE_KEY`는 앱 서버 환경에서 비운다. fixture는 삭제하고 stack은 `--no-backup`으로 중지한다.
 
 CLI 2.122.0에서 `[auth.email].enable_signup`은 이름과 달리 `GOTRUE_EXTERNAL_EMAIL_ENABLED`(이메일 provider 전체 활성화)에 매핑된다. 따라서 폐기용 CI override에서만 이를 `true`로 설정하고, 전역 `[auth].enable_signup=false` → `GOTRUE_DISABLE_SIGNUP=true`로 실제 신규 가입 차단을 유지한다. 지원하지 않는 `auth.email.enabled` 필드는 추가하지 않는다. fixture 전에 loopback Auth의 실제 `/settings`가 `external.email=true`, `disable_signup=true`임을 확인하며 다른 값이면 즉시 실패한다. 저장소의 기본 `supabase/config.toml`과 운영 설정은 바꾸지 않는다.
 
