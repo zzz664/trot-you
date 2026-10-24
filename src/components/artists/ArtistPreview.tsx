@@ -1,16 +1,18 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import type { ArtistPreviewData } from '@/config/artists';
-import { routes } from '@/config/routes';
+import { checkoutPath, routes } from '@/config/routes';
 import { ArtistSelectionFeedback } from './ArtistSelectionFeedback';
 import { useArtistSelection } from './useArtistSelection';
 
 export function ArtistPreview({ data }: { data: ArtistPreviewData }) {
   const t = useTranslations('artists');
+  const checkoutCopy = useTranslations('checkout');
   const selection = useArtistSelection();
   return (
     <main
@@ -62,6 +64,15 @@ export function ArtistPreview({ data }: { data: ArtistPreviewData }) {
         saving={selection.saving}
         retry={selection.retry}
       />
+      {!data.onboarding && (
+        <Link
+          className="ui-button ui-button--primary"
+          href={checkoutPath(data.artist.slug)}
+          prefetch={false}
+        >
+          {checkoutCopy('openTerms')}
+        </Link>
+      )}
       {data.onboarding && (
         <Button
           disabled={selection.busy}

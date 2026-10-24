@@ -11,6 +11,10 @@ export const routes = {
   artistSelectionSubmit: '/api/onboarding/artist',
   onboardingSubmit: '/api/onboarding',
   installSubmit: '/api/onboarding/install',
+  checkout: '/checkout',
+  checkoutSubmit: '/api/checkout',
+  checkoutCancel: '/api/checkout/cancel',
+  checkoutReturn: '/api/checkout/return',
   restricted: '/restricted',
   artist: '/artist',
   admin: '/admin',
@@ -27,4 +31,8 @@ export function artistPreviewPath(slug: string) {
 export function artistCatalogPath(page: number, onboarding = false) {
   const base = onboarding ? routes.onboardingArtists : routes.artists;
   return page > 1 ? `${base}?page=${page}` : base;
+}
+
+export function checkoutPath(slug: string) {
+  return `${routes.checkout}/${encodeURIComponent(slug)}`;
 }

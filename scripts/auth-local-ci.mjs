@@ -35,6 +35,12 @@ if (action === 'configure') {
     'SUPABASE_SERVICE_ROLE_KEY',
     'NEXT_PUBLIC_SUPABASE_URL',
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    'NEXT_PUBLIC_TOSS_CLIENT_KEY',
+    'TOSS_SECRET_KEY',
+    'TOSS_BILLING_MID',
+    'KAKAOPAY_SECRET_KEY',
+    'KAKAOPAY_RECURRING_CID',
+    'KAKAOPAY_CID_SECRET',
   ]) {
     assert.ok(!process.env[key], 'Do not pass hosted credentials to this job.');
   }
@@ -85,6 +91,18 @@ if (action === 'configure') {
       // actor authentication. Authentication/interest still use the public key.
       // Only the disposable local stack key reaches the application server.
       `SUPABASE_SERVICE_ROLE_KEY=${status.SERVICE_ROLE_KEY}`,
+      // Deliberately unusable, fixed placeholders for offline intent readiness.
+      // They are not credentials and are never sent to any payment provider.
+      // Checkout UI/routes do not dispatch provider registration or charges.
+      'PAYMENTS_MODE=test',
+      'TOSS_BILLING_ENABLED=true',
+      'KAKAOPAY_SUBSCRIPTION_ENABLED=true',
+      'NEXT_PUBLIC_TOSS_CLIENT_KEY=test_ck_checkout_ci_fixture',
+      'TOSS_SECRET_KEY=test_sk_checkout_ci_fixture',
+      'TOSS_BILLING_MID=checkout_ci_fictional_mid',
+      'KAKAOPAY_SECRET_KEY=checkout_ci_not_a_real_key',
+      'KAKAOPAY_RECURRING_CID=TCSUBSCRIP',
+      'KAKAOPAY_CID_SECRET=',
       '',
     ].join('\n'),
   );

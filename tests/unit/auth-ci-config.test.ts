@@ -38,6 +38,32 @@ describe('isolated authentication CI configuration', () => {
     expect(browser).toContain("AUTH_TEST_SERVICE_KEY: ''");
   });
 
+  it('uses only fixed unusable offline checkout placeholders inside isolated CI', () => {
+    const setup = readFileSync(
+      new URL('../../scripts/auth-local-ci.mjs', import.meta.url),
+      'utf8',
+    );
+    for (const key of [
+      'NEXT_PUBLIC_TOSS_CLIENT_KEY',
+      'TOSS_SECRET_KEY',
+      'TOSS_BILLING_MID',
+      'KAKAOPAY_SECRET_KEY',
+      'KAKAOPAY_RECURRING_CID',
+      'KAKAOPAY_CID_SECRET',
+    ])
+      expect(setup).toContain(`'${key}',`);
+    expect(setup).toContain("'PAYMENTS_MODE=test'");
+    expect(setup).toContain(
+      "'NEXT_PUBLIC_TOSS_CLIENT_KEY=test_ck_checkout_ci_fixture'",
+    );
+    expect(setup).toContain("'TOSS_SECRET_KEY=test_sk_checkout_ci_fixture'");
+    expect(setup).toContain("'KAKAOPAY_SECRET_KEY=checkout_ci_not_a_real_key'");
+    expect(setup).toContain("'KAKAOPAY_RECURRING_CID=TCSUBSCRIP'");
+    expect(setup).not.toContain('https://api.tosspayments.com');
+    expect(setup).not.toContain('https://open-api.kakaopay.com');
+    expect(setup).not.toContain('PAYMENTS_MODE=live');
+  });
+
   it('activates the email provider while global public signup stays disabled', () => {
     const generated = prepareLocalAuthConfig(original);
     expect(

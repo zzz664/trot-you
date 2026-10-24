@@ -34,7 +34,8 @@
     "test:db:settlement-concurrency": "node scripts/test-settlement-concurrency.mjs",
     "test:db:discovery-concurrency": "node scripts/test-discovery-concurrency.mjs",
     "build:pwa": "node scripts/generate-offline-page.mjs && node scripts/build-pwa.mjs",
-    "test:db:onboarding-concurrency": "node scripts/test-onboarding-concurrency.mjs"
+    "test:db:onboarding-concurrency": "node scripts/test-onboarding-concurrency.mjs",
+    "test:db:checkout-concurrency": "node scripts/test-checkout-concurrency.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",
