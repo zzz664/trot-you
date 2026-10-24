@@ -750,25 +750,71 @@ test('real authenticated HTML, completion API and personalized RSC never enter t
   const personalText = discoveryFixtures.body.replaceAll('{이름}', callName);
   await expect(page.getByText(personalText, { exact: true })).toBeVisible();
   await page.goto(routes.artists);
-  const rscPromise = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === previewPath &&
-      response.request().headers().rsc === '1',
-  );
+  const capture = {
+    failed: false,
+    responses: [] as {
+      status: number;
+      isRsc: boolean;
+      noStore: boolean;
+      nonEmpty: boolean;
+      personalized: boolean;
+    }[],
+  };
+  const matchesPreview = (url: URL) =>
+    url.origin === appOrigin && url.pathname === previewPath;
+  await page.route(matchesPreview, async (route) => {
+    if (route.request().headers().rsc !== '1') {
+      await route.continue();
+      return;
+    }
+    try {
+      // Capture the browser-initiated request's real server bytes before
+      // navigation retires Chromium's response-body handle. No synthetic body,
+      // header or cookie is substituted; deliver this exact response unchanged.
+      const response = await route.fetch({ maxRedirects: 0, maxRetries: 0 });
+      const bytes = await response.body();
+      const captured = {
+        status: response.status(),
+        isRsc:
+          response.headers()['content-type']?.startsWith('text/x-component') ===
+          true,
+        noStore:
+          response.headers()['cache-control']?.includes('no-store') === true,
+        nonEmpty: bytes.length > 0,
+        personalized: bytes.toString('utf8').includes(callName),
+      };
+      await route.fulfill({ response });
+      capture.responses.push(captured);
+    } catch {
+      capture.failed = true;
+      await route.abort('failed').catch(() => {});
+    }
+  });
   await page
     .getByRole('button', {
       name: messages.artists.previewAction.replace('{name}', main.name),
       exact: true,
     })
     .click();
-  const rsc = await rscPromise;
-  expect(rsc.status()).toBe(200);
-  expect(rsc.headers()['content-type']).toContain('text/x-component');
-  expect(rsc.headers()['cache-control']).toContain('no-store');
-  // Read while this response's document is still active, before any further
-  // navigation. This is a real browser RSC response, not a fulfilled fixture.
-  expect((await rsc.text()).includes(callName)).toBe(true);
+  await expect
+    .poll(() => capture.failed || capture.responses.length > 0)
+    .toBe(true);
+  expect(capture.failed).toBe(false);
+  expect(capture.responses.length).toBeGreaterThan(0);
+  for (const captured of capture.responses) {
+    expect(captured).toEqual({
+      status: 200,
+      isRsc: true,
+      noStore: true,
+      nonEmpty: true,
+      personalized: true,
+    });
+  }
   await expect(page.getByText(personalText, { exact: true })).toBeVisible();
+  expect(capture.failed).toBe(false);
+  // Offline probes below must use the browser's real offline transport, not
+  // Playwright's route.fetch API client. Remove only this observation route.
+  await page.unroute(matchesPreview);
   const cached = await page.evaluate(
     async ({ cacheName, sentinels }) => {
       const cache = await caches.open(cacheName);

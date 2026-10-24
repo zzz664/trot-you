@@ -119,12 +119,26 @@ class Session {
   }
 
   async initialize() {
-    await this.query(`
+    const backendPid = await this.query(`
       set application_name = '${this.label}';
       set statement_timeout = '${timeoutMs}ms';
       set lock_timeout = '${timeoutMs}ms';
       set timezone = 'UTC';
+      select pg_backend_pid();
     `);
+    // application_name is shorter than NAMEDATALEN (at most 63 bytes normally),
+    // so long descriptive race labels are not reliable session identities.
+    // Observe the actual live connection by its database-assigned backend PID.
+    assert.match(
+      backendPid,
+      /^[1-9][0-9]*$/,
+      'Expected one real PostgreSQL backend PID.',
+    );
+    this.backendPid = Number(backendPid);
+    assert.ok(
+      Number.isSafeInteger(this.backendPid),
+      'Expected a safe backend PID.',
+    );
     return this;
   }
 
@@ -144,8 +158,8 @@ async function waitForBlock(observer, waiting, blocking) {
     const result = await observer.query(`
       select exists (
         select 1 from pg_stat_activity waiting, pg_stat_activity blocking
-        where waiting.application_name = '${waiting.label}'
-          and blocking.application_name = '${blocking.label}'
+        where waiting.pid = ${waiting.backendPid}
+          and blocking.pid = ${blocking.backendPid}
           and waiting.wait_event_type = 'Lock'
           and blocking.pid = any(pg_blocking_pids(waiting.pid))
       );
