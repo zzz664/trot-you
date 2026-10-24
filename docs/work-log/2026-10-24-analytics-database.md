@@ -44,3 +44,11 @@ CI 순서는 기존 reset/lint → 전체 pgTAP 두 번 → 기존 68개와 신�
 - `npm run check:all`의 lint·strict typecheck·11 files / 240 unit tests·10개 대비 조합·production build가 통과했다. 분석 strict schema unit test 73개가 신규이며 기존 167개를 보존한다. 독립 최종 read-only 검토에서 남은 차단 결함은 없었다.
 - 로컬 검증 로그는 `/tmp/trot-you-db-check/analytics-final-verification.log`, `analytics-tap-1.txt`, `analytics-tap-2.txt`, `analytics-final-check-all.log`와 review/concurrency sequential smoke 파일에 있다. 실제 사용자 데이터나 비공개 원문을 commit하지 않는다.
 - 실제 Supabase lint·pgTAP 1,619개 두 번·68+10 다중 세션 경합과 rollback visibility·genuine 타입 artifact·committed drift·기존 브라우저 E2E 13개는 원격 exact-head CI에서 확인할 **대기 항목**이다. 생성 타입을 반영하고 같은 head 전체 CI가 통과하기 전에는 완료/병합 상태로 표현하지 않는다.
+
+## 실제 CI 검증과 genuine 생성 타입 반영
+
+- [PR #11 CI 40066424402](https://github.com/zzz664/trot-you/actions/runs/40066424402)는 원격 head `d1d2c243909540c967f946c5a117c3146a4bb5bb`에서 실행했다. checkout merge commit은 `245b36edf96c036393e50352c761eca1217ddcfe`이고 기준 develop은 `026a935ce835f28a86360550c7f65db8e9fe0fc2` 그대로다. 로컬 bootstrap `8996d1ead7fa4dff2643291675021644f511c651`과 원격 head의 tree가 `3f8c79df0c4f36cff467c1f1a4e4547525204401`로 동일함을 확인했다. 로컬 기록을 `archive/analytics-bootstrap-8996d1e`에 보존한 뒤 원격 head에서 후속 변경을 준비했다.
+- 실제 Supabase PG17 환경에서 시작/reset/SQL lint, pgTAP 1,619개 두 번, 독립 psql 경합 78개(기존 68 + 분석 10)와 source/event rollback visibility, genuine 타입 생성/typecheck, cleanup이 통과했다. quality의 240 unit tests·build·브라우저 E2E 13개도 통과했다. 앞선 PGlite 보조 검사와 구분되는 실제 CI 증거다.
+- 이 run의 최종 실패는 예상된 committed generated-type drift 검사뿐이다. 실패 run 자체를 전체 CI 통과로 표시하지 않는다. 생성 타입을 반영한 다음 exact-head CI에서 drift를 포함한 전체 gate 통과를 확인해야 병합할 수 있다.
+- 해당 run의 `database-types` artifact `12550090216`을 반영했다. ZIP SHA-256은 `52af6e3eefba849089826699ca8327c07dd9d534f72b5b0d0cc7932af3e64be4`로 보존된 GitHub artifact metadata와 일치한다. 추출된 `database.ts`는 56,107 bytes, SHA-256 `8eb38c94479189c5675e56b13d15e1e91615099143deaef807d5898488d1a77f`다. `src/types/database.ts`로 byte-identical 복사하고 `cmp` 및 SHA-256을 다시 확인했으며 수동 수정하지 않았다.
+- 이 후속 변경 범위는 생성 타입과 본 기록 두 파일뿐이다. 승인된 정책 활성화·실제 사용자 수집·외부 analytics 전송·운영 DB 변경은 하지 않았으며 위의 미구현 경계는 유지한다. 새 타입을 포함한 로컬 `npm run check:all`로 lint/typecheck/240 unit tests/10개 대비 조합/build를 다시 확인했고 모두 통과했다. 원격 exact-head 전체 CI는 부모 작업에서 확인한다.

@@ -1091,6 +1091,50 @@ export type Database = {
       };
     };
     Functions: {
+      analytics_daily_counts: {
+        Args: { p_from: string; p_until: string };
+        Returns: {
+          day_kst: string;
+          event_count: number;
+          name: Database['public']['Enums']['analytics_event_name'];
+        }[];
+      };
+      analytics_get_consent: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          collection_enabled: boolean;
+          consent_version: string;
+          granted: boolean;
+        }[];
+      };
+      analytics_purge_expired: { Args: { p_limit?: number }; Returns: number };
+      analytics_record_charge: {
+        Args: { p_event_id: string };
+        Returns: string;
+      };
+      analytics_record_client: {
+        Args: {
+          p_event_key: string;
+          p_name: Database['public']['Enums']['analytics_event_name'];
+          p_source_id?: string;
+          p_voice_context?: Database['public']['Enums']['analytics_voice_context'];
+        };
+        Returns: string;
+      };
+      analytics_record_server: {
+        Args: {
+          p_actor_id: string;
+          p_event_key: string;
+          p_font_scale?: Database['public']['Enums']['font_scale'];
+          p_name: Database['public']['Enums']['analytics_event_name'];
+          p_source_id?: string;
+        };
+        Returns: string;
+      };
+      analytics_set_consent: {
+        Args: { p_consent_version: string; p_granted: boolean };
+        Returns: undefined;
+      };
       billing_claim_attempt: {
         Args: { p_attempt_id: string; p_lease_seconds: number };
         Returns: Json;
@@ -1609,6 +1653,21 @@ export type Database = {
       };
     };
     Enums: {
+      analytics_event_name:
+        | 'signup_complete'
+        | 'font_size_selected'
+        | 'preview_view'
+        | 'subscribe_start'
+        | 'subscribe_complete'
+        | 'subscribe_fail'
+        | 'message_open'
+        | 'reply_sent'
+        | 'voice_input_used'
+        | 'renew'
+        | 'cancel'
+        | 'post_create'
+        | 'attendance';
+      analytics_voice_context: 'reply' | 'post' | 'comment';
       artist_grade: 'B' | 'C';
       artist_status: 'draft' | 'active' | 'paused' | 'retired';
       font_scale: 'normal' | 'large' | 'xlarge';
@@ -1751,6 +1810,22 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      analytics_event_name: [
+        'signup_complete',
+        'font_size_selected',
+        'preview_view',
+        'subscribe_start',
+        'subscribe_complete',
+        'subscribe_fail',
+        'message_open',
+        'reply_sent',
+        'voice_input_used',
+        'renew',
+        'cancel',
+        'post_create',
+        'attendance',
+      ],
+      analytics_voice_context: ['reply', 'post', 'comment'],
       artist_grade: ['B', 'C'],
       artist_status: ['draft', 'active', 'paused', 'retired'],
       font_scale: ['normal', 'large', 'xlarge'],
