@@ -96,6 +96,165 @@ export type Database = {
         };
         Relationships: [];
       };
+      message_media: {
+        Row: {
+          bucket_id: string;
+          byte_size: number;
+          duration_ms: number | null;
+          height: number | null;
+          id: string;
+          kind: Database['public']['Enums']['message_type'];
+          message_id: string;
+          mime_type: string;
+          object_path: string;
+          storage_object_id: string;
+          verified_at: string;
+          width: number | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          bucket_id: string;
+          byte_size: number;
+          duration_ms?: number | null;
+          height?: number | null;
+          id: string;
+          kind: Database['public']['Enums']['message_type'];
+          message_id: string;
+          mime_type: string;
+          object_path: string;
+          storage_object_id: string;
+          verified_at?: string;
+          width?: number | null;
+        };
+        Update: {
+          bucket_id?: string;
+          byte_size?: number;
+          duration_ms?: number | null;
+          height?: number | null;
+          id?: string;
+          kind?: Database['public']['Enums']['message_type'];
+          message_id?: string;
+          mime_type?: string;
+          object_path?: string;
+          storage_object_id?: string;
+          verified_at?: string;
+          width?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'message_media_message_id_fkey';
+            columns: ['message_id'];
+            isOneToOne: false;
+            referencedRelation: 'messages';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      message_reads: {
+        Row: {
+          message_id: string;
+          read_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          message_id: string;
+          read_at?: string;
+          user_id: string;
+        };
+        Update: {
+          message_id?: string;
+          read_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'message_reads_message_id_fkey';
+            columns: ['message_id'];
+            isOneToOne: false;
+            referencedRelation: 'messages';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'message_reads_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      messages: {
+        Row: {
+          artist_id: string;
+          author_id: string;
+          body: string | null;
+          canceled_at: string | null;
+          created_at: string;
+          id: string;
+          is_preview: boolean;
+          preview_order: number | null;
+          scheduled_at: string | null;
+          sent_at: string | null;
+          status: Database['public']['Enums']['message_status'];
+          type: Database['public']['Enums']['message_type'];
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          artist_id: string;
+          author_id: string;
+          body?: string | null;
+          canceled_at?: string | null;
+          created_at?: string;
+          id?: string;
+          is_preview?: boolean;
+          preview_order?: number | null;
+          scheduled_at?: string | null;
+          sent_at?: string | null;
+          status?: Database['public']['Enums']['message_status'];
+          type: Database['public']['Enums']['message_type'];
+          updated_at?: string;
+        };
+        Update: {
+          artist_id?: string;
+          author_id?: string;
+          body?: string | null;
+          canceled_at?: string | null;
+          created_at?: string;
+          id?: string;
+          is_preview?: boolean;
+          preview_order?: number | null;
+          scheduled_at?: string | null;
+          sent_at?: string | null;
+          status?: Database['public']['Enums']['message_status'];
+          type?: Database['public']['Enums']['message_type'];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'messages_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artist_catalog';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'messages_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artists';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'messages_author_id_fkey';
+            columns: ['author_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       payment_events: {
         Row: {
           amount_krw: number;
@@ -205,6 +364,66 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      replies: {
+        Row: {
+          artist_id: string;
+          body: string;
+          created_at: string;
+          id: string;
+          is_blocked: boolean;
+          subscription_id: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          artist_id: string;
+          body: string;
+          created_at?: string;
+          id?: string;
+          is_blocked?: boolean;
+          subscription_id: string;
+          user_id: string;
+        };
+        Update: {
+          artist_id?: string;
+          body?: string;
+          created_at?: string;
+          id?: string;
+          is_blocked?: boolean;
+          subscription_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'replies_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artist_catalog';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'replies_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artists';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'replies_subscription_id_fkey';
+            columns: ['subscription_id'];
+            isOneToOne: false;
+            referencedRelation: 'subscriptions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'replies_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       subscriptions: {
         Row: {
@@ -419,6 +638,87 @@ export type Database = {
         };
       };
       has_active_access: { Args: { p_artist_id: string }; Returns: boolean };
+      mark_message_read: { Args: { p_message_id: string }; Returns: string };
+      messaging_cancel: {
+        Args: { p_actor_id: string; p_message_id: string };
+        Returns: undefined;
+      };
+      messaging_create_reply: {
+        Args: { p_actor_id: string; p_artist_id: string; p_body: string };
+        Returns: string;
+      };
+      messaging_dispatch: { Args: { p_message_id: string }; Returns: boolean };
+      messaging_list_messages: {
+        Args: {
+          p_actor_id: string;
+          p_artist_id: string;
+          p_before_id?: string;
+          p_before_sent_at?: string;
+          p_limit: number;
+          p_preview: boolean;
+        };
+        Returns: {
+          artist_id: string;
+          body_template: string;
+          id: string;
+          media: Json;
+          sent_at: string;
+          type: Database['public']['Enums']['message_type'];
+        }[];
+      };
+      messaging_list_replies: {
+        Args: {
+          p_actor_id: string;
+          p_artist_id: string;
+          p_before_created_at?: string;
+          p_before_id?: string;
+          p_limit: number;
+        };
+        Returns: {
+          body: string;
+          call_name: string;
+          created_at: string;
+          id: string;
+        }[];
+      };
+      messaging_register_media: {
+        Args: {
+          p_actor_id: string;
+          p_duration_ms: number;
+          p_height: number;
+          p_media_id: string;
+          p_message_id: string;
+          p_storage_object_id: string;
+          p_width: number;
+        };
+        Returns: string;
+      };
+      messaging_save_draft: {
+        Args: {
+          p_actor_id: string;
+          p_artist_id: string;
+          p_body: string;
+          p_message_id: string;
+          p_type: Database['public']['Enums']['message_type'];
+        };
+        Returns: string;
+      };
+      messaging_schedule: {
+        Args: {
+          p_actor_id: string;
+          p_message_id: string;
+          p_scheduled_at: string;
+        };
+        Returns: undefined;
+      };
+      messaging_set_previews: {
+        Args: {
+          p_actor_id: string;
+          p_artist_id: string;
+          p_message_ids: string[];
+        };
+        Returns: undefined;
+      };
       set_profile_role: {
         Args: {
           p_role: Database['public']['Enums']['user_role'];
@@ -431,6 +731,8 @@ export type Database = {
       artist_grade: 'B' | 'C';
       artist_status: 'draft' | 'active' | 'paused' | 'retired';
       font_scale: 'normal' | 'large' | 'xlarge';
+      message_status: 'draft' | 'scheduled' | 'sent' | 'canceled';
+      message_type: 'text' | 'photo' | 'voice' | 'video';
       payment_event_kind: 'charge' | 'refund';
       payment_provider: 'toss' | 'kakaopay';
       subscription_status:
@@ -566,6 +868,8 @@ export const Constants = {
       artist_grade: ['B', 'C'],
       artist_status: ['draft', 'active', 'paused', 'retired'],
       font_scale: ['normal', 'large', 'xlarge'],
+      message_status: ['draft', 'scheduled', 'sent', 'canceled'],
+      message_type: ['text', 'photo', 'voice', 'video'],
       payment_event_kind: ['charge', 'refund'],
       payment_provider: ['toss', 'kakaopay'],
       subscription_status: [
