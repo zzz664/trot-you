@@ -9,6 +9,41 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Official, pinned CLI + actual Supabase Auth schema/Postgres. No hosted
+      # project, service credentials, synthetic auth schema or SQL-string-only tests.
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: npm run db:lint
+      - run: npm run test:integration
+      # Test repeatability and rollback: fixtures must not persist between runs.
+      - run: npm run test:integration
+      - run: npm run db:types
+      - run: npm run typecheck
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: database-types
+          path: src/types/database.ts
+          if-no-files-found: error
+          retention-days: 7
+      - name: Check committed generated schema types
+        run: |
+          # Bootstrap fails this gate after uploading the real generated artifact.
+          # Import/commit that output; never merge with missing or stale types.
+          git ls-files --error-unmatch src/types/database.ts
+          git diff --exit-code -- src/types/database.ts
+      - run: npm run db:stop -- --no-backup
+        if: always()
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15

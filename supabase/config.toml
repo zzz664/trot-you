@@ -1,0 +1,51 @@
+# Local development only. Never link this config to production automatically.
+# Reference: https://supabase.com/docs/guides/local-development/cli/config
+project_id = "trot-you"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+# Migrations explicitly revoke/regrant even when hosted defaults are permissive.
+auto_expose_new_tables = false
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+schema_paths = []
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+enable_signup = false
+# SQL tests create fictional, transaction-local users, not login accounts.
+enable_anonymous_sign_ins = false
+
+[studio]
+enabled = false
+
+[local_smtp]
+enabled = false
+
+[storage]
+enabled = false
+
+[realtime]
+enabled = false
+
+[analytics]
+enabled = false
+
+[edge_runtime]
+enabled = false
