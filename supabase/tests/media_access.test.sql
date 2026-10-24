@@ -243,9 +243,11 @@ select throws_ok($$insert into storage.objects(bucket_id,name,metadata) values('
  'broad future grant does not authorize direct quarantine insertion');
 select throws_ok($$insert into storage.objects(bucket_id,name,metadata) values('message-media','forged','{}')$$,'42501',null,
  'broad future grant does not authorize direct final insertion');
-select is((with changed as (update storage.objects set name='changed' where bucket_id='media-quarantine' returning id) select count(*) from changed),0::bigint,
+with changed as (update storage.objects set name='changed' where bucket_id='media-quarantine' returning id)
+select is((select count(*) from changed),0::bigint,
  'direct quarantine overwrite remains impossible');
-select is((with removed as (delete from storage.objects where bucket_id='message-media' returning id) select count(*) from removed),0::bigint,
+with removed as (delete from storage.objects where bucket_id='message-media' returning id)
+select is((select count(*) from removed),0::bigint,
  'direct final deletion remains impossible');
 reset role;
 select * from finish();
