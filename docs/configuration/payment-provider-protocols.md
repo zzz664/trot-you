@@ -1,5 +1,13 @@
 # Provider registration preparation — not payments
 
+> Historical foundation contract from the preparation-only feature. The current
+> [initial-subscription flow](../configuration/initial-subscription.md) extends this
+> boundary with authenticated encrypted callback capture, explicit POST consent,
+> real provider adapters and atomic verified first-charge finalization. Statements
+> below that completion is unavailable describe the earlier checkpoint, not the
+> currently configurable flow. The checkout nonce is now SameSite=Lax for provider
+> top-level return; all mutations still require exact same-origin POST.
+
 This feature prepares a private checkout intent and implements **unused,
 server-only provider protocol adapters**. The UI does not load the Toss SDK,
 call KakaoPay, or send the user to a provider. Credentials alone do not enable

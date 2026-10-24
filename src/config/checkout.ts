@@ -57,7 +57,7 @@ export type CheckoutOffer = {
 export type CheckoutPageData = {
   offer: CheckoutOffer;
   providers: { provider: CheckoutProvider; configured: boolean }[];
-  launchAvailable: false;
+  launchAvailable: boolean;
 };
 export const checkoutIntentSchema = z.strictObject({
   id: z.uuid(),

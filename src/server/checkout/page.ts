@@ -9,6 +9,7 @@ import { isRestricted, landingPath } from '@/server/services/auth/access';
 import { readSession } from '@/server/services/auth/session';
 import { readCheckoutOffer } from '@/server/services/checkout/sessions';
 import { checkoutProviderConfiguration } from './configuration';
+import { enrollmentLaunchAvailable } from '@/server/enrollment/dependencies';
 
 export async function getCheckoutPage(
   slug: unknown,
@@ -34,7 +35,7 @@ export async function getCheckoutPage(
         data: {
           offer: result.data,
           providers: checkoutProviderConfiguration(),
-          launchAvailable: false,
+          launchAvailable: enrollmentLaunchAvailable(),
         },
       }
     : result;

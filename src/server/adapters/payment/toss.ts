@@ -25,8 +25,8 @@ export type TossBillingAuthPreparation = {
 };
 
 // Descriptor of the real SDK protocol, not a fictional registration API URL.
-// Deliberately not imported by a client/route: finalization and the encrypted
-// credential vault are required before launching an authorization flow.
+// The enrollment service exposes this browser-safe descriptor only after
+// durable actor/session/nonce/policy binding and vault configuration checks.
 export function prepareTossBillingAuth(
   env: ServerEnv,
   input: PreparationIdentity,

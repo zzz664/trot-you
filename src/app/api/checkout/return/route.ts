@@ -1,2 +1,3 @@
-import { checkoutReturn } from '@/server/checkout/http';
-export const GET = checkoutReturn;
+import { enrollmentReturn } from '@/server/enrollment/http';
+export const runtime = 'nodejs';
+export const GET = enrollmentReturn;

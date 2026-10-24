@@ -99,6 +99,14 @@ export function createCheckoutSessionPort(
 ): CheckoutSessionPort {
   return {
     async prepare(actorId, input, environment, nonceHash) {
+      // A fresh explicit preparation may safely retire only expired, uncharged
+      // idle enrollment owned by this actor. This cannot resume or erase any
+      // processing/unknown financial operation and does not rebind its session.
+      const abandoned = await client.rpc('enrollment_abandon_expired', {
+        p_user_id: actorId,
+        p_artist_slug: input.artistSlug,
+      });
+      if (abandoned.error) return databaseError(abandoned.error.message);
       const { data, error } = await client
         .rpc('checkout_prepare_session', {
           p_user_id: actorId,

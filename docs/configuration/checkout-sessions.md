@@ -1,5 +1,13 @@
 # Checkout intent preparation
 
+> Historical foundation contract from the preparation-only feature. The current
+> [initial-subscription flow](../configuration/initial-subscription.md) extends this
+> boundary with authenticated encrypted callback capture, explicit POST consent,
+> real provider adapters and atomic verified first-charge finalization. Statements
+> below that completion is unavailable describe the earlier checkpoint, not the
+> currently configurable flow. The checkout nonce is now SameSite=Lax for provider
+> top-level return; all mutations still require exact same-origin POST.
+
 ## What is available
 
 After full onboarding, the artist preview links to `/checkout/[slug]`. The page

@@ -211,7 +211,9 @@ for (const provider of CHECKOUT_PROVIDERS) {
       ).find((value) => value.name === CHECKOUT_NONCE_COOKIE);
       expect(cookie).toMatchObject({
         httpOnly: true,
-        sameSite: 'Strict',
+        // Lax permits the top-level provider GET; mutating POSTs still
+        // require exact Origin and the original owner/session-bound nonce.
+        sameSite: 'Lax',
         path: routes.checkoutSubmit,
       });
       expect(await page.evaluate(() => document.cookie)).not.toContain(
