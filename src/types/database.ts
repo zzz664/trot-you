@@ -96,6 +96,64 @@ export type Database = {
         };
         Relationships: [];
       };
+      payment_events: {
+        Row: {
+          amount_krw: number;
+          currency: string;
+          id: string;
+          kind: Database['public']['Enums']['payment_event_kind'];
+          occurred_at: string;
+          original_event_id: string | null;
+          period_end: string;
+          period_start: string;
+          provider: Database['public']['Enums']['payment_provider'];
+          recorded_at: string;
+          subscription_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_krw: number;
+          currency?: string;
+          id?: string;
+          kind: Database['public']['Enums']['payment_event_kind'];
+          occurred_at: string;
+          original_event_id?: string | null;
+          period_end: string;
+          period_start: string;
+          provider: Database['public']['Enums']['payment_provider'];
+          recorded_at?: string;
+          subscription_id: string;
+        };
+        Update: {
+          amount_krw?: number;
+          currency?: string;
+          id?: string;
+          kind?: Database['public']['Enums']['payment_event_kind'];
+          occurred_at?: string;
+          original_event_id?: string | null;
+          period_end?: string;
+          period_start?: string;
+          provider?: Database['public']['Enums']['payment_provider'];
+          recorded_at?: string;
+          subscription_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'payment_events_original_event_id_fkey';
+            columns: ['original_event_id'];
+            isOneToOne: false;
+            referencedRelation: 'payment_events';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'payment_events_subscription_id_fkey';
+            columns: ['subscription_id'];
+            isOneToOne: false;
+            referencedRelation: 'subscriptions';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       profiles: {
         Row: {
           age_range: string | null;
@@ -148,6 +206,86 @@ export type Database = {
         };
         Relationships: [];
       };
+      subscriptions: {
+        Row: {
+          artist_id: string;
+          canceled_at: string | null;
+          created_at: string;
+          current_period_end: string | null;
+          current_period_start: string | null;
+          episode_started_at: string | null;
+          first_started_at: string | null;
+          grace_ends_at: string | null;
+          grace_started_at: string | null;
+          id: string;
+          intro_redeemed_at: string | null;
+          next_billing_at: string | null;
+          provider: Database['public']['Enums']['payment_provider'];
+          status: Database['public']['Enums']['subscription_status'];
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          artist_id: string;
+          canceled_at?: string | null;
+          created_at?: string;
+          current_period_end?: string | null;
+          current_period_start?: string | null;
+          episode_started_at?: string | null;
+          first_started_at?: string | null;
+          grace_ends_at?: string | null;
+          grace_started_at?: string | null;
+          id?: string;
+          intro_redeemed_at?: string | null;
+          next_billing_at?: string | null;
+          provider: Database['public']['Enums']['payment_provider'];
+          status?: Database['public']['Enums']['subscription_status'];
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          artist_id?: string;
+          canceled_at?: string | null;
+          created_at?: string;
+          current_period_end?: string | null;
+          current_period_start?: string | null;
+          episode_started_at?: string | null;
+          first_started_at?: string | null;
+          grace_ends_at?: string | null;
+          grace_started_at?: string | null;
+          id?: string;
+          intro_redeemed_at?: string | null;
+          next_billing_at?: string | null;
+          provider?: Database['public']['Enums']['payment_provider'];
+          status?: Database['public']['Enums']['subscription_status'];
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'subscriptions_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artist_catalog';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'subscriptions_artist_id_fkey';
+            columns: ['artist_id'];
+            isOneToOne: false;
+            referencedRelation: 'artists';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'subscriptions_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       artist_catalog: {
@@ -177,6 +315,110 @@ export type Database = {
       };
     };
     Functions: {
+      billing_claim_attempt: {
+        Args: { p_attempt_id: string; p_lease_seconds: number };
+        Returns: Json;
+      };
+      billing_expire_subscription: {
+        Args: { p_subscription_id: string };
+        Returns: undefined;
+      };
+      billing_finalize_charge: {
+        Args: {
+          p_amount_krw: number;
+          p_approved_at: string;
+          p_attempt_id: string;
+          p_currency: string;
+          p_evidence_ref: string;
+          p_provider_action_id: string;
+        };
+        Returns: string;
+      };
+      billing_open_subscription: {
+        Args: {
+          p_artist_id: string;
+          p_provider: Database['public']['Enums']['payment_provider'];
+          p_user_id: string;
+        };
+        Returns: string;
+      };
+      billing_prepare_attempt: {
+        Args: { p_obligation_id: string };
+        Returns: string;
+      };
+      billing_prepare_obligation: {
+        Args: {
+          p_amount_krw: number;
+          p_grace_seconds: number;
+          p_is_intro: boolean;
+          p_max_retries: number;
+          p_period_end: string;
+          p_period_start: string;
+          p_price_version: string;
+          p_retry_seconds: number;
+          p_subscription_id: string;
+        };
+        Returns: string;
+      };
+      billing_record_attempt_outcome: {
+        Args: {
+          p_attempt_id: string;
+          p_evidence_ref: string;
+          p_lease_token: string;
+          p_outcome: string;
+        };
+        Returns: undefined;
+      };
+      billing_record_refund: {
+        Args: {
+          p_amount_krw: number;
+          p_currency: string;
+          p_evidence_ref: string;
+          p_original_event_id: string;
+          p_provider_action_id: string;
+          p_refunded_at: string;
+        };
+        Returns: string;
+      };
+      billing_register_mandate: {
+        Args: {
+          p_consent_version: string;
+          p_environment: string;
+          p_merchant_account: string;
+          p_provider_customer_ref: string;
+          p_secure_credential_ref: string;
+          p_subscription_id: string;
+        };
+        Returns: string;
+      };
+      cancel_subscription: {
+        Args: { p_subscription_id: string };
+        Returns: {
+          artist_id: string;
+          canceled_at: string | null;
+          created_at: string;
+          current_period_end: string | null;
+          current_period_start: string | null;
+          episode_started_at: string | null;
+          first_started_at: string | null;
+          grace_ends_at: string | null;
+          grace_started_at: string | null;
+          id: string;
+          intro_redeemed_at: string | null;
+          next_billing_at: string | null;
+          provider: Database['public']['Enums']['payment_provider'];
+          status: Database['public']['Enums']['subscription_status'];
+          updated_at: string;
+          user_id: string;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'subscriptions';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      has_active_access: { Args: { p_artist_id: string }; Returns: boolean };
       set_profile_role: {
         Args: {
           p_role: Database['public']['Enums']['user_role'];
@@ -189,6 +431,10 @@ export type Database = {
       artist_grade: 'B' | 'C';
       artist_status: 'draft' | 'active' | 'paused' | 'retired';
       font_scale: 'normal' | 'large' | 'xlarge';
+      payment_event_kind: 'charge' | 'refund';
+      payment_provider: 'toss' | 'kakaopay';
+      subscription_status:
+        'pending' | 'active' | 'grace' | 'canceled' | 'expired';
       user_role: 'fan' | 'artist' | 'admin';
     };
     CompositeTypes: {
@@ -320,6 +566,15 @@ export const Constants = {
       artist_grade: ['B', 'C'],
       artist_status: ['draft', 'active', 'paused', 'retired'],
       font_scale: ['normal', 'large', 'xlarge'],
+      payment_event_kind: ['charge', 'refund'],
+      payment_provider: ['toss', 'kakaopay'],
+      subscription_status: [
+        'pending',
+        'active',
+        'grace',
+        'canceled',
+        'expired',
+      ],
       user_role: ['fan', 'artist', 'admin'],
     },
   },
