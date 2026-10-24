@@ -1,0 +1,81 @@
+// @vitest-environment node
+import { ESLint } from 'eslint';
+import { describe, expect, it } from 'vitest';
+
+const eslint = new ESLint();
+async function rules(filePath: string, code: string) {
+  const [result] = await eslint.lintText(code, { filePath });
+  return result?.messages.map((message) => message.ruleId) ?? [];
+}
+
+describe('configuration and pure-layer lint boundaries', () => {
+  it.each([
+    'export const value = process.env.SECRET;',
+    "export const value = process['env'].SECRET;",
+    'const { env } = process; export { env };',
+    'const runtime = process; export { runtime };',
+  ])(
+    'rejects environment access outside the dedicated modules',
+    async (code) => {
+      expect(await rules('src/config/probe.ts', code)).toContain(
+        'no-restricted-syntax',
+      );
+      expect(await rules('src/lib/probe.ts', code)).toContain(
+        'no-restricted-syntax',
+      );
+    },
+  );
+  it('allows environment reads only in the explicit modules', async () => {
+    expect(
+      await rules(
+        'src/config/env.server.ts',
+        'export const value = process.env.SECRET;',
+      ),
+    ).not.toContain('no-restricted-syntax');
+    expect(
+      await rules(
+        'src/config/env.ts',
+        'export const value = process.env.NEXT_PUBLIC_APP_URL;',
+      ),
+    ).not.toContain('no-restricted-syntax');
+  });
+  it.each(['src/lib/probe.ts', 'src/components/ui/Probe.tsx'])(
+    'rejects server env in a pure/client-safe layer (%s)',
+    async (path) => {
+      expect(
+        await rules(
+          path,
+          "import { getServerEnv } from '@/config/env.server'; export const value = getServerEnv;",
+        ),
+      ).toContain('no-restricted-imports');
+    },
+  );
+  it('restricts reverse-layer dependencies and direct I/O', async () => {
+    expect(
+      await rules(
+        'src/lib/probe.ts',
+        "import { logger } from '@/server/logging/logger'; export const value = logger;",
+      ),
+    ).toContain('no-restricted-imports');
+    expect(
+      await rules(
+        'src/config/probe.ts',
+        "import { logger } from '@/server/logging/logger'; export const value = logger;",
+      ),
+    ).toContain('no-restricted-imports');
+    expect(
+      await rules(
+        'src/lib/probe.ts',
+        "export const value = () => fetch('https://example.com');",
+      ),
+    ).toContain('no-restricted-globals');
+  });
+  it('allows console output only at the server logger sink', async () => {
+    expect(
+      await rules('src/server/configuration.ts', "console.info('unsafe');"),
+    ).toContain('no-console');
+    expect(
+      await rules('src/server/logging/logger.ts', "console.info('sanitized');"),
+    ).not.toContain('no-console');
+  });
+});
