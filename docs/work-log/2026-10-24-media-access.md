@@ -39,3 +39,9 @@ This checkpoint is for early migration/fixture/race validation and generated typ
 - Imported only the unchanged official `database-types` artifact `12569334985`: `database.ts` is 76,373 bytes, SHA-256 `ebd8ab93c5090fb316809b9fc6e4f3437a2484de82f7d62d1be9ea90c4ce1bef`. No generated declaration was hand-written.
 - With that artifact, local `npm run check:all` passed (lint/format, genuine-schema typecheck, 3,530 unit tests, ten contrast checks, Next production build and PWA build). All four media route NFT manifests contain existing MediaInfo WASM, Sharp native binary and libvips runtime files.
 - The checkpoint CI cancellation-browser runner failed before tests because host port 54322 was already in use; this was not a media assertion result. Final application-head CI, actual media-browser execution and screenshot review are still pending publication. No local Docker/browser restriction was retried or escalated.
+
+## First actual application-head media run
+
+- CI `40120353765` at app head `91ed7b876dca22a4c2fe699bc73abf04f64a2b54` executed the real production build and local Storage/browser suite: 38 of 39 tests passed. Long-voice playback had successfully resumed beyond 60 seconds and renewal denial had returned before the remaining test stopped on an ambiguous `role=alert` locator (the intended denial plus Next's empty route announcer).
+- Scoped both media-denial alert assertions to their explicit localized denial content. The subsequent paused/detached-source assertions still require the next real browser run; this locator fix does not mark them passed prematurely.
+- Implementer visual QA inspected the genuine media contact sheets at normal/large/xlarge and narrow/desktop widths: preview controls, images, inline denial and native media layout show no observed clipping/overlap. This is visual QA, not the blocked final independent security re-review. Local aggregate checks passed again after the locator correction.

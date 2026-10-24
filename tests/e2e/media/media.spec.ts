@@ -860,7 +860,11 @@ test('client expiration removes the bearer source and a retry rechecks preview p
       exact: true,
     })
     .click();
-  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(
+    page
+      .getByRole('alert')
+      .filter({ hasText: messages.media.errors.FORBIDDEN }),
+  ).toBeVisible();
   await expect(
     page.getByRole('img', { name: messages.media.photoAlt, exact: true }),
   ).toHaveCount(0);
@@ -1189,7 +1193,11 @@ test('native long voice resumes past 60 seconds after fresh authorization and st
   );
   await advanceRenewalTimer(page);
   expect((await rejected).ok()).toBe(false);
-  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(
+    page
+      .getByRole('alert')
+      .filter({ hasText: messages.media.errors.FORBIDDEN }),
+  ).toBeVisible();
   await expect(player).toHaveCount(0);
   expect(
     await renewed!.evaluate((element) => ({
