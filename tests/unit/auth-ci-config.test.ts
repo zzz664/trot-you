@@ -1,0 +1,81 @@
+// @vitest-environment node
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+const helperUrl = new URL(
+  '../../scripts/auth-local-config.mjs',
+  import.meta.url,
+);
+const { prepareLocalAuthConfig, assertLocalAuthSettings } = (await import(
+  helperUrl.href
+)) as {
+  prepareLocalAuthConfig: (source: string) => string;
+  assertLocalAuthSettings: (settings: unknown) => void;
+};
+const original = readFileSync(
+  new URL('../../supabase/config.toml', import.meta.url),
+  'utf8',
+);
+
+describe('isolated authentication CI configuration', () => {
+  it('activates the email provider while global public signup stays disabled', () => {
+    const generated = prepareLocalAuthConfig(original);
+    expect(
+      generated.match(/(?:^|\n)\[auth\]\n([\s\S]*?)(?=\n\[|$)/)?.[1],
+    ).toContain('enable_signup = false');
+    expect(
+      generated.match(/(?:^|\n)\[auth.email\]\n([\s\S]*?)(?=\n\[|$)/)?.[1],
+    ).toContain('enable_signup = true');
+    expect(generated).not.toMatch(/^\[auth.email\]\nenabled =/m);
+    expect(generated).toContain('[local_smtp]\nenabled = true\nport = 54324');
+    expect(generated).toContain(
+      'additional_redirect_urls = ["http://127.0.0.1:3100/api/auth/callback"]',
+    );
+    expect(original).toContain('[local_smtp]\nenabled = false');
+    expect(original).not.toContain('[auth.email]');
+    expect(
+      readFileSync(
+        new URL('../../supabase/config.toml', import.meta.url),
+        'utf8',
+      ),
+    ).toBe(original);
+  });
+
+  it.each([
+    original.replace('project_id = "trot-you"', 'project_id = "other"'),
+    original.replace('enable_signup = false', 'enable_signup = true'),
+    original.replace('[auth]', '[other]'),
+    original.replace(
+      '[local_smtp]\nenabled = false',
+      '[local_smtp]\nenabled = true',
+    ),
+    `${original}\n[auth.email]\n`,
+    `${original}\n[auth.rate_limit]\n`,
+  ])('rejects unexpected or already overridden input', (source) => {
+    expect(() => prepareLocalAuthConfig(source)).toThrow();
+  });
+
+  it('accepts only the real email-enabled/signup-disabled setting combination', () => {
+    expect(() =>
+      assertLocalAuthSettings({
+        external: { email: true },
+        disable_signup: true,
+      }),
+    ).not.toThrow();
+  });
+
+  it.each([
+    undefined,
+    null,
+    {},
+    { external: { email: false }, disable_signup: true },
+    { external: { email: true }, disable_signup: false },
+    { external: { email: true } },
+    { external: { email: 'true' }, disable_signup: true },
+  ])(
+    'fails closed when runtime settings cannot prove isolation',
+    (settings) => {
+      expect(() => assertLocalAuthSettings(settings)).toThrow();
+    },
+  );
+});
