@@ -2,6 +2,21 @@
 -- merchant configuration or financial transaction is seeded by this migration.
 begin;
 
+-- Calendar and taxable treatment are owner-approved commercial choices, not
+-- environment defaults. Existing approved policy versions retain NULL and
+-- cannot be amended; enrollment requires a newly approved complete version.
+alter table private.checkout_policies
+  add column billing_period_calendar text check (billing_period_calendar in ('utc_monthly_clamped','seoul_monthly_clamped')),
+  add column payment_tax_basis text check (payment_tax_basis='taxable_krw');
+
+create function private.enrollment_period_end(p_start timestamptz,p_calendar text) returns timestamptz
+language sql immutable strict set search_path='' as $$
+  select case p_calendar
+    when 'utc_monthly_clamped' then ((p_start at time zone 'UTC')+interval '1 month') at time zone 'UTC'
+    when 'seoul_monthly_clamped' then ((p_start at time zone 'Asia/Seoul')+interval '1 month') at time zone 'Asia/Seoul'
+    else null end;
+$$;
+
 create function private.enrollment_ciphertext_valid(p_value jsonb) returns boolean
 language sql immutable set search_path='' as $$
   select case when jsonb_typeof(p_value) is distinct from 'object' then false else coalesce(
@@ -85,6 +100,7 @@ language sql volatile security definer set search_path='' as $$
     'merchant_account',m.merchant_account,'subscription_id',e.subscription_id,'mandate_id',e.mandate_id,
     'credential_ref',e.credential_ref,'customer_ref',c.customer_ref,'order_id',c.order_id,
     'policy_version',c.policy_version,'policy_title',p.title,'policy_body',p.body,
+    'billing_period_calendar',p.billing_period_calendar,'payment_tax_basis',p.payment_tax_basis,
     'initial_price_krw',c.initial_price_krw,'regular_price_krw',c.regular_price_krw,'intro_eligible',c.intro_eligible,
     'expires_at',c.expires_at,'state',e.state,'stage',e.stage,
     'public_status',case
@@ -141,6 +157,8 @@ declare c private.checkout_sessions%rowtype; p private.checkout_policies%rowtype
 begin
   perform private.checkout_require_actor(p_enrollment.user_id);
   p:=private.checkout_current_policy();
+  if p.billing_period_calendar is null or p.payment_tax_basis is null then
+    raise exception 'CHECKOUT_SETUP_NOT_READY' using errcode='55000'; end if;
   select * into strict c from private.checkout_sessions where id=p_enrollment.session_id;
   if c.status<>'pending_intent' then raise exception 'CHECKOUT_SESSION_REPLAY' using errcode='55000'; end if;
   if c.expires_at<=clock_timestamp() then raise exception 'CHECKOUT_SESSION_EXPIRED' using errcode='55000'; end if;
@@ -171,6 +189,8 @@ begin
   perform 1 from public.profiles where id=p_user_id for update;
   perform private.checkout_require_actor(p_user_id);
   p:=private.checkout_current_policy();
+  if p.billing_period_calendar is null or p.payment_tax_basis is null then
+    raise exception 'CHECKOUT_SETUP_NOT_READY' using errcode='55000'; end if;
   select * into c from private.checkout_sessions where id=p_session_id and user_id=p_user_id;
   if c.id is null then raise exception 'CHECKOUT_NOT_FOUND' using errcode='P0002'; end if;
   perform 1 from public.artists where id=c.artist_id and status='active' for share;
@@ -257,7 +277,7 @@ create function public.enrollment_claim(p_user_id uuid,p_session_id uuid,p_nonce
   p_period_start timestamptz default null,p_period_end timestamptz default null) returns jsonb
 language plpgsql security definer set search_path='' set timezone='UTC' as $$
 declare e private.subscription_enrollments%rowtype; c private.checkout_sessions%rowtype;
-  obligation uuid; descriptor jsonb; lease uuid; at_time timestamptz;
+  obligation uuid; descriptor jsonb; lease uuid; at_time timestamptz; period_calendar text;
 begin
   perform private.require_billing_service();
   if p_stage is null or p_stage not in ('ready','exchange','charge','approve') then
@@ -291,13 +311,14 @@ begin
   if p_stage='charge' and not exists(select 1 from private.enrollment_credentials where id=e.credential_ref and mandate_id=e.mandate_id) then
     raise exception 'ENROLLMENT_NOT_READY' using errcode='55000'; end if;
   if p_stage in ('charge','approve') then
+    select billing_period_calendar into strict period_calendar from private.checkout_policies where version=c.policy_version;
     if p_accepted is distinct from true then raise exception 'CHECKOUT_CONSENT_REQUIRED' using errcode='22023'; end if;
     if p_policy_version is distinct from c.policy_version or p_amount_krw is distinct from c.initial_price_krw then
       raise exception 'CHECKOUT_POLICY_CHANGED' using errcode='55000'; end if;
     if p_period_start is null or p_period_end is null or not isfinite(p_period_start) or not isfinite(p_period_end)
       or p_period_start>at_time or p_period_start<e.created_at-interval '1 second'
       or p_period_start<at_time-interval '2 minutes'
-      or p_period_end<>(p_period_start+interval '1 month') then
+      or p_period_end is distinct from private.enrollment_period_end(p_period_start,period_calendar) then
       raise exception 'ENROLLMENT_INVALID_PERIOD' using errcode='22023'; end if;
     update private.payment_mandates set is_active=true where id=e.mandate_id;
     -- Initial-only operation: no automatic retry/grace schedule is enabled.
@@ -508,7 +529,7 @@ $$;
 create trigger enrollment_checkout_guard before update of status on private.checkout_sessions
   for each row execute function private.enrollment_checkout_guard();
 
-revoke all on function private.enrollment_ciphertext_valid(jsonb),private.enrollment_projection(uuid),
+revoke all on function private.enrollment_ciphertext_valid(jsonb),private.enrollment_period_end(timestamptz,text),private.enrollment_projection(uuid),
   private.enrollment_lock(uuid,uuid),private.enrollment_require_binding(private.subscription_enrollments,text,text),
   private.enrollment_require_current(private.subscription_enrollments),private.enrollment_checkout_guard()
   from public,anon,authenticated,service_role;

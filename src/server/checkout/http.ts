@@ -123,7 +123,9 @@ export async function checkoutPost(
   const port = createCheckoutSessionPort(service);
   const cookieOptions = {
     path: routes.checkoutSubmit,
-    sameSite: 'strict' as const,
+    // A top-level provider callback needs this cookie; every mutation still
+    // requires an exact same-origin POST and verified actor/session binding.
+    sameSite: 'lax' as const,
     httpOnly: true,
     secure: new URL(context.configuration.appOrigin).protocol === 'https:',
     maxAge: CHECKOUT_NONCE_MAX_AGE_SECONDS,

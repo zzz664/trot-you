@@ -78,9 +78,9 @@ function actorId(value: string) {
 
 export function prepareFictionalCheckoutPolicies() {
   localSql(`
-    insert into private.checkout_policies(version,title,body,regular_price_krw,intro_price_krw,approved_at,published_at) values
-    ('${checkoutFixtures.policy}','${checkoutFixtures.title}','${checkoutFixtures.body}',6500,1000,now(),now()),
-    ('${checkoutFixtures.nextPolicy}','새 허구 구독 약관','격리 CI에서 약관 변경을 점검하는 허구 본문입니다.',7000,1200,now(),now())
+    insert into private.checkout_policies(version,title,body,regular_price_krw,intro_price_krw,approved_at,published_at,billing_period_calendar,payment_tax_basis) values
+    ('${checkoutFixtures.policy}','${checkoutFixtures.title}','${checkoutFixtures.body}',6500,1000,now(),now(),'utc_monthly_clamped','taxable_krw'),
+    ('${checkoutFixtures.nextPolicy}','새 허구 구독 약관','격리 CI에서 약관 변경을 점검하는 허구 본문입니다.',7000,1200,now(),now(),'utc_monthly_clamped','taxable_krw')
     on conflict(version) do nothing;
   `);
 }

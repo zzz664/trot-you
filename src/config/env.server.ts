@@ -1,6 +1,12 @@
 import 'server-only';
 import { z } from 'zod';
 import { KAKAOPAY_TEST_CIDS } from './integrations';
+import { parseEnrollmentTestRuntime } from './enrollment-test-runtime';
+import {
+  PAYMENT_VAULT_KEY_PATTERN,
+  PAYMENT_VAULT_KEY_VERSION_PATTERN,
+  PAYMENT_VAULT_KEY_VERSION_MAX_LENGTH,
+} from './enrollment-provider';
 import { failure, success, type Result } from '@/lib/result';
 import { hasSupabaseKeyRole, optionalEnvValue, publicEnvSchema } from './env';
 
@@ -28,6 +34,16 @@ const serverEnvSchema = publicEnvSchema.extend({
   KAKAOPAY_SECRET_KEY: optionalEnvValue(secretSchema),
   KAKAOPAY_RECURRING_CID: optionalEnvValue(secretSchema),
   KAKAOPAY_CID_SECRET: optionalEnvValue(secretSchema),
+  PAYMENTS_VAULT_KEY: optionalEnvValue(
+    z.string().regex(PAYMENT_VAULT_KEY_PATTERN),
+  ),
+  PAYMENTS_VAULT_KEY_VERSION: optionalEnvValue(
+    z
+      .string()
+      .min(1)
+      .max(PAYMENT_VAULT_KEY_VERSION_MAX_LENGTH)
+      .regex(PAYMENT_VAULT_KEY_VERSION_PATTERN),
+  ),
   VAPID_PUBLIC_KEY: optionalEnvValue(secretSchema),
   VAPID_PRIVATE_KEY: optionalEnvValue(secretSchema),
   ALIMTALK_API_KEY: optionalEnvValue(secretSchema),
@@ -74,6 +90,10 @@ export function parseServerEnv(
   const result = serverEnvSchema.safeParse(values);
   if (!result.success) return failure('CONFIGURATION_INVALID');
   const env = result.data;
+  if (
+    Boolean(env.PAYMENTS_VAULT_KEY) !== Boolean(env.PAYMENTS_VAULT_KEY_VERSION)
+  )
+    return failure('CONFIGURATION_INVALID');
   const tossModes = [env.NEXT_PUBLIC_TOSS_CLIENT_KEY, env.TOSS_SECRET_KEY]
     .filter((value) => value !== undefined)
     .map((value) => value.split('_')[0]);
@@ -105,4 +125,8 @@ export function getServerEnv() {
 
 export function isUiPreviewEnabled() {
   return flagSchema.safeParse(process.env.UI_PREVIEW_ENABLED).data === true;
+}
+
+export function getEnrollmentTestRuntime() {
+  return parseEnrollmentTestRuntime(process.env);
 }

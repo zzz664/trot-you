@@ -87,7 +87,11 @@ describe('checkout database adapter', () => {
         'test',
         hash,
       );
-      expect(rpc).toHaveBeenCalledExactlyOnceWith('checkout_prepare_session', {
+      expect(rpc).toHaveBeenNthCalledWith(1, 'enrollment_abandon_expired', {
+        p_user_id: actor,
+        p_artist_slug: input.artistSlug,
+      });
+      expect(rpc).toHaveBeenNthCalledWith(2, 'checkout_prepare_session', {
         p_user_id: actor,
         p_artist_slug: input.artistSlug,
         p_provider: sqlProvider,

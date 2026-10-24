@@ -15,6 +15,12 @@ export const routes = {
   checkoutSubmit: '/api/checkout',
   checkoutCancel: '/api/checkout/cancel',
   checkoutReturn: '/api/checkout/return',
+  enrollmentStart: '/api/checkout/enrollment/start',
+  enrollmentConfirm: '/api/checkout/enrollment/confirm',
+  enrollmentCancel: '/api/checkout/enrollment/cancel',
+  enrollmentReconcile: '/api/checkout/enrollment/reconcile',
+  enrollmentStatus: '/api/checkout/enrollment/status',
+  enrollmentComplete: '/checkout/complete',
   restricted: '/restricted',
   artist: '/artist',
   admin: '/admin',
@@ -35,4 +41,8 @@ export function artistCatalogPath(page: number, onboarding = false) {
 
 export function checkoutPath(slug: string) {
   return `${routes.checkout}/${encodeURIComponent(slug)}`;
+}
+
+export function enrollmentCompletePath(sessionId: string) {
+  return `${routes.enrollmentComplete}?session=${encodeURIComponent(sessionId)}`;
 }

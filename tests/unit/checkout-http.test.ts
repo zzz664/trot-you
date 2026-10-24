@@ -159,7 +159,7 @@ describe('checkout POST authority and nonce boundary', () => {
     expect(stored).toMatchObject({
       httpOnly: true,
       secure: true,
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: routes.checkoutSubmit,
     });
     expect(response.headers.get('cache-control')).toContain('no-store');

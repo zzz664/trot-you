@@ -8,6 +8,7 @@ import {
   cancelCheckout,
   checkoutExpiryDelay,
 } from '@/client/checkout';
+import { EnrollmentLauncher } from './EnrollmentLauncher';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Checkbox, RadioGroup } from '@/components/ui/Checkbox';
@@ -21,8 +22,7 @@ import type {
 } from '@/config/checkout';
 import { artistPreviewPath, routes } from '@/config/routes';
 
-// An intent is not provider authorization, a registered payment method or a
-// subscription. There is intentionally no SDK/script/redirect/charge action.
+// Preparation consent is separate from provider registration and first charge.
 export function CheckoutTerms({ data }: { data: CheckoutPageData }) {
   const t = useTranslations('checkout');
   const uiCopy = useTranslations('ui');
@@ -33,6 +33,7 @@ export function CheckoutTerms({ data }: { data: CheckoutPageData }) {
   const [error, setError] = useState<CheckoutError | null>(null);
   const [pending, setPending] = useState<'prepare' | 'cancel' | null>(null);
   const [uncertain, setUncertain] = useState(false);
+  const [enrollmentStarted, setEnrollmentStarted] = useState(false);
   const [refreshing, startRefresh] = useTransition();
   const active = useRef(true);
   const saving = useRef(false);
@@ -162,7 +163,11 @@ export function CheckoutTerms({ data }: { data: CheckoutPageData }) {
       </nav>
       <header className="onboarding-stack">
         <h1>{t('title', { name: data.offer.artist.name })}</h1>
-        <p>{t('preparationOnly')}</p>
+        <p>
+          {t(
+            data.launchAvailable ? 'enrollmentExplanation' : 'preparationOnly',
+          )}
+        </p>
       </header>
       <Card title={t('priceTitle')}>
         <p>
@@ -183,7 +188,9 @@ export function CheckoutTerms({ data }: { data: CheckoutPageData }) {
         ) : (
           <p>{t('introUsed')}</p>
         )}
-        <p className="ui-hint">{t('noChargeToday')}</p>
+        <p className="ui-hint">
+          {t(data.launchAvailable ? 'enrollmentPriceNotice' : 'noChargeToday')}
+        </p>
       </Card>
       <Card title={data.offer.policy.title}>
         <p className="artist-copy">{data.offer.policy.body}</p>
@@ -208,7 +215,9 @@ export function CheckoutTerms({ data }: { data: CheckoutPageData }) {
         <p className="ui-hint">{t('configurationNotApproval')}</p>
         <Checkbox
           label={t('consent')}
-          hint={t('consentHint')}
+          hint={t(
+            data.launchAvailable ? 'enrollmentConsentHint' : 'consentHint',
+          )}
           checked={accepted}
           onChange={(event) => setAccepted(event.target.checked)}
           disabled={locked}
@@ -231,7 +240,13 @@ export function CheckoutTerms({ data }: { data: CheckoutPageData }) {
       {intent && (
         <Card title={t('intentTitle')}>
           <p role="status">{t(`intentStatuses.${intent.status}`)}</p>
-          <p>{t('intentNotPayment')}</p>
+          <p>
+            {t(
+              data.launchAvailable
+                ? 'enrollmentIntentNotice'
+                : 'intentNotPayment',
+            )}
+          </p>
           <p>
             {t('intentInitialPrice', {
               price: intent.initialPriceKrw.toLocaleString('ko-KR'),
@@ -243,7 +258,7 @@ export function CheckoutTerms({ data }: { data: CheckoutPageData }) {
             })}
           </p>
           <p className="ui-hint">{t('intentPriceNotice')}</p>
-          {intent.status === 'pending_intent' && (
+          {intent.status === 'pending_intent' && !enrollmentStarted && (
             <>
               <p className="ui-hint">{t('expirationNotice')}</p>
               <Button
@@ -258,10 +273,18 @@ export function CheckoutTerms({ data }: { data: CheckoutPageData }) {
           )}
         </Card>
       )}
-      <section className="onboarding-stack">
-        <Button disabled>{t('completionUnavailable')}</Button>
-        <p>{t('completionExplanation')}</p>
-      </section>
+      {data.launchAvailable && intent ? (
+        <EnrollmentLauncher
+          intent={intent}
+          disabled={busy || uncertain || intent.status !== 'pending_intent'}
+          onStart={() => setEnrollmentStarted(true)}
+        />
+      ) : !data.launchAvailable ? (
+        <section className="onboarding-stack">
+          <Button disabled>{t('completionUnavailable')}</Button>
+          <p>{t('completionExplanation')}</p>
+        </section>
+      ) : null}
     </main>
   );
 }

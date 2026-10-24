@@ -343,6 +343,60 @@
     "providerRegistrationItemName": "자동결제 수단 등록",
     "intentInitialPrice": "준비 요청에 저장된 적용 가격 {price}원",
     "intentRegularPrice": "준비 요청에 저장된 이후 매월 구독료 {price}원",
-    "intentPriceNotice": "실제 결제한 금액이 아니에요. 결제를 진행할 수 있을 때 최신 가격과 조건을 다시 확인해요."
+    "intentPriceNotice": "실제 결제한 금액이 아니에요. 결제를 진행할 수 있을 때 최신 가격과 조건을 다시 확인해요.",
+    "enrollmentExplanation": "구독 조건을 확인하고 신청을 준비한 뒤 결제수단 등록과 첫 결제 승인을 진행합니다.",
+    "enrollmentPriceNotice": "결제수단 등록 후 첫 결제 금액을 다시 확인하고 승인합니다.",
+    "enrollmentConsentHint": "신청 준비 동의만으로 결제되지 않습니다. 결제수단 등록 후 별도로 첫 결제를 승인합니다.",
+    "enrollmentIntentNotice": "신청 준비가 완료되었습니다. 아래에서 결제수단 등록을 진행해 주세요."
+  },
+  "enrollment": {
+    "navigation": "구독 결제 이동",
+    "title": "첫 결제 확인",
+    "confirmationExplanation": "결제수단 등록과 구독 결제는 다릅니다. 아래 금액과 약관을 확인하고 직접 결제를 승인해 주세요.",
+    "launchTitle": "결제수단 등록",
+    "launchExplanation": "결제사 화면에서 결제수단을 등록한 뒤 이곳으로 돌아와 첫 결제를 확인합니다. 등록 화면을 여는 것만으로 구독이 완료되지 않습니다.",
+    "start": "결제수단 등록 준비",
+    "starting": "안전한 등록 화면을 준비하고 있어요.",
+    "openToss": "토스 카드 등록 화면 열기",
+    "openKakao": "카카오페이 등록 화면 열기",
+    "opened": "등록 화면에서 돌아오면 결제 상태를 확인해 주세요.",
+    "viewStatus": "결제 상태 확인하기",
+    "noBlindRetry": "응답이 늦거나 끊겨도 다시 결제하지 마세요. 먼저 상태를 확인하면 중복 결제를 방지할 수 있어요.",
+    "loading": "결제 상태를 안전하게 확인하고 있어요.",
+    "amount": "이번 첫 결제 금액: {price}원",
+    "regularPrice": "이후 월 구독 금액: {price}원",
+    "chargeConsent": "약관을 확인했으며 첫 결제 {price}원을 승인합니다.",
+    "chargeConsentHint": "이 버튼은 실제 결제를 요청합니다. 금액이나 약관이 변경되면 다시 확인해야 합니다.",
+    "confirm": "{price}원 첫 결제 승인",
+    "confirming": "결제 결과를 확인하고 있어요.",
+    "reconcile": "결제사 결과 다시 확인",
+    "reviewNotice": "결제 결과가 아직 확정되지 않았어요. 새로운 결제나 다른 결제수단으로 다시 시도하지 마세요. 확인 가능한 결제사 기록만 조회하며, 자동 재청구하지 않습니다. 담당자의 확인이 필요할 수 있어요.",
+    "cancel": "이 구독 신청 취소",
+    "canceling": "신청을 취소하고 있어요.",
+    "refresh": "현재 상태 새로 확인",
+    "dismiss": "가수 화면으로 돌아가기",
+    "dismissNotice": "화면을 닫는 것만으로 신청이나 결제가 취소되지 않습니다. 진행 중인 결제는 상태 화면에서 확인해 주세요.",
+    "environments": {
+      "test": "테스트 결제 환경입니다. 실제 서비스 구독이 아닙니다.",
+      "live": "실제 결제 환경입니다. 승인하면 표시된 금액이 청구됩니다."
+    },
+    "statuses": {
+      "awaiting_authorization": "결제수단 등록을 기다리고 있어요.",
+      "awaiting_confirmation": "결제수단 인증이 확인되었어요. 아래에서 첫 결제를 승인해 주세요.",
+      "processing": "결제 처리 중입니다. 다시 결제하지 말고 기다려 주세요.",
+      "succeeded": "첫 결제가 확인되어 구독이 시작되었어요.",
+      "failed": "첫 결제가 완료되지 않았어요.",
+      "canceled": "이 구독 신청을 취소했어요.",
+      "expired": "이 구독 신청의 유효 시간이 지났어요.",
+      "unknown": "결제 결과를 확인하고 있어요. 아직 완료나 실패로 판단하지 않습니다.",
+      "manual_review": "안전한 확인을 위해 담당자의 검토가 필요해요. 자동으로 다시 결제하지 않습니다."
+    },
+    "calendars": {
+      "utc_monthly_clamped": "구독 기간은 세계 표준시(UTC) 기준으로 한 달씩 계산합니다. 다음 달에 같은 날짜가 없으면 그 달의 마지막 날로 조정합니다.",
+      "seoul_monthly_clamped": "구독 기간은 한국 시간(Asia/Seoul) 기준으로 한 달씩 계산합니다. 다음 달에 같은 날짜가 없으면 그 달의 마지막 날로 조정합니다."
+    },
+    "taxBases": {
+      "taxable_krw": "표시 금액은 부가가치세가 포함된 원화(KRW) 과세 금액입니다."
+    }
   }
 }

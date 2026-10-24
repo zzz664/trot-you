@@ -1,5 +1,13 @@
 # Checkout preparation sessions
 
+> Historical foundation contract from the preparation-only feature. The current
+> [initial-subscription flow](../configuration/initial-subscription.md) extends this
+> boundary with authenticated encrypted callback capture, explicit POST consent,
+> real provider adapters and atomic verified first-charge finalization. Statements
+> below that completion is unavailable describe the earlier checkpoint, not the
+> currently configurable flow. The checkout nonce is now SameSite=Lax for provider
+> top-level return; all mutations still require exact same-origin POST.
+
 This is a **local pending-intent foundation**, not working payment registration or a subscription. It makes no provider request, collects no payment credential, creates no subscription/mandate/charge/obligation/ledger event, and grants no paid access. Provider approval, billing-key exchange, encrypted credential storage and first charge are deliberately later work.
 
 ## Policy and private data

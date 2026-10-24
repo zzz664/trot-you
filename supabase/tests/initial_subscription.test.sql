@@ -53,9 +53,13 @@ insert into private.profile_policy_acceptances(user_id,kind,version,accepted_at)
  select u,kind,version,now() from unnest(array['b1000000-0000-4000-8000-000000000001'::uuid,
  'b1000000-0000-4000-8000-000000000002'::uuid]) u, private.onboarding_documents;
 insert into private.checkout_policies values
- ('b7000000-0000-4000-8000-000000000001','허구 구독 정책','실제 운영에 사용할 수 없는 결제 테스트 문서입니다.',7200,1200,now(),now()),
- ('b7000000-0000-4000-8000-000000000002','허구 변경 정책','정책 회전 검증용 테스트 문서입니다.',7300,1300,now(),now()),
- ('b7000000-0000-4000-8000-000000000003','허구 무료 정책','무료 등록은 이번 유료 첫 결제 흐름과 다릅니다.',7300,0,now(),now());
+ ('b7000000-0000-4000-8000-000000000001','허구 구독 정책','실제 운영에 사용할 수 없는 결제 테스트 문서입니다.',7200,1200,now(),now(),'utc_monthly_clamped','taxable_krw'),
+ ('b7000000-0000-4000-8000-000000000002','허구 변경 정책','정책 회전 검증용 테스트 문서입니다.',7300,1300,now(),now(),'utc_monthly_clamped','taxable_krw'),
+ ('b7000000-0000-4000-8000-000000000003','허구 무료 정책','무료 등록은 이번 유료 첫 결제 흐름과 다릅니다.',7300,0,now(),now(),'utc_monthly_clamped','taxable_krw'),
+ ('b7000000-0000-4000-8000-000000000004','허구 미완성 정책','달력과 세금 선택을 승인하지 않은 기존 문서입니다.',7200,1200,now(),now(),null,null),
+ ('b7000000-0000-4000-8000-000000000005','허구 달력 미선택 정책','달력 선택이 승인되지 않은 문서입니다.',7200,1200,now(),now(),null,'taxable_krw'),
+ ('b7000000-0000-4000-8000-000000000006','허구 세금 미선택 정책','세금 분류가 승인되지 않은 문서입니다.',7200,1200,now(),now(),'utc_monthly_clamped',null),
+ ('b7000000-0000-4000-8000-000000000007','허구 서울 달력 정책','서울 달력 월말 보정 테스트 문서입니다.',7200,1200,now(),now(),'seoul_monthly_clamped','taxable_krw');
 insert into private.checkout_policy_current values(true,'b7000000-0000-4000-8000-000000000001');
 -- A local notification fixture establishes the existing transactional outbox
 -- trigger without sending any notification or using an actual push endpoint.
@@ -399,6 +403,58 @@ select is(public.enrollment_finalize(pg_temp.actor(),pg_temp.sid('atomic-failure
 reset role;
 select is((select count(*) from public.payment_events),4::bigint,'recovered persistence records one payment only');
 select is((select count(*) from private.notification_jobs where source_kind='payment'),4::bigint,'recovered persistence queues one job only');
+-- No default commercial calendar or tax classification is implied by the
+-- technical implementation. Historic approved versions cannot be patched.
+select throws_ok($$update private.checkout_policies set billing_period_calendar='utc_monthly_clamped',payment_tax_basis='taxable_krw'
+ where version='b7000000-0000-4000-8000-000000000004'$$,'23514','CHECKOUT_POLICY_IMMUTABLE','missing commercial choices require a NEW approved policy version');
+select throws_ok($$insert into private.checkout_policies values(gen_random_uuid(),'허구','허구 문서',7200,1200,null,null,'host_timezone','taxable_krw')$$,
+ '23514',null,'host timezone cannot become approved billing calendar');
+select throws_ok($$insert into private.checkout_policies values(gen_random_uuid(),'허구','허구 문서',7200,1200,null,null,'utc_monthly_clamped','tax_free_krw')$$,
+ '23514',null,'unsupported tax treatment cannot silently enter enrollment');
+update private.checkout_policy_current set policy_version='b7000000-0000-4000-8000-000000000004';
+set local role service_role;
+select throws_ok($$select public.enrollment_start(pg_temp.actor(),
+ (select session_id from public.checkout_prepare_session(pg_temp.actor(),'enrollment-14','toss','test',gen_random_uuid(),repeat('a',64),
+ 'b7000000-0000-4000-8000-000000000004',true)),repeat('a',64),repeat('b',64),repeat('c',64),'fixture-merchant')$$,
+ '55000','CHECKOUT_SETUP_NOT_READY','existing approved policy without calendar/tax cannot launch enrollment');
+select throws_ok($$select pg_temp.capture('returning')$$,'55000','CHECKOUT_SETUP_NOT_READY',
+ 'current-policy gate also refuses continuation when newly active policy lacks commercial choices');
+reset role;
+update private.checkout_policy_current set policy_version='b7000000-0000-4000-8000-000000000005';
+set local role service_role;
+select throws_ok($$select public.enrollment_start(pg_temp.actor(),
+ (select session_id from public.checkout_prepare_session(pg_temp.actor(),'enrollment-14','toss','test',gen_random_uuid(),repeat('a',64),
+ 'b7000000-0000-4000-8000-000000000005',true)),repeat('a',64),repeat('b',64),repeat('c',64),'fixture-merchant')$$,
+ '55000','CHECKOUT_SETUP_NOT_READY','approved tax without calendar still fails closed');
+reset role;
+update private.checkout_policy_current set policy_version='b7000000-0000-4000-8000-000000000006';
+set local role service_role;
+select throws_ok($$select public.enrollment_start(pg_temp.actor(),
+ (select session_id from public.checkout_prepare_session(pg_temp.actor(),'enrollment-14','toss','test',gen_random_uuid(),repeat('a',64),
+ 'b7000000-0000-4000-8000-000000000006',true)),repeat('a',64),repeat('b',64),repeat('c',64),'fixture-merchant')$$,
+ '55000','CHECKOUT_SETUP_NOT_READY','approved calendar without tax still fails closed');
+reset role;
+update private.checkout_policy_current set policy_version='b7000000-0000-4000-8000-000000000007';
+set local role service_role;
+insert into enrollment_cases(label,data)
+ select 'seoul',public.enrollment_start(pg_temp.actor(),x.session_id,repeat('a',64),repeat('b',64),repeat('c',64),'fixture-merchant')
+ from public.checkout_prepare_session(pg_temp.actor(),'enrollment-14','toss','test',gen_random_uuid(),repeat('a',64),
+ 'b7000000-0000-4000-8000-000000000007',true) x;
+select is((select data->>'billing_period_calendar' from enrollment_cases where label='seoul'),'seoul_monthly_clamped','private descriptor carries exact approved calendar');
+select is((select data->>'payment_tax_basis' from enrollment_cases where label='seoul'),'taxable_krw','private descriptor carries explicit approved taxable treatment');
+reset role;
+set local timezone='America/New_York';
+select is(private.enrollment_period_end('2026-02-28T16:00:00Z','utc_monthly_clamped'),'2026-03-28T16:00:00Z'::timestamptz,
+ 'UTC February 28 anniversary remains March 28 independent of host timezone');
+select is(private.enrollment_period_end('2026-02-28T16:00:00Z','seoul_monthly_clamped'),'2026-03-31T16:00:00Z'::timestamptz,
+ 'same instant is March 1 KST and bills next April 1 KST');
+select is(private.enrollment_period_end('2028-01-31T16:00:00Z','utc_monthly_clamped'),'2028-02-29T16:00:00Z'::timestamptz,
+ 'approved UTC calendar clamps leap-year January 31 to February 29');
+select is(private.enrollment_period_end('2028-01-30T16:00:00Z','seoul_monthly_clamped'),'2028-02-28T16:00:00Z'::timestamptz,
+ 'approved Seoul calendar clamps January 31 KST to February 29 KST');
+select is(private.enrollment_period_end('2026-02-28T16:00:00Z',null),null::timestamptz,'missing calendar has no fallback');
+select is(private.enrollment_period_end('2026-02-28T16:00:00Z','host_timezone'),null::timestamptz,'unrecognized calendar has no fallback');
+set local timezone='UTC';
 select ok(not exists(select 1 from information_schema.columns where table_schema='public'
  and table_name in ('subscriptions','payment_events') and column_name in ('sid','billing_key','auth_key','pg_token','ciphertext','credential_ref','provider_tid')),
  'fan-readable tables contain no credential or encrypted vault columns');

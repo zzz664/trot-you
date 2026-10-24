@@ -1611,6 +1611,121 @@ export type Database = {
         Args: { p_artist_slug: string };
         Returns: undefined;
       };
+      enrollment_abandon_expired: {
+        Args: { p_artist_slug: string; p_user_id: string };
+        Returns: boolean;
+      };
+      enrollment_cancel: {
+        Args: {
+          p_auth_session_hash: string;
+          p_nonce_hash: string;
+          p_session_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      enrollment_capture: {
+        Args: {
+          p_auth_session_hash: string;
+          p_callback_ciphertext: Json;
+          p_callback_state_hash: string;
+          p_nonce_hash: string;
+          p_session_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      enrollment_claim: {
+        Args: {
+          p_accepted?: boolean;
+          p_amount_krw?: number;
+          p_auth_session_hash: string;
+          p_nonce_hash: string;
+          p_period_end?: string;
+          p_period_start?: string;
+          p_policy_version?: string;
+          p_session_id: string;
+          p_stage: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      enrollment_finalize: {
+        Args: {
+          p_amount_krw: number;
+          p_approved_at: string;
+          p_credential_ciphertext?: Json;
+          p_currency: string;
+          p_evidence_ref: string;
+          p_provider_action_id: string;
+          p_provider_payment_id: string;
+          p_session_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      enrollment_read: {
+        Args: {
+          p_auth_session_hash: string;
+          p_nonce_hash?: string;
+          p_session_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      enrollment_record_credential: {
+        Args: {
+          p_credential_ciphertext: Json;
+          p_lease_token: string;
+          p_session_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      enrollment_record_outcome: {
+        Args: {
+          p_evidence_ref?: string;
+          p_lease_token: string;
+          p_outcome: string;
+          p_session_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      enrollment_record_ready: {
+        Args: {
+          p_lease_token: string;
+          p_redirects: Json;
+          p_session_id: string;
+          p_tid: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      enrollment_record_reconciliation: {
+        Args: {
+          p_amount_krw: number;
+          p_approved_at: string;
+          p_currency: string;
+          p_evidence_ref: string;
+          p_provider_action_id: string;
+          p_provider_payment_id: string;
+          p_session_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      enrollment_start: {
+        Args: {
+          p_auth_session_hash: string;
+          p_callback_state_hash: string;
+          p_merchant_account: string;
+          p_nonce_hash: string;
+          p_session_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
       has_active_access: { Args: { p_artist_id: string }; Returns: boolean };
       mark_message_read: { Args: { p_message_id: string }; Returns: string };
       messaging_cancel: {

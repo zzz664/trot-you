@@ -4,6 +4,9 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const config: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  // Authorization callbacks contain single-use provider query tokens. Never
+  // print incoming URLs, server arguments or browser logs in development/CI.
+  logging: false,
   async headers() {
     return [
       {
