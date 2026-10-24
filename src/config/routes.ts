@@ -8,6 +8,7 @@ export const routes = {
   onboardingArtists: '/onboarding/artists',
   onboardingInstall: '/onboarding/install',
   artists: '/artists',
+  artistMessages: '/api/artists',
   mediaUpload: '/api/media/upload-url',
   mediaComplete: '/api/media/complete',
   mediaRead: '/api/media/signed-url',
@@ -88,4 +89,12 @@ export function adminReconciliationPath(page: number) {
   return page > 1
     ? `${routes.adminReconciliation}?page=${page}`
     : routes.adminReconciliation;
+}
+
+export function chatMessagesPath(slug: string) {
+  return `${routes.artistMessages}/${encodeURIComponent(slug)}/messages`;
+}
+
+export function chatReadPath(slug: string, messageId: string) {
+  return `${chatMessagesPath(slug)}/${encodeURIComponent(messageId)}/read`;
 }

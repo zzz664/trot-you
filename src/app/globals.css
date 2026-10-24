@@ -278,3 +278,40 @@ h2 {
   aspect-ratio: 1;
   background: var(--color-background);
 }
+
+.chat-heading,
+.chat-messages,
+.chat-pagination {
+  display: grid;
+  min-inline-size: 0;
+  gap: calc(var(--space-unit) * 2);
+}
+.chat-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-unit);
+}
+.chat-navigation > * {
+  flex: 1 1 auto;
+}
+.chat-messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.chat-message {
+  min-inline-size: 0;
+  scroll-margin-block: calc(var(--space-unit) * 2);
+}
+.chat-message-copy {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chat-message-time,
+.chat-read-status {
+  font-size: var(--fs-caption);
+  color: var(--color-muted);
+}
+.chat-read-error {
+  color: var(--color-error);
+}

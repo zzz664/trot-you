@@ -1,12 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import type { SubscriptionList } from '@/config/subscription-management';
 import {
+  artistPreviewPath,
   routes,
   subscriptionListPath,
   subscriptionPath,
@@ -17,6 +19,7 @@ import { SubscriptionStatus } from './SubscriptionStatus';
 export function SubscriptionsScreen({ data }: { data: SubscriptionList }) {
   const router = useRouter();
   const t = useTranslations('subscriptions');
+  const chat = useTranslations('chat');
   return (
     <main className="app-shell onboarding-shell">
       <nav aria-label={t('navigation')}>
@@ -43,6 +46,15 @@ export function SubscriptionsScreen({ data }: { data: SubscriptionList }) {
             <li key={subscription.id}>
               <Card title={subscription.artist_name}>
                 <SubscriptionStatus data={subscription} />
+                {subscription.has_access && (
+                  <Link
+                    className="ui-button ui-button--primary"
+                    href={artistPreviewPath(subscription.artist_slug)}
+                    prefetch={false}
+                  >
+                    {chat('open', { name: subscription.artist_name })}
+                  </Link>
+                )}
                 <Button
                   onClick={() => router.push(subscriptionPath(subscription.id))}
                 >

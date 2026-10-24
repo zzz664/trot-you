@@ -44,7 +44,11 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 
 ## 가수 탐색·맛보기·관심 선택
 
-[화면·보안·준비 범위](docs/configuration/artist-discovery.md)와 [DB 계약](docs/database/artist-discovery.md)을 참고하세요. `/artists`는 공개된 active 가수의 안전한 목록만, `/artists/[slug]`는 현재 프로필/동의 조건을 만족한 팬에게 서버 이름 치환 맛보기만 제공합니다. `/onboarding/artists`의 관심 가수 선택은 유료 구독이나 결제가 아닙니다. 선택 후 `/onboarding/install`에서 브라우저별 설치 안내·명시적 선택을 저장한 뒤 현재 모든 필수 조건을 DB에서 다시 확인하여 가입 준비를 완료합니다. 사진·음성·영상은 텍스트와 이용 불가 안내만 제공하고 서명 URL/재생은 아직 없습니다. 서버 전용 맛보기 RPC에만 기존 `SUPABASE_SERVICE_ROLE_KEY`가 필요하며 브라우저·인증 actor client에는 전달하지 않습니다.
+[화면·보안·준비 범위](docs/configuration/artist-discovery.md)와 [DB 계약](docs/database/artist-discovery.md)을 참고하세요. `/artists`는 공개된 active 가수의 안전한 목록만, `/artists/[slug]`는 현재 프로필/동의 조건을 만족한 팬에게 서버 이름 치환 맛보기 또는 유료 대화방을 제공합니다. `/onboarding/artists`의 관심 가수 선택은 유료 구독이나 결제가 아닙니다. 선택 후 `/onboarding/install`에서 브라우저별 설치 안내·명시적 선택을 저장한 뒤 현재 모든 필수 조건을 DB에서 다시 확인하여 가입 준비를 완료합니다. 사진·음성·영상은 기존 [권한 기반 미디어 흐름](docs/configuration/media.md)을 통해 명시적으로 열며, 실제 바이트 권한을 다시 확인합니다. 서버 전용 맛보기·대화방 RPC에 기존 `SUPABASE_SERVICE_ROLE_KEY`가 필요하며 브라우저·인증 actor client에는 전달하지 않습니다.
+
+## 팬 대화방 열람
+
+[화면·API·준비 범위](docs/configuration/fan-chat.md)와 [DB 계약](docs/database/fan-chat.md)을 참고하세요. 유료 권한이 있는 팬의 첫 30개 메시지, 정밀 커서 기반 이전 메시지, 서버 이름 치환, 기존 미디어 뷰어, 실제 화면에 보인 메시지의 멱등 읽음 기록과 개인 읽음 수를 연결합니다. 구독 만료·제한·정책 변경은 새 요청마다 다시 확인합니다. 답장·발송·실시간 전달·분석 수집은 후속 기능이며 활성처럼 보이는 가짜 작성 컨트롤을 제공하지 않습니다. 실제 서비스 운영과 이전 미디어의 미완료 독립 재검토를 승인한 것은 아닙니다.
 
 ## 연동 설정 기반
 
