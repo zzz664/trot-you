@@ -732,6 +732,8 @@ export type Database = {
           created_at: string;
           id: string;
           is_blocked: boolean;
+          message_id: string | null;
+          operation_id: string | null;
           subscription_id: string;
           user_id: string;
         };
@@ -742,6 +744,8 @@ export type Database = {
           created_at?: string;
           id?: string;
           is_blocked?: boolean;
+          message_id?: string | null;
+          operation_id?: string | null;
           subscription_id: string;
           user_id: string;
         };
@@ -751,6 +755,8 @@ export type Database = {
           created_at?: string;
           id?: string;
           is_blocked?: boolean;
+          message_id?: string | null;
+          operation_id?: string | null;
           subscription_id?: string;
           user_id?: string;
         };
@@ -767,6 +773,13 @@ export type Database = {
             columns: ['artist_id'];
             isOneToOne: false;
             referencedRelation: 'artists';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'replies_message_id_fkey';
+            columns: ['message_id'];
+            isOneToOne: false;
+            referencedRelation: 'messages';
             referencedColumns: ['id'];
           },
           {
@@ -1751,6 +1764,37 @@ export type Database = {
           has_more: boolean;
           messages: Json;
           read_count: number;
+        }[];
+      };
+      fan_reply_page: {
+        Args: {
+          p_artist_slug: string;
+          p_before_created_at?: string;
+          p_before_id?: string;
+          p_limit?: number;
+        };
+        Returns: {
+          artist_slug: string;
+          has_more: boolean;
+          max_length: number;
+          replies: Json;
+          send_ready: boolean;
+        }[];
+      };
+      fan_reply_send: {
+        Args: {
+          p_artist_slug: string;
+          p_body: string;
+          p_message_id?: string;
+          p_operation_id: string;
+        };
+        Returns: {
+          body: string;
+          created_at: string;
+          id: string;
+          is_blocked: boolean;
+          message_id: string;
+          operation_id: string;
         }[];
       };
       has_active_access: { Args: { p_artist_id: string }; Returns: boolean };

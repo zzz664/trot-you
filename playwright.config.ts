@@ -10,6 +10,7 @@ export default defineConfig({
     '**/reconciliation/**',
     '**/media/**',
     '**/chat/**',
+    '**/replies/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

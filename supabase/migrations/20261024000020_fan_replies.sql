@@ -59,7 +59,7 @@ begin
   end loop;
   if ('phone'=any(p_cfg.forbidden_patterns) and normalized ~ '(^|[^[:digit:]])(0[[:digit:]]{1,2}|[+]?82)[ .()-]*[[:digit:]]{3,4}[ .()-]*[[:digit:]]{4}([^[:digit:]]|$)')
     or ('account'=any(p_cfg.forbidden_patterns) and normalized ~ '(^|[^[:digit:]])([[:digit:]][ -]*){10,16}([^[:digit:]]|$)')
-    or ('url'=any(p_cfg.forbidden_patterns) and normalized ~ '([[:alpha:]][[:alnum:]+.-]*://)|www[.]|[[:alnum:]][[:alnum:]-]{0,62}[.]([[:alpha:]]{2,63}|xn--[[:alnum:]-]{1,59})([/:?#[:space:]]|$)') then
+    or ('url'=any(p_cfg.forbidden_patterns) and normalized ~ '([[:alpha:]][[:alnum:]+.-]*://)|www[.]|[a-z0-9][a-z0-9-]{0,62}[.]([a-z]{2,63}|xn--[a-z0-9-]{1,59})([/:?#[:space:]]|$)') then
     raise exception 'REPLY_FORBIDDEN_CONTENT' using errcode='23514';
   end if;
 end;

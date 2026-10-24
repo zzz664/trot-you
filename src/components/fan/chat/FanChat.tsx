@@ -12,6 +12,7 @@ import { routes } from '@/config/routes';
 import { ChatErrorScreen } from './ChatErrorScreen';
 import { ChatLoading } from './ChatLoading';
 import { MessageCard } from './MessageCard';
+import { FanReplies } from '@/components/fan/replies/FanReplies';
 import { useFanChat } from './useFanChat';
 
 export function FanChat({ data }: { data: ChatPage }) {
@@ -89,6 +90,7 @@ function Conversation({ initial }: { initial: ChatPage }) {
           onRetry={state.retry}
         />
       )}
+      <FanReplies slug={data.artist.slug} onAccessLost={state.clear} />
       {data.messages.length === 0 ? (
         <Card title={t('emptyTitle')}>
           <p>{t('emptyDescription')}</p>

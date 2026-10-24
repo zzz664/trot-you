@@ -52,6 +52,12 @@ export function ChatErrorScreen({
           className="ui-button ui-button--primary"
           href={artistPreviewPath(slug)}
           prefetch={false}
+          onNavigate={(event) => {
+            // This recovery link points to the room URL already in the address
+            // bar. Re-read its server projection rather than reusing stale RSC.
+            event.preventDefault();
+            router.refresh();
+          }}
         >
           {t('preview')}
         </Link>

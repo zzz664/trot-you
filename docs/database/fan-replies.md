@@ -43,7 +43,9 @@ including compatibility whitespace, disallows invisible/control characters, and
 matches literal forbidden terms. Newline/tab are allowed as plain text. Supported
 pattern identifiers are `phone`, `account`, and `url`; their bounded built-in
 checks cover common local/international Korean phone layouts, long account-like
-digit sequences, schemes, `www` and generic bare domain names. Arbitrary operator
+digit sequences, schemes, `www` and generic bare ASCII/punycode domain names. Bare Unicode
+domains without a scheme/`www` are not exhaustively recognized: normal Korean
+sentence punctuation must not be mistaken for a domain. Arbitrary operator
 regular expressions are never executed. This is a configurable baseline filter,
 not a claim that every possible human obfuscation is detected. Actual business
 moderation terms and enabled categories still require approval.

@@ -1,6 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path=public,extensions;
+set local timezone='UTC';
 select no_plan();
 select is((select count(*) from private.reply_policy),0::bigint,'no live reply policy is activated');
 select ok((select bool_and(p.prosecdef and 'search_path=""'=any(p.proconfig)) from pg_proc p
@@ -196,6 +197,9 @@ select throws_ok($$select * from public.fan_reply_page('BAD')$$,'22023','REPLY_I
 reset role;
 select is((select count from private.reply_rate_limits where user_id='f7100000-0000-4000-8000-000000000001'),4,'invalid/moderated/target failures consumed no quota');
 
+set local role authenticated;
+select lives_ok($$select * from public.fan_reply_send('reply-main',gen_random_uuid(),'고마워요.사랑해요')$$,'ordinary Korean sentence punctuation is not mistaken for a bare domain');
+reset role;
 -- Current privilege changes affect sends and own history, never delete records.
 update public.profiles set is_restricted=true where id='f7100000-0000-4000-8000-000000000001';
 set local role authenticated;

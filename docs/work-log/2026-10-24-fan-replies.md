@@ -39,3 +39,68 @@ New reply functional/database-correctness review and existing accepted interface
 regression tests do not imply an overall security sign-off. Local browser socket
 execution is also unavailable and is not retried or escalated; browser execution
 and three-scale screenshot inspection remain CI-only.
+
+## Application and ordinary reply review
+
+- The existing paid artist room now has a real actor-authenticated text composer
+  and personal reply history. The current server length bound controls Unicode
+  character counting; missing send policy disables the composer honestly while
+  retaining authorized history. No artist receipt/response is fabricated.
+- Immutable submission payload/key survives pending double taps, unknown results,
+  explicit retry and composer close/reopen. Definitive validation failures keep
+  the draft editable; uncertain writes remain read-only until same-key resolution.
+  No automatic write retries or browser-stored drafts are introduced. Terminal
+  session/readiness/access loss removes the entire private room; navigation and
+  stale acknowledgements cannot restore its drafts or content.
+- Adds strict bounded GET/POST transport, private/no-store responses, current
+  verified session checks, same-origin writes and actor-only SQL capability.
+  Cursor tuples preserve full timestamp precision and bind to the room. Own
+  blocked history remains redacted; payload/operation/message mismatch fails
+  closed rather than claiming success.
+- Ordinary independent **reply-only functional/database-source** review found
+  detector gaps for newer bare domain suffixes and compatibility-only whitespace,
+  an overly broad Unicode domain false positive for normal Korean punctuation,
+  and missing field-error association. All were corrected with direct tests.
+  Bare domain matching is explicitly ASCII/punycode baseline; scheme/www cover
+  internationalized forms. This is not a universal content-evasion guarantee.
+  The punctuation refinement follows the immutable DB checkpoint without changing
+  any RPC/type signature. Same-room subscription-loss recovery now refreshes the
+  authoritative server projection rather than retaining stale paid room state.
+- Dedicated guarded browser collection contains 28 cases and 27 planned captures,
+  including normal/large/xlarge at 360/414/1024 widths, successful send/own history,
+  immutable unknown-result retries, current eligibility, draft close/navigation,
+  pagination ordering and actual recovery-link destinations. The default keyless
+  suite separately adds unavailable GET/POST coverage and collects 26 cases.
+  Guarded/default `--list` checks are collection, not browser execution.
+- Local lint/format, 4,148 unit tests in 122 files, 82 pure fixture checks, ten
+  contrast pairs and whitespace checks passed before two extra same-URL recovery
+  tests were added; those focused tests also passed. Final full aggregation is
+  still pending. Typecheck currently fails only for the two new RPC declarations
+  awaiting genuine CI schema generation; no substitute declarations are written.
+- Published schema checkpoint uses remote parent `a59f139` with exactly the same
+  tree as local `e58a9d6`. Local history was bundled and safely aligned to that
+  remote commit before continuing. Parent owns PR publication/merge and checks;
+  this worker performs no remote mutation or production action.
+
+## Genuine schema artifact
+
+- Checkpoint CI `40127960067`, published head
+  `a59f139c464ac23255364dd3a91ad249756b19ab`, passed reset/lint, 2,876 pgTAP
+  assertions twice and all 225 concurrency scenarios (including 15 new reply
+  races). Actual runner merge `40477f53266469540fced4c1bcbe0ac8b4dd176b`
+  had the exact checkpoint tree `60398e33a124c417fb38a379ff997bc3560367f0`.
+- Genuine type generation and post-generation typecheck passed. The committed
+  type-freshness check then failed as expected before artifact import; the other
+  eight checkpoint jobs passed. This checkpoint did not execute the new reply UI
+  or its dedicated browser job, which remained local application work.
+- Imported only unchanged official `database-types` artifact `12574356200`:
+  `database.ts` is 78,302 bytes, SHA-256
+  `071191b748e8ca8398cc4444cdb0c633e21e9e1c08b507ea1299db8b8ff87005`.
+  ZIP digest matched the API/upload evidence. No generated declaration was
+  handwritten. The later detector refinement does not change the schema shape.
+- A final local unit rerun including both recovery callbacks passed 4,150 tests
+  in 123 files. Full `npm run check:all` with the genuine artifact passed: lint/format,
+  typecheck, all 4,150 unit tests, ten contrast pairs, production Next build and
+  static-only PWA build. Final-head CI still must verify the additional Korean-punctuation
+  SQL assertion, type zero drift, dedicated reply browser cases and all existing
+  suites; checkpoint green outcomes do not establish those unexecuted results.
