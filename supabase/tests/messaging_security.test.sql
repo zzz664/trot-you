@@ -68,7 +68,7 @@ select set_config('request.jwt.claim.sub','81000000-0000-4000-8000-000000000001'
 set local role authenticated;
 select is((select count(*) from public.messages),0::bigint,'direct PostgREST-equivalent fan SELECT reveals no raw templates or lifecycle states');
 select is((select count(*) from public.message_media),0::bigint,'fan cannot read raw private media metadata');
-select is((select count(*) from public.replies),0::bigint,'fan cannot see other reply rows');
+select throws_ok($$select * from public.replies$$,'42501',null,'fan cannot bypass own redacted reply DTO with raw rows');
 select throws_ok($$select public.messaging_list_messages('81000000-0000-4000-8000-000000000001','82000000-0000-4000-8000-000000000001',true,30)$$,
  '42501',null,'fan cannot bypass server personalization through read RPC');
 select throws_ok($$select private.has_subscription_access('81000000-0000-4000-8000-000000000002','82000000-0000-4000-8000-000000000001',now())$$,

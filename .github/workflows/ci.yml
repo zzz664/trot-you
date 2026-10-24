@@ -46,6 +46,7 @@ jobs:
       - run: npm run test:db:reconciliation-concurrency
       - run: node scripts/test-media-concurrency.mjs
       - run: node scripts/test-chat-concurrency.mjs
+      - run: node scripts/test-reply-concurrency.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()

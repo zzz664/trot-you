@@ -41,6 +41,21 @@ select ('83000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
   case when n = 4 then now() + interval '1 day' end
 from unnest(array[1,3,4,5,11,13,14,15,16]) n;
 
+-- Reply writes now share current legal/name readiness and explicit moderation.
+-- Fictional compatibility policy remains rollback-only, never a migration seed.
+insert into private.onboarding_documents(version,kind,title,body,approved_at,published_at) values
+ ('89000000-0000-4000-8000-000000000001','terms','Fixture terms','Rollback only.',now(),now()),
+ ('89000000-0000-4000-8000-000000000002','privacy','Fixture privacy','Rollback only.',now(),now());
+insert into private.profile_onboarding_policy values(true,'88000000-0000-4000-8000-000000000001',now(),2,10,
+ array['금지단어'],'89000000-0000-4000-8000-000000000001','89000000-0000-4000-8000-000000000002',null);
+update public.profiles set font_selected_at=now(),profile_completed_at=now(),age_self_attested_at=now()
+ where onboarding_completed_at is not null;
+insert into private.profile_policy_acceptances(user_id,kind,version,accepted_at)
+ select p.id,d.kind,d.version,now() from public.profiles p cross join private.onboarding_documents d
+ where p.onboarding_completed_at is not null;
+insert into private.reply_policy values(true,'fictional-compatibility',now(),60,100,
+ array['금지단어'],array['phone','account','url']);
+
 set local role service_role;
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 select throws_ok($$select public.messaging_save_draft('81000000-0000-4000-8000-000000000011',
@@ -422,9 +437,10 @@ select is((select count(*) from public.messaging_list_replies('81000000-0000-400
   '82000000-0000-4000-8000-000000000001', 100)), 2::bigint, 'blocked replies disappear from artist feed');
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"81000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
-select is((select count(*) from public.replies), 1::bigint, 'fan reads only their own stored reply including moderation status');
+select throws_ok($$select * from public.replies$$,'42501',null,'fan cannot bypass redacted own reply DTO');
+select is((select replies->0->'body' from public.fan_reply_page('message-main')),'null'::jsonb,'own blocked reply keeps status without raw body');
 select set_config('request.jwt.claims', '{"sub":"81000000-0000-4000-8000-000000000011","role":"authenticated"}', true);
-select is((select count(*) from public.replies), 0::bigint, 'artist raw reply table cannot leak user IDs');
+select throws_ok($$select * from public.replies$$,'42501',null,'artist raw reply table cannot leak user IDs');
 set local role service_role;
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 insert into message_test_context(key, id) values ('revoked-due', public.messaging_save_draft(
