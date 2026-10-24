@@ -48,3 +48,12 @@
 - 제품 migration/Storage trigger/권한은 변경하지 않았다. 내부 `storage.allow_delete_query`를 켜거나 trigger를 비활성화하지 않는다. 허구 metadata fixture는 원래 transaction rollback으로 정리하므로 실제 파일 삭제나 Storage API cleanup이 필요 없다.
 - 보조 PGlite fixture에도 해당 statement guard를 명시적으로 모델링했다. 이것은 이전 synthetic Storage fixture가 실제 서비스의 모든 trigger를 포함하지 않았다는 제한을 보완한 것이며, 여전히 full-stack 검증이 아니다. 같은 원격 tree를 확인하고 이전 로컬 커밋은 bundle로 보존한 뒤 수정했다.
 - 수정 후 보조 SQL 검사는 **564개(기존 362 + lifecycle 128 + security 74)**를 두 번 통과했고 `npm run check:all`도 166 unit tests를 포함해 통과했다. 독립 read-only 검토는 플랫폼 guard를 유지하면서 별도 RLS catalog 검사를 두는 수정이 적절함을 확인했다. 실제 Supabase의 나머지 integration/concurrency/type artifact 결과는 다음 CI에서 확인해야 한다.
+
+## 실제 Supabase 검증 및 생성 타입 반영
+
+- [PR #6 bootstrap CI run 40056790623](https://github.com/zzz664/trot-you/actions/runs/40056790623)는 head `cde687c384657d75b0e2d879d5f076d1f6846595`에서 실행했다. 이전 로컬 수정 커밋 `813608a6`와 동일한 tree `73f0cccaed2fe0f5bd77372e63ba9c9d105d8a3c`를 확인하고 로컬 커밋을 검증된 bundle로 보존한 뒤 원격 head 위에 후속 커밋을 준비했다.
+- 실제 공식 Supabase **PostgreSQL 17 및 Storage**에서 start/reset, public/private DB lint, **564개 pgTAP 검사 두 차례**, **기존 billing 7개 + messaging 5개 독립 세션 concurrency 검사**, 타입 생성/typecheck/artifact 업로드가 통과했다. quality job도 aggregate 검사, **166 unit tests 및 13 E2E**를 통과했다.
+- 이 bootstrap run의 전체 결과는 **실패**이며 실패 원인은 artifact 업로드 이후의 **커밋된 생성 타입 drift gate 하나**다. 함수 volatility 및 Storage DELETE guard 테스트의 이전 실패는 이 실행에서 재검증을 통과했다. 전체 CI green이라고 표현하지 않는다.
+- 독립 검증 담당자가 `database-types` artifact **12546300049**의 run/head provenance를 확인했다. ZIP SHA-256 `aa22ae67de6fdfdefca8bd0d62e185584cdffc121952cdd1dfeeb0e95a58dcdc`가 GitHub artifact digest와 일치했고 로컬에서도 다시 확인했다.
+- artifact의 `database.ts`는 **28,049 bytes / 885 lines**, SHA-256 `7c1188c0bc6fe751c3f6b9e3ec07b1b8551e02edcd65e286ee0465488575d295`다. 이를 그대로 `src/types/database.ts`에 복사하고 hash 일치를 확인했다. 손으로 타입을 만들거나 내용/형식을 바꾸지 않았다.
+- 이번 후속 변경은 생성 타입과 이 검증 기록뿐이다. 실제 Storage SQL/RLS 및 metadata fixture 검증은 통과했지만 업로드/서명 URL/실제 blob·인증 서비스·개인화·알림·provider/운영 배포를 검증한 것은 아니다. 부모가 후속 exact-head CI의 전체 green을 확인한 뒤에만 병합 가능 여부를 판단한다.
