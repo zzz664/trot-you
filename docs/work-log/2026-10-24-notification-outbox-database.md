@@ -37,13 +37,19 @@
 
 검증 최종 결과는 아래에 기록한다. 로컬 Docker executable이 없어 실제 Supabase PG17/Auth/Storage SQL lint·pgTAP·독립 psql 경합·genuine 타입 생성은 이 환경에서 실행할 수 없다. 기존 PGlite PG18/synthetic Auth·Storage 보조 도구는 SQL·테스트의 빠른 검증에만 쓰며 실제 Supabase/다중 세션 증거로 표시하지 않는다. 기존 로컬 브라우저 제한은 재시도하지 않았고 UI는 바꾸지 않았다.
 
-CI의 기존 1,184 pgTAP와 47 경합을 보존하고 신규 알림 테스트와 20개 경합을 추가한다. 기존 금융 불변성 TRUNCATE 검사는 새 FK 종속 테이블 두 개를 목록에 포함했으며 기존 55000 불변 트리거 assertion과 검사 수는 그대로 유지한다. CI는 실제 Supabase 시작/reset/lint → pgTAP 두 번 → 모든 경합 → genuine 타입 생성/typecheck → artifact → committed type drift 검사 순서를 유지한다. bootstrap은 타입 drift 실패가 예상되며 실제 artifact를 받아 한국어 후속 커밋으로 반영한 exact-head CI 통과 전에는 병합하면 안 된다. 타입을 손으로 작성하지 않는다.
+CI의 기존 1,184 pgTAP와 47 경합을 보존하고 신규 알림 테스트와 21개 경합을 추가한다. 기존 금융 불변성 TRUNCATE 검사는 새 FK 종속 테이블 두 개를 목록에 포함했으며 기존 55000 불변 트리거 assertion과 검사 수는 그대로 유지한다. CI는 실제 Supabase 시작/reset/lint → pgTAP 두 번 → 모든 경합 → genuine 타입 생성/typecheck → artifact → committed type drift 검사 순서를 유지한다. bootstrap은 타입 drift 실패가 예상되며 실제 artifact를 받아 한국어 후속 커밋으로 반영한 exact-head CI 통과 전에는 병합하면 안 된다. 타입을 손으로 작성하지 않는다.
 
 전송 adapter, server-bound 등록/해제 HTTP API, 정책 승인/운영 설정, payload 렌더링, worker/Cron, provider 증빙 검증/보관 서비스, 실제 브라우저 재동의 lifecycle, 단말 수신·1,000명 성능/SLA 측정은 이번 범위 밖이며 미구현 상태다. 이 DB 기반을 전체 MVP나 실제 발송 운영 완료로 표현하지 않는다.
 
 ## 로컬 최종 검증
 
 - 신규 pgTAP lifecycle 130개 + security 107개 = 237개를 추가했다. 기존 1,184개를 포함한 총 1,421개가 supplemental PGlite에서 두 번 모두 통과했다. 실제 메시지 dispatch·결제 finalize/refund·일정 API와 함께 동작하며, 권한/동의/소유자/시점 재검사, source rollback, 중복·token replay, unknown 복구 cursor, 일정 연기·재앞당김, lease 중 변경, dead endpoint와 민감 DTO 경계를 검사한다.
-- 신규 독립 psql 경합 20개를 CI에 연결했다. 기존 47개는 그대로 유지한다. 중복 등록·소유권 충돌, 동시 claim, 취소/claim 양방향, retry/취소 양방향, 기기 해제·계정 제한·가수 중지·구독 만료·선호·일정 optout/삭제, source rollback, 만료 lease와 늦은 수락, profile FK 교차 잠금, 선호/기기 정리 교차 잠금, source/device 정렬 잠금 경계를 다룬다. `pg_blocking_pids`와 실제 독립 세션을 사용하며 순차 RPC 호출을 concurrency 통과로 계산하지 않는다.
-- Node syntax/ESLint/Prettier 및 `npm run check:all`의 lint, strict typecheck, 10 files / 167 unit tests, 10개 대비 조합, production build가 통과했다. race fixture/RPC의 PGlite 순차 보조 smoke는 별도로 수행했으며 실제 20개 다중 세션 결과가 아니다.
-- 실제 Supabase lint·pgTAP 2회·47+20 경합·generated artifact·committed type drift·기존 13개 브라우저 E2E는 원격 exact-head CI에서 별도로 확인해야 한다. 이 문서의 로컬 통과를 해당 검증의 통과로 바꾸어 읽으면 안 된다.
+- 신규 독립 psql 경합 21개를 CI에 연결했다. 기존 47개는 그대로 유지한다. 중복 등록·소유권 충돌, 동시 claim, 취소/claim 양방향, retry/취소 양방향, 기기 해제·계정 제한·가수 중지·구독 만료·선호·일정 optout/삭제, source rollback, 만료 lease와 늦은 수락, profile FK 교차 잠금, 선호/기기 정리 교차 잠금, source/device 정렬 잠금 경계를 다룬다. `pg_blocking_pids`와 실제 독립 세션을 사용하며 순차 RPC 호출을 concurrency 통과로 계산하지 않는다.
+- Node syntax/ESLint/Prettier 및 `npm run check:all`의 lint, strict typecheck, 10 files / 167 unit tests, 10개 대비 조합, production build가 통과했다. race fixture/RPC의 PGlite 순차 보조 smoke는 별도로 수행했으며 실제 21개 다중 세션 결과가 아니다.
+- 실제 Supabase lint·pgTAP 2회·47+21 경합·generated artifact·committed type drift·기존 13개 브라우저 E2E는 원격 exact-head CI에서 별도로 확인해야 한다. 이 문서의 로컬 통과를 해당 검증의 통과로 바꾸어 읽으면 안 된다.
+
+## 최종 검토의 READ COMMITTED 경합 보완
+
+최초 draft 후보를 게시한 뒤 마지막 read-only 검토에서 선호 변경의 두 SQL 문 사이 phantom job 경합을 확인했다. enqueue는 source→profile 역전을 피하려고 profile을 잠그지 않으므로 정렬 prelock 뒤 새 낮은 UUID 작업이 commit될 수 있다. 다음 UPDATE가 그 작업까지 새 snapshot에서 포함하면 source 취소와 교차 대기가 생길 수 있었다. 선호 변경은 정렬 잠금에서 확보한 UUID 배열만 UPDATE하도록 보완했다. 새로 생긴 작업은 이후 claim의 현재 선호 검사에서 차단한다. 기존 source/device 경로는 해당 source/device 잠금이 새 관련 INSERT를 막으므로 같은 phantom 경계가 아니다.
+
+21번째 실제 psql 경합은 최대 UUID의 기존 두 작업과 gate를 사용해 선호 RPC의 prelock 대기 → 실제 enqueue의 새 낮은 UUID 작업 commit → 실제 메시지 취소의 교차 대기 순서를 고정한다. 우연한 행 조회 순서나 순차 호출로 이 문제를 대신 검사하지 않는다. 이미 게시한 bootstrap history를 amend하지 않고 동일 브랜치의 후속 한국어 커밋으로 수정한다. 원격 bootstrap과 로컬 bootstrap의 tree 일치를 확인하고 로컬 최초 커밋은 archive에 보존한다. 실제 Supabase 경합 결과는 여전히 exact-head CI 검증 대상이다.

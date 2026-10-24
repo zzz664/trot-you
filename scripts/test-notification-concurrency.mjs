@@ -875,6 +875,98 @@ async function testConcurrency(db) {
   console.info(
     'PASS: dead-endpoint completion locks lower sibling before primary and allows independent source cancellation',
   );
+
+  // 21. Freeze the exact locked set against a READ COMMITTED phantom. H and G
+  // have no attempts when fixture UUIDs are replaced. Their deliberately high
+  // UUIDs ensure every newly generated v4 UUID L sorts before H (not row luck).
+  // Preferences lock H and wait on gated G; enqueue adds L from another device;
+  // source cancellation then locks L and waits on H. After releasing G, an
+  // unbounded second UPDATE snapshot would see L and deadlock H <-> L. Updating
+  // only the captured, already-locked UUID array must finish without touching L.
+  const phantomFixture = await fixture(db);
+  const phantomSource = await messageJob(db, phantomFixture);
+  const phantomOther = await messageJob(db, phantomFixture);
+  const heldJob = 'ffffffff-ffff-ffff-ffff-fffffffffffe';
+  const gateJob = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+  await db.query(`
+    update private.notification_jobs set id='${heldJob}' where id='${phantomSource.jobId}';
+    update private.notification_jobs set id='${gateJob}' where id='${phantomOther.jobId}';
+  `);
+  const phantomDevice = await execute(
+    db,
+    register(
+      phantomFixture.fanId,
+      `https://push.example.invalid/notification/${uuid()}`,
+    ),
+  );
+  const phantomGate = await session('phantom-gate');
+  const phantomPreferences = await session('phantom-preferences');
+  const phantomEnqueue = await session('phantom-enqueue');
+  const phantomCancellation = await session('phantom-source-cancel');
+  try {
+    await phantomGate.query(`begin; select id from private.notification_jobs
+      where id='${gateJob}' for update;`);
+    const pendingPreferences = phantomPreferences
+      .query(
+        `begin; ${authenticated(
+          phantomFixture.fanId,
+          'select public.notification_set_preferences(false,false,false,false);',
+        )} commit;`,
+      )
+      .then(
+        (value) => ({ value }),
+        (error) => ({ error }),
+      );
+    await waitForBlock(db, phantomPreferences, phantomGate);
+    assert.equal(
+      await phantomEnqueue.query(
+        `begin; ${service(`select public.notification_enqueue('message','${phantomSource.sourceId}');`)} commit;`,
+      ),
+      '1',
+    );
+    const phantomJob = await db.query(`select id from private.notification_jobs
+      where source_kind='message' and source_id='${phantomSource.sourceId}'
+        and device_id='${phantomDevice}';`);
+    assert.match(
+      phantomJob,
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    assert.ok(phantomJob < heldJob);
+    const pendingCancellation = phantomCancellation
+      .query(`begin; ${cancel(phantomFixture, phantomSource.sourceId)} commit;`)
+      .then(
+        (value) => ({ value }),
+        (error) => ({ error }),
+      );
+    await waitForBlock(db, phantomCancellation, phantomPreferences);
+    await phantomGate.query('commit;');
+    const [preferenceResult, cancellationResult] = await Promise.all([
+      pendingPreferences,
+      pendingCancellation,
+    ]);
+    assert.equal(preferenceResult.error, undefined);
+    assert.equal(cancellationResult.error, undefined);
+    for (const id of [heldJob, gateJob, phantomJob]) {
+      assert.equal(await state(db, id), 'canceled');
+      assert.equal(await attempts(db, id), '0');
+      assert.equal(await execute(db, claimCount(id)), '0');
+    }
+    assert.equal(
+      await db.query(`select count(*) from private.notification_jobs
+        where user_id='${phantomFixture.fanId}';`),
+      '3',
+    );
+  } finally {
+    await Promise.all([
+      phantomGate.close(),
+      phantomPreferences.close(),
+      phantomEnqueue.close(),
+      phantomCancellation.close(),
+    ]);
+  }
+  console.info(
+    'PASS: captured sorted job sets exclude concurrent enqueue phantoms and avoid preference/source deadlock',
+  );
 }
 
 try {
@@ -927,7 +1019,7 @@ try {
   shouldReset = true;
   await testConcurrency(db);
   console.info(
-    'All twenty PostgreSQL multi-session notification concurrency checks passed.',
+    'All twenty-one PostgreSQL multi-session notification concurrency checks passed.',
   );
 } catch (error) {
   console.error(error);

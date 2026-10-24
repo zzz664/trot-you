@@ -149,6 +149,7 @@ $$;
 create function public.notification_set_preferences(p_webpush_enabled boolean,p_new_message boolean,
   p_billing boolean,p_schedule boolean) returns void
 language plpgsql security definer set search_path = '' as $$
+declare locked_jobs uuid[];
 begin
   perform 1 from public.profiles where id=auth.uid() for update;
   if not private.notification_actor_eligible(auth.uid(),clock_timestamp()) then
@@ -161,12 +162,17 @@ begin
       billing=excluded.billing,schedule=excluded.schedule,updated_at=clock_timestamp();
   -- Every multi-job mutation locks the complete affected active set in UUID
   -- order. Source-wide and device-wide cleanup sets can otherwise form cycles.
-  perform 1 from private.notification_jobs where user_id=auth.uid()
-    and state in ('queued','retry_wait','leased','unknown') order by id for update;
+  select array_agg(locked.id order by locked.id) into locked_jobs from (
+    select id from private.notification_jobs where user_id=auth.uid()
+      and state in ('queued','retry_wait','leased','unknown') order by id for update
+  ) locked;
+  -- Enqueue intentionally does not lock the profile. Capture this locked set
+  -- so a later READ COMMITTED snapshot cannot add a lower UUID out of order.
+  -- Newly inserted work is suppressed by current preferences at claim time.
   -- Never claim recall of requests already outside the transaction.
   update private.notification_jobs set cancellation_requested_at=coalesce(cancellation_requested_at,clock_timestamp()),
     state=case when state in ('queued','retry_wait') then 'canceled' else state end
-    where user_id=auth.uid() and state in ('queued','retry_wait','leased','unknown')
+    where id=any(locked_jobs) and user_id=auth.uid() and state in ('queued','retry_wait','leased','unknown')
       and (not p_webpush_enabled or (source_kind='message' and not p_new_message)
         or (source_kind='payment' and not p_billing) or (source_kind='schedule' and not p_schedule));
 end;
