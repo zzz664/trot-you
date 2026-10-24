@@ -848,7 +848,11 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
         'data-font-scale',
         scale,
       );
-      await expect(page.getByRole('alert')).toHaveText(copy.errors.UNAVAILABLE);
+      // Next's route announcer is also an alert, outside the composer main.
+      const composer = page.getByRole('main');
+      await expect(composer.getByRole('alert')).toHaveText(
+        copy.errors.UNAVAILABLE,
+      );
       await expect(textInput(page)).toHaveCount(0);
       await expect(page.locator('[data-message-id]')).toHaveCount(0);
       await expect(button(page, copy.reload)).toBeEnabled();
@@ -875,7 +879,7 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       await expect(
         page.locator(`[data-message-id="${saved.id}"]`),
       ).toBeVisible();
-      await expect(page.getByRole('alert')).toHaveCount(0);
+      await expect(composer.getByRole('alert')).toHaveCount(0);
       await expect(button(page, copy.reload)).toHaveCount(0);
       expect(inspectDrafts(world)).toEqual([saved]);
       await screenshot(page, info, `restore-read-recovered-${scale}-${width}`);

@@ -147,3 +147,10 @@ total from 74 to **86**. No successful draft data is synthesized for recovery.
 Local aggregate checks and all 17 fixture/discovery guards pass; execution and
 normal visual review of those 12 additional screenshots require this checkpoint's
 actual CI. No further feature scope is included in this coverage checkpoint.
+
+The first extended-matrix run (`40138084603`) exposed a test locator collision:
+Next's route announcer also has `role=alert`, so the new unscoped assertion
+matched both it and the correct application error. All six matrix cases stopped
+at that assertion; 31 other compose cases passed. The locator is now scoped to
+the composer main for both error presence and absence. No application behavior
+or error text was changed; corrected-head execution remains required.
