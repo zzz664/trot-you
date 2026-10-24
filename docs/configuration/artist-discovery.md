@@ -16,7 +16,7 @@
 
 키/정책 미준비는 준비 중 오류이고, 존재하지 않는/초안/중지/은퇴한 가수는 동일한 이용 불가 상태다. 제한·다른 역할은 거절한다. 이전 필수 동의가 현재 버전과 다르면 재동의 전 맛보기/선택이 막힌다. full-completed 기존 계정의 새 정책 재동의 설정 화면은 아직 별도 기능이므로, 해당 경우에도 접근을 허용하는 대신 차단한다.
 
-미디어 메시지의 텍스트는 개인화되지만 미디어는 종류가 지정된 `availability: unavailable` placeholder다. **사진/음성/영상 다운로드·재생·서명 URL은 미구현**이며 브라우저에 bucket/path/object ID/원본 URL을 주지 않는다. 프로필 사진도 외부 URL 또는 임의 origin에서 가져오지 않는다. 미디어 접근 및 서명 기능은 별도 권한 검증과 함께 구현해야 한다. 실제 아티스트·라이선스 콘텐츠·운영 정책을 seed하지 않는다.
+미디어 메시지의 텍스트는 개인화되며 등록된 미디어는 `id,kind,availability: available`만 초기 DTO에 담는다. [보호된 미디어 접근](media.md)이 추가되어 사진/음성/영상의 명시적인 열기 동작 때 현재 권한을 다시 검증하고 짧은 서명 URL을 발급한다. 초기 문서에는 bucket/path/Storage object ID/서명 URL이 없고, 재생 가능한 URL은 메모리에서만 유지한다. 기존 unavailable 상태는 명시적인 사용할 수 없음 상태로 남긴다. 프로필 사진은 아직 외부 URL 또는 임의 origin에서 가져오지 않는다. 실제 아티스트·라이선스 콘텐츠·운영 정책을 seed하지 않는다.
 
 ## 중단·재시도·접근성
 
@@ -31,4 +31,4 @@
 - 실제 DB/권한/경합 검증은 공식 Supabase PostgreSQL CI에서 수행한다. 로컬 PGlite는 보조 SQL 증거일 뿐이다. 타입은 migration checkpoint CI의 실제 생성 artifact만 반영한다.
 - 별도 auth-browser CI는 폐기용 local Auth와 허구 가수/텍스트/Storage metadata만 사용한다. Kakao·외부 제공자·실사용자·실제 이미지 URL을 호출하지 않는다. 서비스 키 유출 여부는 값을 출력하지 않는 boolean 검증으로 확인한다.
 - 로컬 브라우저 실행은 권한 제한으로 실행하지 않는다. 3개 글자 크기 × 360/414px 화면·모달·설치 대기의 CI 스크린샷을 별도로 검토한다. 통과 여부는 work-log와 exact-head CI 결과로 구분한다.
-- 실제 운영 계약/정책 활성화, Kakao 원격 로그인, 서명 미디어, 유료 대화/결제, PWA 설치/알림, `preview_view` 분석 전송, staging/production 배포는 이 기능의 완료 주장에 포함하지 않는다. 분석 동의나 preview 조회 성공을 임의 이벤트 증거로 만들지 않는다.
+- 실제 운영 계약/정책 활성화, Kakao 원격 로그인, 유료 대화, 외부 결제 실운영, 실제 기기 PWA 설치/알림, `preview_view` 분석 전송, staging/production 배포는 이 기능의 완료 주장에 포함하지 않는다. 분석 동의나 preview 조회 성공을 임의 이벤트 증거로 만들지 않는다.

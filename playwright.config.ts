@@ -8,6 +8,7 @@ export default defineConfig({
     '**/renewal/**',
     '**/cancellation/**',
     '**/reconciliation/**',
+    '**/media/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

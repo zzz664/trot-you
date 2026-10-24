@@ -1728,6 +1728,39 @@ export type Database = {
       };
       has_active_access: { Args: { p_artist_id: string }; Returns: boolean };
       mark_message_read: { Args: { p_message_id: string }; Returns: string };
+      media_begin_upload: {
+        Args: {
+          p_actor_id: string;
+          p_byte_size: number;
+          p_message_id: string;
+          p_mime_type: string;
+          p_request_id: string;
+        };
+        Returns: Json;
+      };
+      media_finalize_upload: {
+        Args: {
+          p_actor_id: string;
+          p_duration_ms: number;
+          p_height: number;
+          p_storage_object_id: string;
+          p_upload_id: string;
+          p_width: number;
+        };
+        Returns: string;
+      };
+      media_resolve_read: {
+        Args: { p_actor_id: string; p_media_id: string; p_preview?: boolean };
+        Returns: Json;
+      };
+      media_resolve_upload: {
+        Args: { p_actor_id: string; p_upload_id: string };
+        Returns: Json;
+      };
+      media_revoke_upload: {
+        Args: { p_actor_id: string; p_upload_id: string };
+        Returns: boolean;
+      };
       messaging_cancel: {
         Args: { p_actor_id: string; p_message_id: string };
         Returns: undefined;

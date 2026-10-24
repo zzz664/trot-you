@@ -251,3 +251,30 @@ h2 {
   display: grid;
   gap: var(--space-unit);
 }
+
+.secure-media {
+  display: grid;
+  min-inline-size: 0;
+  gap: var(--space-unit);
+  margin: 0;
+}
+.secure-media-photo {
+  position: relative;
+  inline-size: 100%;
+  aspect-ratio: 1;
+  background: var(--color-background);
+}
+.secure-media-photo img {
+  object-fit: contain;
+}
+.secure-media audio,
+.secure-media video {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: var(--touch-min);
+}
+.secure-media video {
+  aspect-ratio: 1;
+  background: var(--color-background);
+}

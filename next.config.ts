@@ -3,6 +3,11 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 const config: NextConfig = {
   poweredByHeader: false,
+  // Preserve Node package-relative WASM loading; include the local parser binary.
+  serverExternalPackages: ['mediainfo.js'],
+  outputFileTracingIncludes: {
+    '/api/media/*': ['./node_modules/mediainfo.js/dist/MediaInfoModule.wasm'],
+  },
   // Keep development-only tooling from obscuring actual UI/CI screenshots.
   devIndicators: false,
   reactStrictMode: true,

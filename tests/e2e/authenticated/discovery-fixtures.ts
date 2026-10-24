@@ -4,7 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../../src/types/database';
 
 // Fictional records for the disposable Auth CI stack only. Storage rows below
-// are metadata, not uploaded/licensed media; the UI must show unavailable media.
+// are metadata, not uploaded/licensed media. This suite checks deferred secure
+// open controls only; the dedicated media CI suite proves actual byte playback.
 export const discoveryFixtures = {
   main: {
     id: 'a1200000-0000-4000-8000-000000000001',

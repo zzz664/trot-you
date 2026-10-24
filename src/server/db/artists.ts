@@ -138,9 +138,10 @@ export function createArtistPreviewPort(
             kind: message.type,
             template: message.body_template,
             sentAt: message.sent_at,
-            media: message.media.map(({ kind }) => ({
+            media: message.media.map(({ id, kind }) => ({
+              id,
               kind,
-              availability: 'unavailable',
+              availability: 'available',
             })),
           })),
         },

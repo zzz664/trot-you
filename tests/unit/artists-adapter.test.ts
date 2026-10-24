@@ -187,13 +187,13 @@ describe('privileged preview adapter and sanitization', () => {
             kind: 'photo',
             template: '{이름}의 허구 맛보기',
             sentAt: message.sent_at,
-            media: [{ kind: 'photo', availability: 'unavailable' }],
+            media: [{ id: mediaId, kind: 'photo', availability: 'available' }],
           },
         ],
       },
     });
     const serialized = JSON.stringify(result);
-    for (const value of ['object_id', 'bucket', 'path', 'contract_id', mediaId])
+    for (const value of ['object_id', 'bucket', 'path', 'contract_id'])
       expect(serialized).not.toContain(value);
   });
   it('returns an empty approved preview without fabricating content', async () =>
