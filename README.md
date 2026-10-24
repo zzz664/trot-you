@@ -69,3 +69,7 @@ Next.js 권장 ESLint 구성의 React/import/a11y 플러그인 호환 범위에 
 ## 출석·포인트 원장 데이터 기반
 
 [출석·포인트 DB 계약](docs/database/points-ledger.md)을 참고하세요. KST 하루 한 번 출석, 실제 글/댓글 생성의 원자적 보상, 본인 잔액·내역, 감사 보정을 포함합니다. 운영 보상 정책은 기본 비활성이며 문서 draft 금액을 자동 적용하지 않습니다. 원장은 비금전·불변 기록이고 공유·미션·활동 등급은 명시적 미설정 상태입니다. 화면·운영 설정 서비스·전체 포인트 MVP 완성을 뜻하지 않습니다.
+
+## 측정 이벤트 DB 기반
+
+[13종 측정 이벤트·동의·집계 계약](docs/database/analytics-events.md)을 참고하세요. private 원시 행, strict typed 속성, 본인 동의와 client/service/검증 charge 권한 분리, 멱등 수집과 KST 일별 건수를 포함합니다. 승인된 정책은 기본 미설정이며 SDK·HTTP 수집 API·자동 domain hook·대시보드·외부 분석 전송은 없습니다. 익명 유입 동의 모델과 원본의 네 가지 퍼널/KPI 수식은 후속 정의·통합 대기이며 전체 분석 MVP 완료를 뜻하지 않습니다.

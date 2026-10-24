@@ -35,6 +35,7 @@ jobs:
       - run: npm run test:db:schedule-concurrency
       - run: npm run test:db:points-concurrency
       - run: npm run test:db:notification-concurrency
+      - run: npm run test:db:analytics-concurrency
       - run: npm run db:types
       - run: npm run typecheck
       - uses: actions/upload-artifact@v4
