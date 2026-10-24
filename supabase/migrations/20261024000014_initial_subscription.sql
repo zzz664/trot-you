@@ -253,8 +253,8 @@ end;
 $$;
 
 create function public.enrollment_claim(p_user_id uuid,p_session_id uuid,p_nonce_hash text,p_auth_session_hash text,
-  p_stage text,p_accepted boolean,p_policy_version uuid,p_amount_krw integer,
-  p_period_start timestamptz,p_period_end timestamptz) returns jsonb
+  p_stage text,p_accepted boolean default false,p_policy_version uuid default null,p_amount_krw integer default null,
+  p_period_start timestamptz default null,p_period_end timestamptz default null) returns jsonb
 language plpgsql security definer set search_path='' set timezone='UTC' as $$
 declare e private.subscription_enrollments%rowtype; c private.checkout_sessions%rowtype;
   obligation uuid; descriptor jsonb; lease uuid; at_time timestamptz;
@@ -350,7 +350,7 @@ begin
 end;
 $$;
 
-create function public.enrollment_record_outcome(p_user_id uuid,p_session_id uuid,p_lease_token uuid,p_outcome text,p_evidence_ref uuid)
+create function public.enrollment_record_outcome(p_user_id uuid,p_session_id uuid,p_lease_token uuid,p_outcome text,p_evidence_ref uuid default null)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare e private.subscription_enrollments%rowtype;
 begin
@@ -374,7 +374,7 @@ end;
 $$;
 
 create function public.enrollment_finalize(p_user_id uuid,p_session_id uuid,p_provider_action_id text,p_provider_payment_id text,
-  p_amount_krw integer,p_currency text,p_approved_at timestamptz,p_evidence_ref uuid,p_credential_ciphertext jsonb) returns jsonb
+  p_amount_krw integer,p_currency text,p_approved_at timestamptz,p_evidence_ref uuid,p_credential_ciphertext jsonb default null) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare e private.subscription_enrollments%rowtype; c private.checkout_sessions%rowtype; event uuid;
 begin

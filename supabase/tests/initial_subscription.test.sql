@@ -345,6 +345,60 @@ reset role;
 select is((select state from private.subscription_enrollments where session_id=pg_temp.sid('idle-expired')),'canceled','abandonment is auditable, not deletion');
 select is((select count(*) from public.payment_events),2::bigint,'abandonment and resubscription do not create money');
 reset role;
+-- Expired charge leases are unknown, not safe-to-retry failures. A later
+-- verified response recovers the existing attempt even after browser expiry.
+set local role service_role;
+select pg_temp.make_case('charge-expired',12,'toss'); select pg_temp.capture('charge-expired'); select pg_temp.claim('charge-expired','exchange');
+select public.enrollment_record_credential(pg_temp.actor(),pg_temp.sid('charge-expired'),pg_temp.lease('charge-expired'),pg_temp.envelope());
+select pg_temp.claim('charge-expired','charge',true);
+update enrollment_cases set approved_at=clock_timestamp() where label='charge-expired';
+reset role;
+update private.subscription_enrollments set lease_expires_at=clock_timestamp()-interval '1 second' where session_id=pg_temp.sid('charge-expired');
+update private.checkout_sessions set created_at=clock_timestamp()-interval '1 hour',expires_at=clock_timestamp()-interval '59 minutes'
+ where id=pg_temp.sid('charge-expired');
+set local role service_role;
+select is(public.enrollment_read(pg_temp.actor(),pg_temp.sid('charge-expired'),repeat('b',64))->>'public_status','unknown','expired financial lease stays unknown even after browser TTL');
+select is(pg_temp.claim('charge-expired','charge',true)->>'dispatch','false','expired financial claim never obtains new dispatch');
+select is(public.enrollment_finalize(pg_temp.actor(),pg_temp.sid('charge-expired'),'ACTION_LATE','PAYMENT_LATE',1200,'KRW',
+ (select approved_at from enrollment_cases where label='charge-expired'),gen_random_uuid(),null)->>'public_status','succeeded',
+ 'verified old charge reconciles same attempt after session expiry');
+reset role;
+select is((select count(*) from public.payment_events),3::bigint,'unknown recovery adds exactly the verified original payment');
+
+-- Force only the local outbox insert to fail. The exact same verified response
+-- can be persisted again, with no second provider call and no partial ledger,
+-- credential, entitlement or outbox commit from the failed transaction.
+set local role service_role;
+select pg_temp.make_case('atomic-failure',13,'kakaopay'); select pg_temp.claim('atomic-failure','ready');
+select public.enrollment_record_ready(pg_temp.actor(),pg_temp.sid('atomic-failure'),pg_temp.lease('atomic-failure'),'TID_ATOMIC',pg_temp.envelope());
+select pg_temp.capture('atomic-failure'); select pg_temp.claim('atomic-failure','approve',true);
+update enrollment_cases set approved_at=clock_timestamp() where label='atomic-failure';
+reset role;
+create function pg_temp.reject_outbox() returns trigger language plpgsql as $$begin
+ raise exception 'FIXTURE_OUTBOX_UNAVAILABLE' using errcode='P0001'; end$$;
+create trigger enrollment_fixture_outbox_failure before insert on private.notification_jobs for each row execute function pg_temp.reject_outbox();
+set local role service_role;
+select throws_ok($$select public.enrollment_finalize(pg_temp.actor(),pg_temp.sid('atomic-failure'),'AID_ATOMIC','TID_ATOMIC',1200,'KRW',
+ (select approved_at from enrollment_cases where label='atomic-failure'),gen_random_uuid(),pg_temp.envelope())$$,
+ 'P0001','FIXTURE_OUTBOX_UNAVAILABLE','outbox failure rolls back whole payment finalization');
+reset role;
+select is((select count(*) from public.payment_events),3::bigint,'failed finalization leaves no partial ledger');
+select is((select count(*) from private.enrollment_credentials where id=(select (data->>'credential_ref')::uuid from enrollment_cases where label='atomic-failure')),
+ 0::bigint,'failed finalization leaves no partial SID vault insert');
+select is((select status::text from public.subscriptions where id=(select (data->>'subscription_id')::uuid from enrollment_cases where label='atomic-failure')),
+ 'pending','failed finalization grants no partial entitlement');
+select is((select count(*) from private.notification_jobs where source_kind='payment'),3::bigint,'failed outbox insert leaves only previous successful jobs');
+drop trigger enrollment_fixture_outbox_failure on private.notification_jobs;
+set local role service_role;
+select is(public.enrollment_finalize(pg_temp.actor(),pg_temp.sid('atomic-failure'),'AID_ATOMIC','TID_ATOMIC',1200,'KRW',
+ (select approved_at from enrollment_cases where label='atomic-failure'),gen_random_uuid(),pg_temp.envelope())->>'public_status','succeeded',
+ 'retrying persistence of same verified provider response recovers atomically');
+select is(public.enrollment_finalize(pg_temp.actor(),pg_temp.sid('atomic-failure'),'AID_ATOMIC','TID_ATOMIC',1200,'KRW',
+ (select approved_at from enrollment_cases where label='atomic-failure'),gen_random_uuid(),pg_temp.envelope())->>'public_status','succeeded',
+ 'recovered result still deduplicates');
+reset role;
+select is((select count(*) from public.payment_events),4::bigint,'recovered persistence records one payment only');
+select is((select count(*) from private.notification_jobs where source_kind='payment'),4::bigint,'recovered persistence queues one job only');
 select ok(not exists(select 1 from information_schema.columns where table_schema='public'
  and table_name in ('subscriptions','payment_events') and column_name in ('sid','billing_key','auth_key','pg_token','ciphertext','credential_ref','provider_tid')),
  'fan-readable tables contain no credential or encrypted vault columns');
