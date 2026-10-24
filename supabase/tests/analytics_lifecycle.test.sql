@@ -11,6 +11,9 @@ select ('e1000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
  'analytics-lifecycle-'||n||'@example.invalid','{}'::jsonb from generate_series(1,4) n;
 update public.profiles set role='admin' where id='e1000000-0000-4000-8000-000000000003';
 update public.profiles set role='artist' where id='e1000000-0000-4000-8000-000000000004';
+-- Fictional approved/public policy bodies exist only in this rolled-back test.
+insert into private.onboarding_documents(version,kind,title,body,approved_at,published_at) values
+ ('e9000000-0000-4000-8000-000000000001','analytics','Fictional CI analytics policy','Fictional test fixture only; not legal policy.',now(),now());
 insert into private.analytics_policy(consent_version,enabled,retention_days)
  values('e9000000-0000-4000-8000-000000000001',true,30);
 set local role authenticated;

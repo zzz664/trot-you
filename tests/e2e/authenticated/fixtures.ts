@@ -6,7 +6,7 @@ import {
   createServerClient,
   type CookieOptions,
 } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
   test as base,
   expect,
@@ -24,7 +24,12 @@ type Cookie = { name: string; value: string; options?: CookieOptions };
 type ProfilePatch = Partial<
   Pick<
     Tables<'profiles'>,
-    'role' | 'is_restricted' | 'restricted_until' | 'onboarding_completed_at'
+    | 'role'
+    | 'is_restricted'
+    | 'restricted_until'
+    | 'onboarding_completed_at'
+    | 'font_scale'
+    | 'call_name'
   >
 >;
 
@@ -86,6 +91,7 @@ export type Identity = {
   pkce: (context: BrowserContext, request: APIRequestContext) => Promise<URL>;
   update: (patch: ProfilePatch) => Promise<void>;
   ownProfileIds: () => Promise<string[]>;
+  actorClient: () => Promise<SupabaseClient<Database>>;
   revokeAll: () => Promise<void>;
 };
 
@@ -229,6 +235,15 @@ export const test = base.extend<AuthFixtures>({
           assert.ok(target.searchParams.get('code'));
           await installCookies(context, Array.from(jar.values()));
           return target;
+        },
+        async actorClient() {
+          const { client } = createCookieClient();
+          const { error: signInError } = await client.auth.signInWithPassword({
+            email,
+            password,
+          });
+          assert.equal(signInError, null, 'Local actor sign-in failed.');
+          return client;
         },
         async ownProfileIds() {
           const { client } = createCookieClient();

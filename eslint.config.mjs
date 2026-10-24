@@ -111,7 +111,7 @@ export default defineConfig([
   {
     files: [
       'src/app/**/*.{ts,tsx}',
-      'src/components/{fan,artist,admin}/**/*.{ts,tsx}',
+      'src/components/{fan,artist,admin,onboarding}/**/*.{ts,tsx}',
     ],
     rules: {
       'no-restricted-imports': [
@@ -150,6 +150,22 @@ export default defineConfig([
         },
       ],
       'no-restricted-globals': ['error', 'fetch'],
+    },
+  },
+  {
+    files: ['src/client/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            '**/server/**',
+            '**/env.server',
+            '**/env.server.*',
+            '**/types/database*',
+          ],
+        },
+      ],
     },
   },
 ]);

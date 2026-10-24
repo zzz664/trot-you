@@ -282,6 +282,10 @@ async function verifiedCharge(db, userId, artistId) {
 }
 
 async function testConcurrency(db) {
+  // Fictional approved/public analytics text, removed by the existing final DB reset.
+  await db.query(`insert into private.onboarding_documents(version,kind,title,body,approved_at,published_at)
+    values('${consentVersion}','analytics','Fictional concurrency policy',
+      'Fictional local CI test policy only; not legal text.',now(),now());`);
   await db.query(`insert into private.analytics_policy(consent_version,enabled,retention_days)
     values('${consentVersion}',true,30);`);
 
@@ -571,6 +575,9 @@ try {
       (select count(*) from private.push_subscriptions) +
       (select count(*) from private.notification_jobs) +
       (select count(*) from private.notification_attempts) +
+      (select count(*) from private.onboarding_documents) +
+      (select count(*) from private.profile_onboarding_policy) +
+      (select count(*) from private.profile_policy_acceptances) +
       (select count(*) from private.analytics_policy) +
       (select count(*) from private.analytics_consents) +
       (select count(*) from private.analytics_events) +

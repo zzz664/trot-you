@@ -667,9 +667,11 @@ export type Database = {
       profiles: {
         Row: {
           age_range: string | null;
+          age_self_attested_at: string | null;
           call_name: string | null;
           created_at: string;
           font_scale: Database['public']['Enums']['font_scale'];
+          font_selected_at: string | null;
           gender: string | null;
           id: string;
           is_restricted: boolean;
@@ -677,6 +679,7 @@ export type Database = {
           nickname: string | null;
           onboarding_completed_at: string | null;
           phone: string | null;
+          profile_completed_at: string | null;
           restricted_until: string | null;
           role: Database['public']['Enums']['user_role'];
           updated_at: string;
@@ -684,9 +687,11 @@ export type Database = {
         ComputedFields: never;
         Insert: {
           age_range?: string | null;
+          age_self_attested_at?: string | null;
           call_name?: string | null;
           created_at?: string;
           font_scale?: Database['public']['Enums']['font_scale'];
+          font_selected_at?: string | null;
           gender?: string | null;
           id: string;
           is_restricted?: boolean;
@@ -694,15 +699,18 @@ export type Database = {
           nickname?: string | null;
           onboarding_completed_at?: string | null;
           phone?: string | null;
+          profile_completed_at?: string | null;
           restricted_until?: string | null;
           role?: Database['public']['Enums']['user_role'];
           updated_at?: string;
         };
         Update: {
           age_range?: string | null;
+          age_self_attested_at?: string | null;
           call_name?: string | null;
           created_at?: string;
           font_scale?: Database['public']['Enums']['font_scale'];
+          font_selected_at?: string | null;
           gender?: string | null;
           id?: string;
           is_restricted?: boolean;
@@ -710,6 +718,7 @@ export type Database = {
           nickname?: string | null;
           onboarding_completed_at?: string | null;
           phone?: string | null;
+          profile_completed_at?: string | null;
           restricted_until?: string | null;
           role?: Database['public']['Enums']['user_role'];
           updated_at?: string;
@@ -1198,6 +1207,34 @@ export type Database = {
         };
         Relationships: [];
       };
+      onboarding_policy_documents: {
+        Row: {
+          approved_at: string | null;
+          body: string;
+          kind: string;
+          published_at: string | null;
+          title: string;
+          version: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          approved_at?: string | null;
+          body?: string | null;
+          kind?: string | null;
+          published_at?: string | null;
+          title?: string | null;
+          version?: string | null;
+        };
+        Update: {
+          approved_at?: string | null;
+          body?: string | null;
+          kind?: string | null;
+          published_at?: string | null;
+          title?: string | null;
+          version?: string | null;
+        };
+        Relationships: [];
+      };
       schedule_catalog: {
         Row: {
           address: string | null;
@@ -1649,6 +1686,49 @@ export type Database = {
           p_schedule: boolean;
           p_webpush_enabled: boolean;
         };
+        Returns: undefined;
+      };
+      onboarding_complete_profile: {
+        Args: {
+          p_age_over_14: boolean;
+          p_analytics_granted?: boolean;
+          p_analytics_version?: string;
+          p_privacy_accepted: boolean;
+          p_privacy_version: string;
+          p_terms_accepted: boolean;
+          p_terms_version: string;
+        };
+        Returns: undefined;
+      };
+      onboarding_get_state: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          age_self_attested_at: string;
+          analytics_available: boolean;
+          analytics_body: string;
+          analytics_title: string;
+          analytics_version: string;
+          call_name: string;
+          call_name_max: number;
+          call_name_min: number;
+          font_scale: Database['public']['Enums']['font_scale'];
+          font_selected_at: string;
+          name_policy_ready: boolean;
+          privacy_body: string;
+          privacy_title: string;
+          privacy_version: string;
+          profile_completed_at: string;
+          terms_body: string;
+          terms_title: string;
+          terms_version: string;
+        }[];
+      };
+      onboarding_save_font: {
+        Args: { p_font_scale: Database['public']['Enums']['font_scale'] };
+        Returns: undefined;
+      };
+      onboarding_save_name: {
+        Args: { p_call_name: string };
         Returns: undefined;
       };
       point_admin_adjust: {

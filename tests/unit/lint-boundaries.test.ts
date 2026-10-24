@@ -78,4 +78,24 @@ describe('configuration and pure-layer lint boundaries', () => {
       await rules('src/server/logging/logger.ts', "console.info('sanitized');"),
     ).not.toContain('no-console');
   });
+  it('keeps onboarding UI and browser transport behind their boundaries', async () => {
+    expect(
+      await rules(
+        'src/components/onboarding/Probe.tsx',
+        'export const Probe = () => <button>probe</button>;',
+      ),
+    ).toContain('no-restricted-syntax');
+    expect(
+      await rules(
+        'src/components/onboarding/Probe.tsx',
+        "import { createOnboardingPort } from '@/server/db/onboarding'; export const value = createOnboardingPort;",
+      ),
+    ).toContain('no-restricted-imports');
+    expect(
+      await rules(
+        'src/client/probe.ts',
+        "import { getServerEnv } from '@/config/env.server'; export const value = getServerEnv;",
+      ),
+    ).toContain('no-restricted-imports');
+  });
 });

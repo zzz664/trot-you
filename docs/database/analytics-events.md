@@ -33,6 +33,7 @@
 ## 동의·호출자 경계
 
 - `analytics_set_consent(granted, consent_version)`과 `analytics_get_consent()`는 authenticated 본인의 `auth.uid()`만 사용한다. service에 임의 사용자 동의를 작성하는 권한은 없다. 동의 버전은 승인된 정책의 UUID이고 다른 문자열이나 사용자 metadata를 동의 증거로 읽지 않는다.
+- 프로필 온보딩 마이그레이션 이후 직접 opt-in RPC도 같은 UUID의 `analytics` 문서가 승인·공개되어 실제 본문을 읽을 수 있는지 확인한다. 설정 UUID만 있고 본문이 없거나 초안이면 거절한다. 필수 약관 동의는 분석 동의를 대신하지 않는다.
 - 수집은 온보딩 완료·미제한 fan + 현재 버전 명시적 opt-in을 요구한다. 신규 사용자는 기본 미동의다. 온보딩 이전 fan도 먼저 동의할 수 있다. artist/admin 권한이 fan 동의를 대신하지 않는다.
 - 동의 수락을 먼저 commit한 뒤 domain action을 시작한다. 기존 source의 `now()`는 트랜잭션 시작 시각이므로 같은 transaction에서 동의 뒤 source를 만들더라도 시간상 앞설 수 있다. 이를 임의 보정/소급 수집하지 않고 거절한다. signup도 동의 성공 이후 온보딩 완료를 기록하는 서비스 통합이 필요하다.
 - 철회는 제한 계정이나 비활성 정책에서도 가능하다. profile 잠금을 통해 철회가 먼저 commit하면 뒤따른 수집은 실패한다. 수집이 먼저 commit된 행은 철회로 즉시 삭제하지 않으며 보존 hook의 대상이다. 재동의는 새 시작 시각이므로 철회 이전 source를 뒤늦게 수집하지 않는다.
