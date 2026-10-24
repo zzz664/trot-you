@@ -96,9 +96,12 @@ test.beforeEach(async ({ context, identity }) => {
       : route.abort('blockedbyclient'),
   );
 });
-test.afterEach(() => {
-  clearFictionalDiscovery();
-  disableFictionalPolicy();
+test.afterEach(async () => {
+  try {
+    await clearFictionalDiscovery();
+  } finally {
+    disableFictionalPolicy();
+  }
 });
 
 for (const width of [360, 414]) {

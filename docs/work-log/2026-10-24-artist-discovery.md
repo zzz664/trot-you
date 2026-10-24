@@ -34,3 +34,12 @@
 - 타입 반영 후 **`npm run check:all` 전체 통과**: ESLint/Prettier, Next route typegen/TypeScript, 단위 **678개/32파일**, 대비 10개, 키 없는 production build. 새 페이지와 API가 빌드 목록에 포함된다.
 - 독립 DB/앱 리뷰에서 남은 구체적 차단 사항은 없으며, 지적된 이름 재검증 복구와 same-path Back 확인창 문제는 수정/회귀 추가했다. 마지막 script-only 2개 경합 추가도 독립 검토를 마쳤다.
 - 최종 앱 exact-head의 실제 **104개 경합 / 기본 E2E 16개 / authenticated E2E 47개 / 27개 신규 스크린샷 시각 검토**는 아직 CI에서 확인해야 한다. 로컬 브라우저는 실행하지 않았다. 이 커밋만으로 최종 CI·운영 배포 완료를 주장하지 않는다.
+
+## 실제 인증 CI fixture 정리 오류 수정
+
+- 앱 exact-head `e28a6ddde820700e10f20c84f7da1943ba0160ba`의 CI run `40077216191`에서 첫 discovery 시나리오는 화면/저장 검사를 마치고 정리 단계에 도달했지만, fixture의 직접 `storage.objects` DELETE가 실제 `storage.protect_delete()`에 의해 거절되었다. transaction rollback 뒤 사용자 정리 500 및 다음 17개 discovery fixture 중복 오류가 연쇄 발생했다. 기존 authenticated 29개는 통과했다. 이를 전체 앱 E2E 통과로 기록하지 않는다.
+- [공식 Storage 문서](https://supabase.com/docs/guides/storage/schema/design)의 API 전용 변경 규칙에 맞춰 정리를 수정했다. 격리된 GitHub CI·고정 loopback·local Docker 검증 뒤 앱 FK/메시지/가수 정리를 먼저 커밋하고, 기존 폐기용 fixture 키로 Storage API `remove()`에 정확한 세 fixture 경로만 보낸다. 이후 Storage metadata가 0행인지 읽기 전용 SQL로 확인한다. API 실패는 일반 오류로 처리하며 원문 응답/키/헤더를 출력하지 않는다.
+- 정리 hook은 async 완료를 기다리고, 실패하더라도 finally에서 허구 정책을 제거한다. Storage 보호 트리거·권한·production 설정을 끄거나 우회하지 않으며, 새 키·실제 미디어 업로드·스키마 변경을 추가하지 않았다. fixture는 여전히 허구 metadata이며 미디어 바이트/서명 기능 검증이 아니다.
+- 새 정리 단위 테스트 9개가 통과했다. 순서/FK 분리/정확한 Storage 경로/환경 거절/오류 비노출/잔여행 검증/비우회/async hook을 확인한다. 실제 local Storage API 정리와 전체 47개 authenticated E2E 재실행은 다음 exact-head CI에서 확인해야 한다. 로컬 브라우저는 실행하지 않았다.
+- 같은 run의 database는 실제 pgTAP **1,973개 ×2**, **104개 경합**(discovery 7개 포함), 생성 타입 drift 검사를 모두 통과했고 quality는 단위 678개/기본 E2E 16개를 통과했다. 첫 normal/360 discovery 화면 4장은 생성되었지만 나머지 신규 화면 및 실제 키 비노출 E2E는 정리 오류 연쇄로 확인하지 못했다.
+- 정리 수정 후 로컬 **`npm run check:all` 전체 통과**: 단위 **687개/33파일**, 타입·린트·대비·빌드. bounded 독립 리뷰에서도 구체적 차단 사항이 없었다. 실제 Storage 정리 수용 여부와 최종 authenticated 전체 성공은 아직 CI 재실행 대기다.

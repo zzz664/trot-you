@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../../../src/types/database';
 
 // Fictional records for the disposable Auth CI stack only. Storage rows below
 // are metadata, not uploaded/licensed media; the UI must show unavailable media.
@@ -137,17 +139,58 @@ export function prepareFictionalDiscovery(authorId: string) {
   `);
 }
 
-export function clearFictionalDiscovery() {
+// Only these three committed, metadata-only fixture objects are in scope.
+// Use the real Storage API for metadata-only fixtures too; never disable
+// protect_delete or mutate Storage metadata directly in cleanup.
+const discoveryMediaPaths = [2, 3, 4].map((n) => {
+  const suffix = String(n).padStart(12, '0');
+  const extension = n === 2 ? 'jpg' : n === 3 ? 'mp3' : 'mp4';
+  return `${discoveryFixtures.main.id}/a1300000-0000-4000-8000-${suffix}/a1500000-0000-4000-8000-${suffix}.${extension}`;
+});
+
+export async function clearFictionalDiscovery() {
   localSql(`
     begin;
     delete from public.message_media where id::text like 'a1500000-%';
-    delete from storage.objects where id::text like 'a1400000-%';
     delete from public.messages where id::text like 'a1300000-%';
     delete from public.artists where id::text like 'a1200000-%';
     delete from private.message_policy where version='fictional-discovery-ci-only';
     update public.artists set status='active' where id='00000000-0000-4000-8000-000000000001';
     commit;
   `);
+  // localSql above verifies GitHub CI, the fixed loopback URL and local Docker
+  // before any credential is read or API request starts. Commit application FK
+  // cleanup first so Storage can remove its own rows without orphaning app data.
+  const serviceKey = process.env.AUTH_TEST_SERVICE_KEY;
+  assert.ok(serviceKey, 'The disposable Storage fixture key must be ready.');
+  const client = createClient<Database>('http://127.0.0.1:54321', serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (input, init) =>
+        fetch(input, {
+          ...init,
+          redirect: 'error',
+          signal: AbortSignal.timeout(10_000),
+        }),
+    },
+  });
+  let failed: boolean;
+  try {
+    const { error } = await client.storage
+      .from('message-media')
+      .remove(discoveryMediaPaths);
+    failed = error !== null;
+  } catch {
+    failed = true;
+  }
+  // Do not print the raw provider response, credentials or request headers.
+  assert.equal(failed, false, 'Local Storage fixture cleanup failed.');
+  assert.equal(
+    localSql(`select count(*) from storage.objects where bucket_id='message-media'
+    and name in (${discoveryMediaPaths.map((path) => `'${path}'`).join(',')});`),
+    '0',
+    'Local Storage fixture metadata still exists after API cleanup.',
+  );
 }
 
 export function pauseMainArtist() {
