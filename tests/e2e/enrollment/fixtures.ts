@@ -27,7 +27,7 @@ import messages from '../../../src/messages/ko.json' with { type: 'json' };
 export const appOrigin = 'http://127.0.0.1:3100';
 export const providerOrigin = 'http://127.0.0.1:3200';
 const supabaseOrigin = 'http://127.0.0.1:54321';
-const tossSdkUrl = 'https://js.tosspayments.com/v2/standard';
+export const tossSdkUrl = 'https://js.tosspayments.com/v2/standard';
 const externalRequests = new WeakMap<BrowserContext, number>();
 export type Identity = {
   id: string;
