@@ -1,6 +1,10 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { NextIntlClientProvider } from 'next-intl';
+import { PwaRegistration } from '@/components/pwa/PwaRegistration';
+import { InstallPromptCapture } from '@/components/onboarding/InstallPromptCapture';
+import { PWA } from '@/config/pwa';
+import { designTokens } from '@/config/design-tokens';
 import { DialogRoot } from '@/components/ui/DialogRoot';
 import type { ReactNode } from 'react';
 import { APP_LOCALE } from '@/config/constants';
@@ -13,10 +17,21 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('metadata');
   return {
     title: t('title'),
+    applicationName: t('title'),
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'default',
+      title: t('title'),
+    },
+    icons: { apple: PWA.appleIcon, icon: PWA.icon192 },
     description: t('description'),
     metadataBase: new URL(getPublicEnv().NEXT_PUBLIC_APP_URL),
   };
 }
+
+export const viewport: Viewport = {
+  themeColor: designTokens.base['--color-accent'],
+};
 
 export default async function RootLayout({
   children,
@@ -30,6 +45,8 @@ export default async function RootLayout({
         <style>{getDesignTokenCss()}</style>
       </head>
       <body>
+        <PwaRegistration />
+        <InstallPromptCapture />
         <NextIntlClientProvider>
           <DialogRoot>{children}</DialogRoot>
         </NextIntlClientProvider>

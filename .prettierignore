@@ -5,3 +5,8 @@ package-lock.json
 coverage
 playwright-report
 test-results
+
+# Generated production PWA output
+public/sw.js
+public/sw.js.map
+public/offline.html

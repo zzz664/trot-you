@@ -1710,6 +1710,14 @@ export type Database = {
         };
         Returns: undefined;
       };
+      onboarding_acknowledge_install: {
+        Args: { p_choice: string };
+        Returns: undefined;
+      };
+      onboarding_complete: {
+        Args: Record<PropertyKey, never>;
+        Returns: string;
+      };
       onboarding_complete_profile: {
         Args: {
           p_age_over_14: boolean;
@@ -1721,6 +1729,15 @@ export type Database = {
           p_terms_version: string;
         };
         Returns: undefined;
+      };
+      onboarding_get_install_state: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          acknowledged_at: string;
+          choice: string;
+          installation_self_reported_at: string;
+          onboarding_completed_at: string;
+        }[];
       };
       onboarding_get_state: {
         Args: Record<PropertyKey, never>;

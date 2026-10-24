@@ -10,3 +10,24 @@
 - 새 독립 세션 경합 **10개**는 script syntax·ESLint·Prettier만 로컬 통과했다. 실제 DB 잠금 경합은 아직 실행 전이며 최종 CI에 연결한다. 기존 **104개**와 합쳐 **114개**가 된다.
 - 실제 Supabase lint·전체 pgTAP·경합·생성 타입 drift는 CI에서 검증한다. migration-only checkpoint를 먼저 게시하여 진짜 `database.ts` artifact를 받고 그대로 반영한다. 수기 타입은 추가하지 않았다.
 - 이 체크포인트는 앱/UI/서비스워커 통합 완료, 실제 기기 설치, 알림 권한/구독/전송, 운영 배포의 성공 근거가 아니다. 로컬 브라우저/DB 제한은 재시도하거나 우회하지 않았다. 최종 검사·화면 검토 결과는 이후 기록한다.
+
+## 앱·설치 안내·정적 워커 연결
+
+- `/api/onboarding/install`에 정확한 Origin·검증된 Auth subject·팬/제한 검사·1 KiB strict JSON 경계를 추가하고 actor-scoped RPC로만 안내 선택/전체 완료를 처리한다. 이미 완료된 세션의 재시도도 막지 않고 DB에서 현재 조건을 다시 검증한다. 서버나 브라우저가 설치/알림을 임의 완료로 바꾸지 않는다.
+- iOS/iPadOS 수동 설치, 실제 Android/desktop `beforeinstallprompt`가 있는 경우의 사용자 클릭, 미지원/설치 거부 fallback, 홈 화면 실행 관측과 별도 자기 보고를 구현했다. 알림은 사용자 클릭·홈 화면 실행·보안 컨텍스트·API 지원 때만 요청하며 허용/거부/닫기가 가입 완료를 막지 않는다. Web Push 등록/발송은 없다.
+- 안내 선택 저장 → 별도 가입 완료를 구분한다. 새로고침·재로그인·Back/Forward를 복구하고, 이전 요청의 늦은 응답이 새로운 이동/저장을 덮지 않도록 request epoch를 검사한다. 새 서버 증거가 도착하면 폼을 재생성하며 저장 중 새 선택을 받지 않는다.
+- 독립 리뷰에서 과거 계정의 안내 기록을 읽을 수 없는데 홈이 완료 안내를 단정하던 문제와 갱신된 서버 선택이 기존 클라이언트 폼에 남던 문제를 발견해 고쳤다. 홈의 확인 불가 상태는 중립적으로 표시하고 유료 구독/알림 활성화를 주장하지 않는다. 각 회귀 단위 검사도 추가했다.
+- Next 16 기본 Turbopack 다음 공식 Serwist 9.5.13 configurator/API로 워커를 생성한다. 정확한 현재 빌드 JS/CSS와 정적 offline HTML만 credential 없이 precache하고, API/RSC/OAuth/인증 HTML/미디어는 캐시하지 않는다. broad runtimeCache·push·CACHE_URLS 기능은 넣지 않았다. 공개 워커 리소스는 auth refresh proxy에서 제외하며 오래된 항목/전용 버전 캐시만 정리한다.
+- 새 의존성 audit에서 Serwist build 패키지가 정확히 고정한 Zod 4.6.5 취약점 `GHSA-mrhx-c7xc-m3w5`를 발견했다. 네 Serwist build 패키지에만 기존 앱의 같은 minor/patch Zod 4.6.7을 지정하여 해결했다. major 강제나 전체 의존성 강제 변경은 없다. 실제 설치 tree가 모두 4.6.7이고 `npm audit` 결과 **0개**다. 버전 회귀 검사도 추가했다.
+- 로컬 ESLint/Prettier와 전체 단위 **948개/46파일**, 대비 **10개**가 통과했다. Serwist `build:pwa`도 실제 실행 성공했지만 당시 기존 Next 출력의 **25개 URL**을 사용한 보조 빌드이며 최종 전체 앱 빌드 성공을 뜻하지 않는다. 현재 typecheck는 실제 신규 RPC 3개 생성 타입을 기다리는 상태이고 수기 타입은 쓰지 않았다.
+- 기본 Playwright는 기존 16개 + 실제 워커 검사 5개 = **21개**, authenticated는 기존 47개 + 실제 완료/개인 캐시 검사 18개 = **65개**로 정적 수집이 통과했다. 실제 UI/RPC의 3글자 크기 × 360/414px 화면 18장, iOS 기능 모의 안내 1장, 정적 offline 2장을 새로 생성하도록 작성했다. 모의 알림 permission 응답은 명시적인 테스트 stub이며 실제 기기 권한 승인/구독/알림을 실행하지 않는다.
+- 워커 E2E 검토에서 strict offline CSP가 fetch를 막아 캐시 검사를 오인시킬 수 있는 순서를 찾아 고쳤다. 온라인 문서에서 오프라인 fetch를 검사한 뒤 정적 fallback으로 이동하며 CSP를 완화하지 않는다. 인증 후 실제 HTML/API/RSC가 캐시에 들어가지 않는 경우도 추가했다.
+- 실제 Supabase **2,051개 ×2**, **114개** 독립 세션 경합, 새 전체 **21/65개** 브라우저 실행, 시각 검토와 최종 `check:all`은 exact-head CI/진짜 타입 반영 뒤 확인해야 한다. 로컬 브라우저·실제 기기 설치·OS 알림 권한·실제 Web Push·운영 배포는 실행하지 않았다.
+
+## 실제 생성 타입 체크포인트
+
+- 실제 bootstrap head `f59067928ecbb9fa4ff41a911577cdd20c884ec6`, CI run `40079729442`: Supabase DB lint, pgTAP **2,051개 ×2**, 기존 **104개** 경합, 타입 생성 뒤 typecheck가 통과했다. 생성 타입이 아직 커밋되지 않은 예상된 drift gate만 실패했다. 이 시점에는 새 10개 경합/앱/워커가 포함되지 않았다.
+- 같은 bootstrap의 quality는 단위 **702개**(기존 687 + 새 fixture 안전성 15)와 기본 E2E **16개**, auth-browser는 기존 **47개**를 통과했다. 새 완료 UI와 worker 실행 결과로 오인하지 않는다.
+- artifact `12553984240`의 실제 `database.ts` **65,516 bytes**, SHA-256 `066ab89837216388e71a6ab480f0f2b3ddb41a92edbf974e8a50722d5ce55f76`를 변경 없이 반영했다. 차이는 새 RPC 3개 선언뿐이며 수기로 보완한 타입이 아니다. 원격 bootstrap과 동일 tree를 확인한 뒤 기존 로컬 checkpoint를 archive tag에 보존하고 원격 ancestry에 맞췄다. 앱 WIP는 보존했다.
+- 타입 반영 후 로컬 **`npm run check:all` 전체 통과**: ESLint/Prettier, Next route typegen/TypeScript, 단위 **948개/46파일**, 대비 **10개**, Next 16.4.3 native Turbopack production build와 이어지는 실제 Serwist 빌드. 최종 빌드 worker는 정확한 공개 **25개 URL / 약 840 kB**만 precache한다. 신규 manifest/설치 API/설치 페이지가 빌드 출력에 포함된다.
+- 독립 보안 리뷰는 DB 경합/ACL, HTTP/DTO, 브라우저 선택·권한·늦은 응답, private 캐시 금지, isolated CI fixture, 취약 의존성 patch override까지 확인했으며 남은 구체적 source blocker가 없다. 새 **114개 경합 / 기본 21개 / authenticated 65개 / 화면 검수**의 실제 최종 통과는 아직 앱 exact-head CI 대기다.

@@ -86,3 +86,8 @@ export function getPublicEnv(): PublicEnv {
     throw new Error('Invalid public environment configuration');
   return result.data;
 }
+
+/** Build-time substitution only; never enables a worker in Next dev. */
+export function isProductionBuild() {
+  return process.env.NODE_ENV === 'production';
+}
