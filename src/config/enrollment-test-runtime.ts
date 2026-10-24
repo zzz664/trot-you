@@ -139,3 +139,32 @@ export const CANCELLATION_CI_TOSS_CANCEL =
   /^\/v1\/payments\/[A-Za-z0-9_-]+\/cancel$/;
 export const CANCELLATION_CI_KAKAO_PATHS =
   /^\/online\/v1\/payment\/(order|cancel)$/;
+
+// A distinct public test credential, never a deployable worker token. All prior
+// fixture capabilities are required because this test stack creates unknown
+// initial, renewal and authorized-refund work before query-only reconciliation.
+export const RECONCILIATION_CI = {
+  cronSecret:
+    'reconciliation_ci_only_not_a_real_secret_000000000000000000000000',
+} as const;
+
+export function parseReconciliationTestRuntime(
+  input: Record<string, unknown>,
+): EnrollmentTestRuntime {
+  const inactive =
+    input.RECONCILIATION_LOCAL_E2E === undefined ||
+    input.RECONCILIATION_LOCAL_E2E === '' ||
+    input.RECONCILIATION_LOCAL_E2E === 'false';
+  if (
+    inactive &&
+    input.RECONCILIATION_CRON_SECRET !== RECONCILIATION_CI.cronSecret
+  )
+    return { mode: 'real' };
+  return input.RECONCILIATION_LOCAL_E2E === 'true' &&
+    input.PAYMENTS_RECONCILIATION_ENABLED === 'true' &&
+    input.RECONCILIATION_CRON_SECRET === RECONCILIATION_CI.cronSecret &&
+    parseRenewalTestRuntime(input).mode === 'ci' &&
+    parseCancellationTestRuntime(input).mode === 'ci'
+    ? { mode: 'ci' }
+    : { mode: 'invalid' };
+}

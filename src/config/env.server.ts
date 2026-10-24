@@ -2,6 +2,11 @@ import 'server-only';
 import { z } from 'zod';
 import { KAKAOPAY_TEST_CIDS } from './integrations';
 import { parseCancellationTestRuntime } from './cancellation-test-runtime';
+import { parseReconciliationTestRuntime } from './reconciliation-test-runtime';
+import {
+  RECONCILIATION_SECRET_MIN_LENGTH,
+  RECONCILIATION_SECRET_MAX_LENGTH,
+} from './reconciliation';
 import {
   RENEWAL_CRON_SECRET_MIN_LENGTH,
   RENEWAL_CRON_SECRET_MAX_LENGTH,
@@ -58,6 +63,14 @@ const serverEnvSchema = publicEnvSchema.extend({
   CRON_SECRET: optionalEnvValue(secretSchema.min(16)),
   PAYMENTS_RENEWALS_ENABLED: flagSchema,
   PAYMENTS_REFUNDS_ENABLED: flagSchema,
+  PAYMENTS_RECONCILIATION_ENABLED: flagSchema,
+  RECONCILIATION_CRON_SECRET: optionalEnvValue(
+    z
+      .string()
+      .min(RECONCILIATION_SECRET_MIN_LENGTH)
+      .max(RECONCILIATION_SECRET_MAX_LENGTH)
+      .regex(/^[A-Za-z0-9_-]+$/),
+  ),
   RENEWAL_CRON_SECRET: optionalEnvValue(
     z
       .string()
@@ -106,7 +119,8 @@ export function parseServerEnv(
     return failure('CONFIGURATION_INVALID');
   if (
     parseRenewalTestRuntime(values).mode === 'invalid' ||
-    parseCancellationTestRuntime(values).mode === 'invalid'
+    parseCancellationTestRuntime(values).mode === 'invalid' ||
+    parseReconciliationTestRuntime(values).mode === 'invalid'
   )
     return failure('CONFIGURATION_INVALID');
   const result = serverEnvSchema.safeParse(values);
@@ -118,6 +132,11 @@ export function parseServerEnv(
     return failure('CONFIGURATION_INVALID');
   if (
     (env.PAYMENTS_RENEWALS_ENABLED && !env.RENEWAL_CRON_SECRET) ||
+    (env.PAYMENTS_RECONCILIATION_ENABLED && !env.RECONCILIATION_CRON_SECRET) ||
+    (env.RECONCILIATION_CRON_SECRET &&
+      [env.CRON_SECRET, env.RENEWAL_CRON_SECRET].includes(
+        env.RECONCILIATION_CRON_SECRET,
+      )) ||
     (env.RENEWAL_CRON_SECRET && env.RENEWAL_CRON_SECRET === env.CRON_SECRET)
   )
     return failure('CONFIGURATION_INVALID');

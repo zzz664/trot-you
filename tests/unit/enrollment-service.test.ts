@@ -127,6 +127,7 @@ beforeEach(() => {
   );
   deps = {
     db,
+    recovery: { recover: vi.fn().mockResolvedValue({ ok: true, data: null }) },
     checkout: {
       read: vi.fn().mockResolvedValue({
         ok: true,
@@ -480,8 +481,8 @@ describe('initial enrollment orchestration: offline ports only', () => {
       ),
     ).toEqual({ ok: false, code: 'UNAVAILABLE' });
   });
-  it('unknown Toss charge recovers by query+same finalization only', async () => {
-    db.read.mockResolvedValue(
+  it('unknown Toss charge delegates to the shared bounded recovery and refreshes actor state', async () => {
+    db.read.mockResolvedValueOnce(
       good(
         row({
           state: 'unknown',
@@ -491,15 +492,22 @@ describe('initial enrollment orchestration: offline ports only', () => {
         }),
       ),
     );
+    db.read.mockResolvedValue(
+      good(row({ state: 'succeeded', public_status: 'succeeded' })),
+    );
     expect(
       await reconcileEnrollment(deps, actor, { sessionId: id(2) }),
     ).toMatchObject({ ok: true, data: { status: 'succeeded' } });
-    expect(deps.toss.query).toHaveBeenCalledOnce();
+    expect(deps.recovery?.recover).toHaveBeenCalledExactlyOnceWith(
+      actor.actorId,
+      id(2),
+    );
+    expect(deps.toss.query).not.toHaveBeenCalled();
     expect(deps.toss.charge).not.toHaveBeenCalled();
     expect(deps.toss.exchange).not.toHaveBeenCalled();
   });
   it('Kakao query-proved payment without SID remains manual review, never approve again', async () => {
-    db.read.mockResolvedValue(
+    db.read.mockResolvedValueOnce(
       good(
         row({
           provider: 'kakaopay',
@@ -510,7 +518,7 @@ describe('initial enrollment orchestration: offline ports only', () => {
         }),
       ),
     );
-    db.recordReconciliation.mockResolvedValue(
+    db.read.mockResolvedValue(
       good(row({ state: 'manual_review', public_status: 'manual_review' })),
     );
     expect(
@@ -518,7 +526,12 @@ describe('initial enrollment orchestration: offline ports only', () => {
     ).toMatchObject({ ok: true, data: { status: 'manual_review' } });
     expect(db.finalize).not.toHaveBeenCalled();
     expect(deps.kakao.approve).not.toHaveBeenCalled();
-    expect(db.recordReconciliation).toHaveBeenCalledOnce();
+    expect(deps.recovery?.recover).toHaveBeenCalledExactlyOnceWith(
+      actor.actorId,
+      id(2),
+    );
+    expect(deps.kakao.query).not.toHaveBeenCalled();
+    expect(db.recordReconciliation).not.toHaveBeenCalled();
   });
   it('query not-found/transport failure never proves failed or permits re-charge', async () => {
     db.read.mockResolvedValue(
@@ -537,6 +550,50 @@ describe('initial enrollment orchestration: offline ports only', () => {
     ).toMatchObject({ ok: true, data: { status: 'unknown' } });
     expect(db.recordOutcome).not.toHaveBeenCalled();
     expect(db.finalize).not.toHaveBeenCalled();
+  });
+  it.each(['session', 'owner', 'refresh'] as const)(
+    'initial recovery rejects misbound %s projection before exposing another operation',
+    async (kind) => {
+      const unknownRow = row({
+        state: 'unknown',
+        public_status: 'unknown',
+        stage: 'charge',
+      });
+      db.read.mockResolvedValueOnce(
+        good({
+          ...unknownRow,
+          ...(kind === 'session' ? { session_id: id(99) } : {}),
+          ...(kind === 'owner' ? { user_id: id(99) } : {}),
+        }),
+      );
+      if (kind === 'refresh')
+        db.read.mockResolvedValueOnce(
+          good({ ...unknownRow, session_id: id(99) }),
+        );
+      expect(
+        await reconcileEnrollment(deps, actor, { sessionId: id(2) }),
+      ).toEqual({ ok: false, code: 'UNAVAILABLE' });
+      if (kind !== 'refresh')
+        expect(deps.recovery?.recover).not.toHaveBeenCalled();
+      expect(deps.toss.query).not.toHaveBeenCalled();
+      expect(deps.kakao.query).not.toHaveBeenCalled();
+    },
+  );
+  it('never falls back to an unbounded direct query when shared recovery capability is missing', async () => {
+    db.read.mockResolvedValue(
+      good(
+        row({ state: 'unknown', public_status: 'unknown', stage: 'charge' }),
+      ),
+    );
+    const withoutRecovery = { ...deps };
+    delete withoutRecovery.recovery;
+    expect(
+      await reconcileEnrollment(withoutRecovery, actor, {
+        sessionId: id(2),
+      }),
+    ).toEqual({ ok: false, code: 'UNAVAILABLE' });
+    expect(deps.toss.query).not.toHaveBeenCalled();
+    expect(deps.kakao.query).not.toHaveBeenCalled();
   });
   it('known Kakao approval survives DB rollback with an exact DB-only finalization replay', async () => {
     const kakao = row({ provider: 'kakaopay', tid: 'fictional_tid' });

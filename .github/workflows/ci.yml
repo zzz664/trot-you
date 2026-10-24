@@ -77,6 +77,7 @@ jobs:
       - run: npm run test:enrollment-fixture
       - run: npm run test:renewal-fixture
       - run: npm run test:cancellation-fixture
+      - run: npm run test:reconciliation-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
@@ -208,6 +209,40 @@ jobs:
         if: always()
         with:
           name: cancellation-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
+  reconciliation-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/enrollment-local-ci.mjs environment
+      - run: node scripts/renewal-local-ci.mjs environment
+      - run: node scripts/cancellation-local-ci.mjs environment
+      - run: node scripts/reconciliation-local-ci.mjs environment
+      - run: npx playwright install --with-deps chromium
+      # Real Auth/private RPCs/ledger, query-only worker and untrusted hints.
+      # Fixed loopback HTTP only; no registered webhook, scheduler or real money.
+      - run: npm run test:e2e:reconciliation
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reconciliation-browser-results
           path: |
             playwright-report/
             test-results/

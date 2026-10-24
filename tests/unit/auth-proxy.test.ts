@@ -109,3 +109,42 @@ describe('public PWA resources do not invoke session refresh', () => {
     );
   });
 });
+
+describe('exact payment machine routes own security without browser-session refresh', () => {
+  it.each([
+    '/api/cron/reconcile-payments',
+    '/api/cron/charge-renewals',
+    '/api/webhooks/payment/toss',
+    '/api/cron/reconcile-payments/',
+    '/api/webhooks/payment/toss/',
+    '/api/webhooks/payment/toss?caller_input=invalid',
+  ])(
+    'bypasses auth refresh only for the handler-owned machine endpoint %s',
+    (url) => {
+      expect(
+        unstable_doesMiddlewareMatch({ config, nextConfig: {}, url }),
+      ).toBe(false);
+    },
+  );
+  it.each([
+    '/admin/reconciliation',
+    '/admin/reconciliation?page=2',
+    '/api/admin/refunds/reconcile',
+    '/api/subscriptions/refund-request',
+    '/api/cron/another-job',
+    '/api/cron/reconcile-payments/child',
+    '/api/cron/reconcile-payments-extra',
+    '/api/cron/charge-renewals-extra',
+    '/api/webhooks/payment/toss/child',
+    '/api/webhooks/payment/toss-extra',
+    '/api/webhooks/payment/kakaopay',
+    '/api/webhooks/another-provider',
+  ])(
+    'retains private browser refresh for all non-allowlisted routes %s',
+    (url) => {
+      expect(
+        unstable_doesMiddlewareMatch({ config, nextConfig: {}, url }),
+      ).toBe(true);
+    },
+  );
+});
