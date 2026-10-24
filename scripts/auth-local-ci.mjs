@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  assertLocalAuthSettings,
+  prepareLocalAuthConfig,
+} from './auth-local-config.mjs';
 
 // This helper is deliberately CI-only. It never accepts a URL, user, password,
 // project ref or key argument. It prepares a disposable CLI-managed stack, not
@@ -35,34 +39,7 @@ if (action === 'configure') {
     assert.ok(!process.env[key], 'Do not pass hosted credentials to this job.');
   }
   const path = 'supabase/config.toml';
-  let config = readFileSync(path, 'utf8');
-  assert.match(config, /^project_id = "trot-you"$/m);
-  assert.match(config, /^enable_signup = false$/m);
-  assert.match(config, /^\[local_smtp\]\nenabled = false$/m);
-  config = config
-    .replace(/^site_url = .*$/m, 'site_url = "http://127.0.0.1:3100"')
-    .replace(
-      /^additional_redirect_urls = .*$/m,
-      'additional_redirect_urls = ["http://127.0.0.1:3100/api/auth/callback**"]',
-    )
-    .replace(
-      '[local_smtp]\nenabled = false',
-      '[local_smtp]\nenabled = true\nport = 54324',
-    );
-  config += `
-# Disposable authentication test overrides; never committed or pushed.
-[auth.email]
-enable_signup = false
-enable_confirmations = true
-max_frequency = "1s"
-
-[auth.rate_limit]
-email_sent = 1000
-sign_in_sign_ups = 1000
-token_verifications = 1000
-token_refresh = 1000
-`;
-  writeFileSync(path, config);
+  writeFileSync(path, prepareLocalAuthConfig(readFileSync(path, 'utf8')));
 } else if (action === 'environment') {
   assert.ok(process.env.GITHUB_ENV, 'GitHub environment output is required.');
   const status = JSON.parse(
@@ -82,6 +59,18 @@ token_refresh = 1000
     assert.ok(key.length > 0 && !/[\r\n]/.test(key));
     process.stdout.write(`::add-mask::${key}\n`);
   }
+  // Verify actual GoTrue settings, not just the config text. Fail before any
+  // fixture creation if provider activation accidentally enabled public signup.
+  const settingsResponse = await fetch(
+    'http://127.0.0.1:54321/auth/v1/settings',
+    {
+      headers: { apikey: status.ANON_KEY },
+      redirect: 'error',
+      signal: AbortSignal.timeout(10_000),
+    },
+  );
+  assert.ok(settingsResponse.ok, 'Local Auth settings are unavailable.');
+  assertLocalAuthSettings(await settingsResponse.json());
   appendFileSync(
     process.env.GITHUB_ENV,
     [

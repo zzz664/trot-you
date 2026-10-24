@@ -21,3 +21,11 @@
 - 기존 DB 1,794개 × 2회·96개 경합, lint·생성 타입 drift gate는 변경하지 않았다. 이 커밋의 CI 회귀 결과는 별도로 확인해야 한다.
 - read-only 보안 리뷰에서 차단 수준 발견 사항은 없었다. role/redirect/Origin/쿠키/검증 경계를 점검했다. callback의 불필요한 `next` query를 제거해 exact redirect allowlist와 맞췄고 HTTPS cookie 이름을 `__Host-`로 강화했다.
 - 실제 Kakao 앱/개인 계정 로그인, 원격 DB 변경, 실제 개인정보 전달, 운영 배포는 실행하지 않았다. 승인된 staging 자격 증명/provider 설정과 실제 OAuth 검증은 후속 운영 준비 사항이다.
+
+## CI 이메일 provider 설정 보정
+
+- 첫 PR #13 CI `40070995997`의 quality는 단위 366개와 기본 E2E 16개를 통과했다. 인증 job은 2개 통과/15개 실패했고, 모두 앱 검증 전에 가상 계정 password/OTP 단계에서 `Email logins are disabled`를 반환했다. 실제 인증 경로가 통과한 것으로 기록하지 않는다.
+- 설치된 CLI 2.122.0의 실제 실행 번들에서 `GOTRUE_EXTERNAL_EMAIL_ENABLED:String(e.email.enable_signup)` 및 전역 `GOTRUE_DISABLE_SIGNUP:String(!e.enableSignup)` 매핑을 확인했다. `auth.email.enabled`는 지원 필드가 아니다.
+- CI에서만 생성하는 `[auth.email].enable_signup=true`로 provider를 활성화하고, 전역 signup=false는 유지한다. 생성 함수에 15개 회귀 테스트를 추가하고, 실제 loopback `/auth/v1/settings`에서 email=true·disable_signup=true가 모두 확인되어야 fixture를 생성하도록 사전 검증을 추가했다. redirect는 허용하지 않으며 요청 timeout은 10초다.
+- 원격 PR head `ae548496a2f113a7949785480105bccd7283c232`와 기존 로컬 커밋 tree가 동일함을 확인하고 기존 로컬 이력을 archive에 보존한 뒤 동일 feature 브랜치에서 수정했다. 기본 Supabase config·앱 코드·DB schema는 수정하지 않았다. 수정 후 전체 검증 결과와 실제 CI 재실행 결과는 구분한다.
+- 수정 후 `npm run check:all` 통과: lint/format/type, 단위 381개, 대비 10조합, 키 없는 build. 실제 로컬 이메일 provider·PKCE·세션 재검증은 새 CI 실행 대기이며 로컬 브라우저를 재시도하지 않았다.

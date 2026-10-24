@@ -36,6 +36,8 @@
 
 별도 `auth-browser` CI는 공식 local Supabase stack만 사용한다. helper는 GitHub Actions, loopback URL과 local Unix Docker를 확인하고 config를 그 job에서만 변경한다. 공개 signup은 끈 채 폐기용 가상 계정을 admin API로 만들며, local Mailpit에서 email PKCE code를 받아 **실제 callback 교환**을 검증한다. 테스트 admin key는 앱 서버에 전달하지 않는다. fixture는 삭제하고 stack은 `--no-backup`으로 중지한다.
 
+CLI 2.122.0에서 `[auth.email].enable_signup`은 이름과 달리 `GOTRUE_EXTERNAL_EMAIL_ENABLED`(이메일 provider 전체 활성화)에 매핑된다. 따라서 폐기용 CI override에서만 이를 `true`로 설정하고, 전역 `[auth].enable_signup=false` → `GOTRUE_DISABLE_SIGNUP=true`로 실제 신규 가입 차단을 유지한다. 지원하지 않는 `auth.email.enabled` 필드는 추가하지 않는다. fixture 전에 loopback Auth의 실제 `/settings`가 `external.email=true`, `disable_signup=true`임을 확인하며 다른 값이면 즉시 실패한다. 저장소의 기본 `supabase/config.toml`과 운영 설정은 바꾸지 않는다.
+
 실제 SDK cookie 생성과 actor-scoped 조회, 로그인된 start 이동, 역할/제한/온보딩 가드, forged JWT 거부, callback 반복·잘못된 verifier, logout 반복·Origin 차단·뒤로/앞으로, 쿠키 갱신 전파와 HTTPOnly를 확인한다. 갱신 테스트는 진짜 토큰을 유지한 채 client storage의 `expires_at`만 과거로 바꿔 실제 refresh endpoint를 호출한다. 이는 실시간 JWT 자연 만료 대기나 Kakao OAuth 원격 검증과 다르다. 세션을 담을 수 있는 CI trace는 끈다.
 
 기존 `database` CI의 pgTAP 1,794개 × 2회와 96개 독립 세션 경합 테스트, DB lint 및 생성 타입 drift gate는 그대로 유지한다. 이 기능은 migration이나 수기 타입을 추가하지 않는다. **CI 구성/테스트 코드의 존재와 실제 실행 성공은 별도 기록한다.**
