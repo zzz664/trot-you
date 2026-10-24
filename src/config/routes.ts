@@ -21,6 +21,7 @@ export const routes = {
   enrollmentReconcile: '/api/checkout/enrollment/reconcile',
   enrollmentStatus: '/api/checkout/enrollment/status',
   enrollmentComplete: '/checkout/complete',
+  chargeRenewals: '/api/cron/charge-renewals',
   restricted: '/restricted',
   artist: '/artist',
   admin: '/admin',

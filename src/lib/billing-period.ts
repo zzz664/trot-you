@@ -34,3 +34,43 @@ export function initialBillingPeriod(
     end: new Date(end.getTime() - offset).toISOString(),
   };
 }
+
+// Renew from the original episode's wall-clock anniversary, not the last
+// clamped date: Jan 31 -> Feb 28 -> Mar 31. Reject arbitrary/overlapping periods.
+export function renewalBillingPeriod(
+  episodeAnchor: Date,
+  paidEnd: Date,
+  calendar: BillingPeriodCalendar,
+) {
+  if (
+    !Number.isFinite(episodeAnchor.getTime()) ||
+    !Number.isFinite(paidEnd.getTime()) ||
+    !Object.hasOwn(BILLING_CALENDAR_OFFSETS_MS, calendar) ||
+    paidEnd <= episodeAnchor
+  )
+    throw new Error('INVALID_BILLING_PERIOD');
+  const offset = BILLING_CALENDAR_OFFSETS_MS[calendar];
+  const anchor = new Date(episodeAnchor.getTime() + offset);
+  const current = new Date(paidEnd.getTime() + offset);
+  const months =
+    (current.getUTCFullYear() - anchor.getUTCFullYear()) *
+      ENROLLMENT_MONTHS_PER_YEAR +
+    current.getUTCMonth() -
+    anchor.getUTCMonth();
+  if (months < 1) throw new Error('INVALID_BILLING_PERIOD');
+  const anniversary = (distance: number) => {
+    const date = new Date(anchor);
+    date.setUTCDate(1);
+    date.setUTCMonth(anchor.getUTCMonth() + distance);
+    const last = new Date(date);
+    last.setUTCMonth(last.getUTCMonth() + 1, 0);
+    date.setUTCDate(Math.min(anchor.getUTCDate(), last.getUTCDate()));
+    return new Date(date.getTime() - offset);
+  };
+  if (anniversary(months).getTime() !== paidEnd.getTime())
+    throw new Error('INVALID_BILLING_PERIOD');
+  return {
+    start: paidEnd.toISOString(),
+    end: anniversary(months + 1).toISOString(),
+  };
+}

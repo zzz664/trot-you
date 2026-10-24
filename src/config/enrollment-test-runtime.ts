@@ -75,5 +75,30 @@ export const ENROLLMENT_CI_TOSS_PATHS = [
   /^\/v1\/payments\/orders\/[A-Za-z0-9_-]+$/,
 ] as const;
 export const ENROLLMENT_CI_KAKAO_PATHS = [
-  /^\/online\/v1\/payment\/(ready|approve|order)$/,
+  /^\/online\/v1\/payment\/(ready|approve|order|subscription)$/,
 ] as const;
+
+// Also public fixtures. Never a deployed Cron credential or scheduling setup.
+export const RENEWAL_CI = {
+  cronSecret: 'renewal_ci_only_not_a_real_cron_secret_000000000000000000000000',
+} as const;
+
+// A public test token must never authenticate a real renewal worker, even when
+// all merchant credentials happen to be valid. Any active/partial test flag is
+// also fail-closed rather than falling back to real provider transport.
+export function parseRenewalTestRuntime(
+  input: Record<string, unknown>,
+): EnrollmentTestRuntime {
+  const inactive =
+    input.RENEWAL_LOCAL_E2E === undefined ||
+    input.RENEWAL_LOCAL_E2E === '' ||
+    input.RENEWAL_LOCAL_E2E === 'false';
+  if (inactive && input.RENEWAL_CRON_SECRET !== RENEWAL_CI.cronSecret)
+    return { mode: 'real' };
+  return input.RENEWAL_LOCAL_E2E === 'true' &&
+    input.PAYMENTS_RENEWALS_ENABLED === 'true' &&
+    input.RENEWAL_CRON_SECRET === RENEWAL_CI.cronSecret &&
+    parseEnrollmentTestRuntime(input).mode === 'ci'
+    ? { mode: 'ci' }
+    : { mode: 'invalid' };
+}

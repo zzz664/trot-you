@@ -38,7 +38,10 @@
     "test:db:checkout-concurrency": "node scripts/test-checkout-concurrency.mjs",
     "test:db:enrollment-concurrency": "node scripts/test-enrollment-concurrency.mjs",
     "test:enrollment-fixture": "node --test scripts/enrollment-local-ci-provider.test.mjs",
-    "test:e2e:enrollment": "playwright test --config playwright.enrollment.config.ts"
+    "test:e2e:enrollment": "playwright test --config playwright.enrollment.config.ts",
+    "test:renewal-fixture": "node --test scripts/renewal-local-ci-provider.test.mjs",
+    "test:e2e:renewal": "playwright test --config playwright.renewal.config.ts",
+    "test:db:renewal-concurrency": "node scripts/test-renewal-concurrency.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",

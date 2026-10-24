@@ -1,7 +1,14 @@
 import 'server-only';
 import { z } from 'zod';
 import { KAKAOPAY_TEST_CIDS } from './integrations';
-import { parseEnrollmentTestRuntime } from './enrollment-test-runtime';
+import {
+  RENEWAL_CRON_SECRET_MIN_LENGTH,
+  RENEWAL_CRON_SECRET_MAX_LENGTH,
+} from './renewal';
+import {
+  parseEnrollmentTestRuntime,
+  parseRenewalTestRuntime,
+} from './enrollment-test-runtime';
 import {
   PAYMENT_VAULT_KEY_PATTERN,
   PAYMENT_VAULT_KEY_VERSION_PATTERN,
@@ -48,6 +55,14 @@ const serverEnvSchema = publicEnvSchema.extend({
   VAPID_PRIVATE_KEY: optionalEnvValue(secretSchema),
   ALIMTALK_API_KEY: optionalEnvValue(secretSchema),
   CRON_SECRET: optionalEnvValue(secretSchema.min(16)),
+  PAYMENTS_RENEWALS_ENABLED: flagSchema,
+  RENEWAL_CRON_SECRET: optionalEnvValue(
+    z
+      .string()
+      .min(RENEWAL_CRON_SECRET_MIN_LENGTH)
+      .max(RENEWAL_CRON_SECRET_MAX_LENGTH)
+      .regex(/^[A-Za-z0-9_-]+$/),
+  ),
 });
 
 export type ServerEnv = z.output<typeof serverEnvSchema>;
@@ -87,11 +102,18 @@ export function parseServerEnv(
     )
   )
     return failure('CONFIGURATION_INVALID');
+  if (parseRenewalTestRuntime(values).mode === 'invalid')
+    return failure('CONFIGURATION_INVALID');
   const result = serverEnvSchema.safeParse(values);
   if (!result.success) return failure('CONFIGURATION_INVALID');
   const env = result.data;
   if (
     Boolean(env.PAYMENTS_VAULT_KEY) !== Boolean(env.PAYMENTS_VAULT_KEY_VERSION)
+  )
+    return failure('CONFIGURATION_INVALID');
+  if (
+    (env.PAYMENTS_RENEWALS_ENABLED && !env.RENEWAL_CRON_SECRET) ||
+    (env.RENEWAL_CRON_SECRET && env.RENEWAL_CRON_SECRET === env.CRON_SECRET)
   )
     return failure('CONFIGURATION_INVALID');
   const tossModes = [env.NEXT_PUBLIC_TOSS_CLIENT_KEY, env.TOSS_SECRET_KEY]

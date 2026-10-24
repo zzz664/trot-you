@@ -47,7 +47,7 @@ function credentials() {
   assert.ok(anonKey && serviceKey);
   return { anonKey, serviceKey };
 }
-function localSql(sql: string) {
+export function localSql(sql: string) {
   credentials();
   assert.ok(!process.env.DOCKER_HOST && !process.env.DOCKER_CONTEXT);
   assert.equal(
