@@ -53,3 +53,11 @@ CI의 기존 1,184 pgTAP와 47 경합을 보존하고 신규 알림 테스트와
 최초 draft 후보를 게시한 뒤 마지막 read-only 검토에서 선호 변경의 두 SQL 문 사이 phantom job 경합을 확인했다. enqueue는 source→profile 역전을 피하려고 profile을 잠그지 않으므로 정렬 prelock 뒤 새 낮은 UUID 작업이 commit될 수 있다. 다음 UPDATE가 그 작업까지 새 snapshot에서 포함하면 source 취소와 교차 대기가 생길 수 있었다. 선호 변경은 정렬 잠금에서 확보한 UUID 배열만 UPDATE하도록 보완했다. 새로 생긴 작업은 이후 claim의 현재 선호 검사에서 차단한다. 기존 source/device 경로는 해당 source/device 잠금이 새 관련 INSERT를 막으므로 같은 phantom 경계가 아니다.
 
 21번째 실제 psql 경합은 최대 UUID의 기존 두 작업과 gate를 사용해 선호 RPC의 prelock 대기 → 실제 enqueue의 새 낮은 UUID 작업 commit → 실제 메시지 취소의 교차 대기 순서를 고정한다. 우연한 행 조회 순서나 순차 호출로 이 문제를 대신 검사하지 않는다. 이미 게시한 bootstrap history를 amend하지 않고 동일 브랜치의 후속 한국어 커밋으로 수정한다. 원격 bootstrap과 로컬 bootstrap의 tree 일치를 확인하고 로컬 최초 커밋은 archive에 보존한다. 실제 Supabase 경합 결과는 여전히 exact-head CI 검증 대상이다.
+
+## 실제 CI 검증과 genuine 생성 타입 반영
+
+- [PR #10 CI 40064441293](https://github.com/zzz664/trot-you/actions/runs/40064441293)는 원격 head `968d29534e84aa3c10dc3c23408508bdccd6aadd`에서 실행했다. 원격 head와 로컬 phantom 수정 커밋 `5a593e86e6b016ae86a08f1fd22f49fd8290e482`의 tree가 `75cdd569481200bf5c9c65d625bc7b4669f4b4d1`로 동일함을 확인했다. 로컬 기록은 `archive/notification-outbox-fix-5a593e8`에 보존하고 원격 head를 기준으로 후속 커밋을 준비했다. 기준 develop은 `713469c97a4287ad3796c462db5c9dc6f86970d3` 그대로다.
+- 실제 Supabase PostgreSQL `17.11.0.006` 환경에서 시작/reset/SQL lint, pgTAP 1,421개 두 번, 독립 psql 경합 68개(결제 7 + 메시지 5 + 커뮤니티 12 + 일정 7 + 포인트 16 + 알림 21), genuine 타입 생성/typecheck와 cleanup이 통과했다. quality의 167 unit tests·build·브라우저 E2E 13개도 통과했다. 실제 경합 로그에는 마지막 captured sorted set phantom 검사까지 PASS가 기록되어 있다. 앞선 PGlite 보조 결과와 구분되는 실제 CI 증거다.
+- 이 run의 최종 실패는 예상된 committed generated-type drift 검사뿐이었다. 실패 run 자체를 전체 CI 통과로 표시하지 않는다. 새 타입을 반영한 다음 exact-head CI에서 type drift를 포함한 전체 gate 통과를 확인해야 병합할 수 있다.
+- 해당 run의 `database-types` artifact `12549405191`을 반영했다. ZIP SHA-256 `f10b809dcb57f4363c4e69164a60f4d9508a79c363dc1da0bd69595d388de2cf`는 보존된 artifact metadata와 CI 업로드 로그에 일치한다. 추출된 `database.ts`는 53,845 bytes / 1,776 lines, SHA-256 `b1e67587415da262875190ca915f3d9bfb5c75b8e4500d28940d0a0dfcf7b24e`다. `src/types/database.ts`로 byte-identical 복사하고 `cmp`와 SHA-256을 다시 확인했으며 수동 작성/수정하지 않았다.
+- 이 후속 변경은 생성 타입과 본 검증 기록 두 파일뿐이다. 새 타입을 포함한 `npm run check:all`로 lint/typecheck/167 unit tests/10개 대비 조합/build를 다시 확인했고 모두 통과했다. 실제 운영 설정 활성화·provider 연결·외부 알림 발송·서비스 운영 검증은 수행하지 않았고, 앞서 적은 미구현 경계는 그대로 유지한다.
