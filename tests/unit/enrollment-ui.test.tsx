@@ -9,7 +9,11 @@ import {
   ENROLLMENT_STATUS_POLL_MS,
   type EnrollmentStatus,
 } from '@/config/enrollment';
-import type { CheckoutIntent } from '@/config/checkout';
+import {
+  CHECKOUT_ERROR_STATUS,
+  type CheckoutError,
+  type CheckoutIntent,
+} from '@/config/checkout';
 import { TOSS_BILLING_SDK_URL } from '@/config/payment-preparation';
 import { artistPreviewPath, enrollmentCompletePath } from '@/config/routes';
 import messages from '@/messages/ko.json';
@@ -213,18 +217,69 @@ describe('first-charge explicit consent UI', () => {
   });
   it('lost confirmation response does not allow retry until a read-only status check', async () => {
     mocks.confirm.mockResolvedValue({ ok: false, code: 'UNAVAILABLE' });
+    mocks.read
+      .mockResolvedValueOnce({ ok: true, data: status })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          ...status,
+          status: 'succeeded',
+          canConfirm: false,
+          canCancel: false,
+        },
+      });
     renderStatus();
     await loaded();
     await userEvent.click(consent());
     await userEvent.click(confirmButton());
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      messages.checkout.errors.UNAVAILABLE,
+      copy.errors.UNAVAILABLE,
+    );
+    expect(screen.getByRole('alert')).not.toHaveTextContent(
+      '요금은 청구되지 않아요',
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '이미 결제가 완료되었을 수도',
     );
     expect(confirmButton()).toBeDisabled();
     expect(consent()).not.toBeChecked();
     await userEvent.click(screen.getByRole('button', { name: copy.refresh }));
+    await screen.findByText(copy.statuses.succeeded);
     expect(mocks.read).toHaveBeenCalledTimes(2);
     expect(mocks.confirm).toHaveBeenCalledTimes(1);
+  });
+  it.each(Object.keys(CHECKOUT_ERROR_STATUS) as CheckoutError[])(
+    'enrollment error %s never makes a preparation-only no-charge or fallback promise',
+    async (code) => {
+      mocks.confirm.mockResolvedValue({ ok: false, code });
+      renderStatus();
+      await loaded();
+      await userEvent.click(consent());
+      await userEvent.click(confirmButton());
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        copy.errors[code],
+      );
+      expect(screen.getByRole('alert')).not.toHaveTextContent(
+        /요금은 청구되지|다른 수단을 확인|실제 결제 기능은 아직/,
+      );
+      expect(consent()).not.toBeChecked();
+      expect(confirmButton()).toBeDisabled();
+      expect(mocks.confirm).toHaveBeenCalledTimes(1);
+    },
+  );
+  it('defines a separate enrollment error for every controlled code and scopes preparation-only claims', () => {
+    expect(Object.keys(copy.errors).sort()).toEqual(
+      Object.keys(CHECKOUT_ERROR_STATUS).sort(),
+    );
+    for (const text of [
+      messages.checkout.unknownNotice,
+      messages.checkout.errors.UNAVAILABLE,
+      messages.checkout.errors.CHECKOUT_EXISTS,
+    ]) {
+      expect(text).not.toContain('요금은 청구되지 않아요');
+      expect(text).toContain('이 준비 요청 자체는');
+      expect(text).toContain('이전에 승인한 결제');
+    }
   });
   it('policy conflict clears consent and does not retry a charge', async () => {
     mocks.confirm.mockResolvedValue({ ok: false, code: 'POLICY_CHANGED' });
@@ -232,7 +287,7 @@ describe('first-charge explicit consent UI', () => {
     await loaded();
     await userEvent.click(consent());
     await userEvent.click(confirmButton());
-    await screen.findByText(messages.checkout.errors.POLICY_CHANGED);
+    await screen.findByText(copy.errors.POLICY_CHANGED);
     expect(consent()).not.toBeChecked();
     expect(confirmButton()).toBeDisabled();
     expect(mocks.confirm).toHaveBeenCalledTimes(1);
@@ -369,7 +424,7 @@ describe('first-charge explicit consent UI', () => {
   it('wrong-user status never shows prior public policy or mutation controls', async () => {
     mocks.read.mockResolvedValue({ ok: false, code: 'NOT_FOUND' });
     renderStatus();
-    await screen.findByText(messages.checkout.errors.NOT_FOUND);
+    await screen.findByText(copy.errors.NOT_FOUND);
     expect(screen.queryByText(status.policy.body)).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });

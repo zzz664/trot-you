@@ -24,7 +24,6 @@ import { artistPreviewPath, routes } from '@/config/routes';
 type Action = 'read' | 'confirm' | 'cancel' | 'reconcile';
 export function EnrollmentStatusScreen({ sessionId }: { sessionId: string }) {
   const t = useTranslations('enrollment');
-  const checkout = useTranslations('checkout');
   const ui = useTranslations('ui');
   const router = useRouter();
   const [status, setStatus] = useState<EnrollmentStatus | null>(null);
@@ -202,7 +201,7 @@ export function EnrollmentStatusScreen({ sessionId }: { sessionId: string }) {
         <p>{t('confirmationExplanation')}</p>
       </header>
       {!status && !error && <p role="status">{t('loading')}</p>}
-      {error && <p role="alert">{checkout(`errors.${error}`)}</p>}
+      {error && <p role="alert">{t(`errors.${error}`)}</p>}
       {uncertain && <p className="ui-hint">{t('noBlindRetry')}</p>}
       {status && (
         <>

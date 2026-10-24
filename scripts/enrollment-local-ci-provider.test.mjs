@@ -125,6 +125,17 @@ test('lost Toss issuance does not masquerade as successful receipt', () => {
   );
   assert.equal(state.charges.toss, 0);
 });
+test('Kakao fixture provides distinct opaque device handoffs without changing production protocol', () => {
+  const response = ready(createFixtureState()).body;
+  const mobile = new URL(response.next_redirect_mobile_url);
+  const desktop = new URL(response.next_redirect_pc_url);
+  assert.notEqual(mobile.href, desktop.href);
+  assert.equal(mobile.origin, 'https://online-pay.kakao.com');
+  assert.equal(desktop.origin, mobile.origin);
+  assert.equal(mobile.searchParams.get('device'), 'mobile');
+  assert.equal(desktop.searchParams.get('device'), 'desktop');
+  assert.equal(mobile.searchParams.get('tid'), desktop.searchParams.get('tid'));
+});
 test('Kakao fixture deliberately does not deduplicate merchant IDs', () => {
   const state = createFixtureState();
   ready(state);

@@ -443,7 +443,7 @@ test('lost browser confirmation reply is recovered by status without another pro
   context,
   identity,
   request,
-}) => {
+}, info) => {
   const actor = await identity();
   await completeOnboarding(actor);
   await actor.signIn(context);
@@ -457,14 +457,21 @@ test('lost browser confirmation reply is recovered by status without another pro
     await route.abort('failed');
   });
   await approve(page);
-  await expect(page.getByRole('alert')).toHaveText(
-    messages.checkout.errors.UNAVAILABLE,
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+    copy.errors.UNAVAILABLE,
   );
+  await expect(page.getByRole('main')).not.toContainText(
+    '요금은 청구되지 않아요',
+  );
+  await expect(page.getByRole('main')).not.toContainText('다른 수단을 확인');
   expect(snapshot(actor).payments).toBe(1);
+  await screenshot(page, info, 'enrollment-browser-reply-lost-uncertain');
   await page.getByRole('button', { name: copy.refresh, exact: true }).click();
   await expect(
     page.getByText(copy.statuses.succeeded, { exact: true }),
   ).toBeVisible();
+  await screenshot(page, info, 'enrollment-browser-reply-lost-recovered');
+  expect(snapshot(actor).payments).toBe(1);
   expect(posts).toBe(1);
   expect(
     (await (await request.get(`${providerOrigin}/__fixture/calls`)).json())

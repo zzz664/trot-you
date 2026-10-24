@@ -3,6 +3,8 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 const config: NextConfig = {
   poweredByHeader: false,
+  // Keep development-only tooling from obscuring actual UI/CI screenshots.
+  devIndicators: false,
   reactStrictMode: true,
   // Authorization callbacks contain single-use provider query tokens. Never
   // print incoming URLs, server arguments or browser logs in development/CI.

@@ -25,7 +25,6 @@ export function EnrollmentLauncher({
   onStart: () => void;
 }) {
   const t = useTranslations('enrollment');
-  const checkout = useTranslations('checkout');
   const router = useRouter();
   const [result, setResult] = useState<EnrollmentStart | null>(null);
   const [error, setError] = useState<CheckoutError | null>(null);
@@ -141,7 +140,7 @@ export function EnrollmentLauncher({
         </Button>
       )}
       {opened && <p role="status">{t('opened')}</p>}
-      {error && <p role="alert">{checkout(`errors.${error}`)}</p>}
+      {error && <p role="alert">{t(`errors.${error}`)}</p>}
       {attempted && (
         <>
           <p className="ui-hint">{t('noBlindRetry')}</p>

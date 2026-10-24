@@ -199,8 +199,10 @@ export function fixtureResponse(state, request) {
       ? { lost: true }
       : json({
           tid,
-          next_redirect_mobile_url: `https://online-pay.kakao.com/ci-enrollment?tid=${tid}`,
-          next_redirect_pc_url: `https://online-pay.kakao.com/ci-enrollment?tid=${tid}`,
+          // Fixture-only marker distinguishes opaque provider URLs for E2E.
+          // Production passes returned URLs unchanged and requires no device query.
+          next_redirect_mobile_url: `https://online-pay.kakao.com/ci-enrollment?tid=${tid}&device=mobile`,
+          next_redirect_pc_url: `https://online-pay.kakao.com/ci-enrollment?tid=${tid}&device=desktop`,
         });
   }
   const order = state.kakaoOrders.get(body.tid);
