@@ -1,0 +1,78 @@
+import type { ReconciliationSnapshot } from '@/server/services/reconciliation/model';
+import type { VerifiedInitialCharge } from '@/server/adapters/payment/enrollment';
+import type { VerifiedRefund } from '@/server/adapters/payment/refund';
+
+export const reconciliationIds = {
+  case: '17171717-1717-4717-8717-171717171710',
+  target: '17171717-1717-4717-8717-171717171711',
+  subscription: '17171717-1717-4717-8717-171717171712',
+  customer: '17171717-1717-4717-8717-171717171713',
+  lease: '17171717-1717-4717-8717-171717171714',
+  evidence: '17171717-1717-4717-8717-171717171715',
+  event: '17171717-1717-4717-8717-171717171716',
+  other: '17171717-1717-4717-8717-171717171717',
+  third: '17171717-1717-4717-8717-171717171718',
+  fourth: '17171717-1717-4717-8717-171717171719',
+};
+export const reconciliationSnapshot: ReconciliationSnapshot = {
+  id: reconciliationIds.case,
+  kind: 'renewal',
+  target_id: reconciliationIds.target,
+  subscription_id: reconciliationIds.subscription,
+  provider: 'toss',
+  environment: 'test',
+  merchant_account: 'fictional-mid',
+  customer_ref: reconciliationIds.customer,
+  order_id: reconciliationIds.target,
+  amount_krw: 1000,
+  currency: 'KRW',
+  provider_payment_id: 'fictional-payment',
+  provider_charge_action_id: null,
+  original_amount_krw: null,
+  refunded_before_krw: null,
+  tax_basis: 'taxable_krw',
+  authorized_at: null,
+  operation_started_at: '2026-10-24T12:00:00.400Z',
+  state: 'pending',
+  reason: null,
+  dispatch: false,
+  lease_token: null,
+  query_attempts: 0,
+  payment_event_id: null,
+};
+export const reconciliationCharge: VerifiedInitialCharge = {
+  customerRef: reconciliationIds.customer,
+  orderId: reconciliationIds.target,
+  amountKrw: 1000,
+  providerPaymentId: 'fictional-payment',
+  providerTransactionId: 'fictional-charge-action',
+  approvedAt: '2026-10-24T12:00:01Z',
+  currency: 'KRW',
+  merchantAccount: 'fictional-mid',
+};
+export const reconciliationRefundSnapshot: ReconciliationSnapshot = {
+  ...reconciliationSnapshot,
+  kind: 'refund',
+  provider_charge_action_id: 'fictional-charge-action',
+  original_amount_krw: 1000,
+  refunded_before_krw: 200,
+  amount_krw: 300,
+  authorized_at: '2026-10-24T12:00:00.400Z',
+};
+export const reconciliationRefund: VerifiedRefund = {
+  attemptId: reconciliationIds.target,
+  orderId: reconciliationIds.target,
+  customerRef: reconciliationIds.customer,
+  providerPaymentId: 'fictional-payment',
+  originalProviderTransactionId: 'fictional-charge-action',
+  originalAmountKrw: 1000,
+  amountKrw: 300,
+  refundedBeforeKrw: 200,
+  currency: 'KRW',
+  taxBasis: 'taxable_krw',
+  providerTransactionId: 'fictional-refund-action',
+  refundedAt: '2026-10-24T12:00:01Z',
+  cumulativeRefundedKrw: 500,
+  remainingKrw: 500,
+  merchantAccount: 'fictional-mid',
+};

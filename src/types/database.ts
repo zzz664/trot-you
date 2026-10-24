@@ -1995,6 +1995,49 @@ export type Database = {
           ref_id: string;
         }[];
       };
+      reconciliation_admin_list: {
+        Args: { p_limit?: number; p_page?: number };
+        Returns: Json;
+      };
+      reconciliation_candidates: { Args: { p_limit?: number }; Returns: Json };
+      reconciliation_claim: {
+        Args: { p_case_id: string; p_lease_seconds?: number };
+        Returns: Json;
+      };
+      reconciliation_complete: {
+        Args: {
+          p_amount_krw: number;
+          p_case_id: string;
+          p_currency: string;
+          p_evidence_ref: string;
+          p_lease_token: string;
+          p_occurred_at: string;
+          p_provider_action_id: string;
+          p_provider_payment_id: string;
+        };
+        Returns: Json;
+      };
+      reconciliation_defer: {
+        Args: { p_case_id: string; p_lease_token: string };
+        Returns: Json;
+      };
+      reconciliation_enrollment_case: {
+        Args: { p_session_id: string; p_user_id: string };
+        Returns: string;
+      };
+      reconciliation_read: { Args: { p_case_id: string }; Returns: Json };
+      reconciliation_receive_toss: {
+        Args: {
+          p_amount_krw: number;
+          p_environment: string;
+          p_merchant_account: string;
+          p_order_id: string;
+          p_payload_digest: string;
+          p_payment_id: string;
+          p_status: string;
+        };
+        Returns: Json;
+      };
       refund_admin_list: {
         Args: { p_limit?: number; p_page?: number };
         Returns: Json;

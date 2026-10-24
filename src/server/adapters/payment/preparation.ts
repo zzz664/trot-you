@@ -34,6 +34,8 @@ export function parsePreparationEnvironment(env: ServerEnv) {
     // the private CI flags have deliberately been stripped from ServerEnv.
     PAYMENTS_RENEWALS_ENABLED: 'false',
     PAYMENTS_REFUNDS_ENABLED: 'false',
+    PAYMENTS_RECONCILIATION_ENABLED: 'false',
+    RECONCILIATION_CRON_SECRET: undefined,
     RENEWAL_CRON_SECRET: undefined,
     TOSS_BILLING_ENABLED: String(env.TOSS_BILLING_ENABLED),
     KAKAOPAY_SUBSCRIPTION_ENABLED: String(env.KAKAOPAY_SUBSCRIPTION_ENABLED),

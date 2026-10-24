@@ -7,6 +7,7 @@ export default defineConfig({
     '**/enrollment/**',
     '**/renewal/**',
     '**/cancellation/**',
+    '**/reconciliation/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

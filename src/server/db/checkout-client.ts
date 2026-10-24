@@ -6,7 +6,9 @@ import type { Database } from '@/types/database';
 
 // Trusted capability only for private intent RPCs. This does not authenticate
 // a user: HTTP/page boundaries verify the actor separately with the actor client.
-export function createCheckoutServiceClient() {
+export function createCheckoutServiceClient(
+  requestTimeoutMs = CHECKOUT_REQUEST_TIMEOUT_MS,
+) {
   const parsed = getServerEnv();
   if (
     !parsed.ok ||
@@ -25,7 +27,7 @@ export function createCheckoutServiceClient() {
       },
       global: {
         fetch: (input, init) => {
-          const timeout = AbortSignal.timeout(CHECKOUT_REQUEST_TIMEOUT_MS);
+          const timeout = AbortSignal.timeout(requestTimeoutMs);
           return fetch(input, {
             ...init,
             cache: 'no-store',

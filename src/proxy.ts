@@ -25,7 +25,9 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Static literal required by Next.js. Auth handlers own their cookie writes.
+  // Exact machine endpoints own bearer/config checks and private no-store
+  // responses. Skip unrelated cookie refresh to preserve the webhook deadline.
   matcher: [
-    '/((?!_next/static|_next/image|api/auth|api/onboarding|api/checkout|favicon.ico|ui-preview|sw\\.js$|offline\\.html$|manifest\\.webmanifest$|icons/).*)',
+    '/((?!_next/static|_next/image|api/auth|api/onboarding|api/checkout|api/cron/(?:charge-renewals|reconcile-payments)/?$|api/webhooks/payment/toss/?$|favicon.ico|ui-preview|sw\\.js$|offline\\.html$|manifest\\.webmanifest$|icons/).*)',
   ],
 };

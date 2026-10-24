@@ -1,5 +1,6 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
+import { createInitialPaymentRecovery } from '@/server/reconciliation/enrollment';
 import { getServerEnv } from '@/config/env.server';
 import type { CheckoutProvider } from '@/config/checkout';
 import { requireIntegrationConfiguration } from '@/server/configuration';
@@ -47,6 +48,7 @@ export function createEnrollmentDependencies(): EnrollmentDependencies | null {
       return merchant ? { environment: config.data.mode, merchant } : null;
     },
     prepareToss: (identity) => prepareTossBillingAuth(env, identity),
+    recovery: createInitialPaymentRecovery(env, client, transport),
     evidenceRef: () => randomUUID(),
     now: () => new Date(),
   };

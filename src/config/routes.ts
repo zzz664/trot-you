@@ -22,6 +22,9 @@ export const routes = {
   enrollmentStatus: '/api/checkout/enrollment/status',
   enrollmentComplete: '/checkout/complete',
   chargeRenewals: '/api/cron/charge-renewals',
+  reconcilePayments: '/api/cron/reconcile-payments',
+  tossPaymentWebhook: '/api/webhooks/payment/toss',
+  adminReconciliation: '/admin/reconciliation',
   subscriptions: '/me/subscriptions',
   subscriptionStatus: '/api/subscriptions/status',
   subscriptionCancel: '/api/subscriptions/cancel',
@@ -75,4 +78,10 @@ export function subscriptionListPath(page: number) {
 
 export function adminRefundListPath(page: number) {
   return page > 1 ? `${routes.adminRefunds}?page=${page}` : routes.adminRefunds;
+}
+
+export function adminReconciliationPath(page: number) {
+  return page > 1
+    ? `${routes.adminReconciliation}?page=${page}`
+    : routes.adminReconciliation;
 }

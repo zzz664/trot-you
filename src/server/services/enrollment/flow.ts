@@ -50,6 +50,12 @@ export type EnrollmentDependencies = {
   ): PreparationResult<TossBillingAuthPreparation>;
   evidenceRef(): string;
   now(): Date;
+  recovery?: {
+    recover(
+      actorId: string,
+      sessionId: string,
+    ): Promise<EnrollmentResult<null>>;
+  };
 };
 const unavailable: EnrollmentResult<never> = { ok: false, code: 'UNAVAILABLE' };
 const forbidden: EnrollmentResult<never> = { ok: false, code: 'FORBIDDEN' };
@@ -499,43 +505,28 @@ export async function reconcileEnrollment(
     const read = await deps.db.read(actor, parsed.data.sessionId);
     if (!read.ok) return read;
     const row = read.data;
+    if (
+      row.session_id !== parsed.data.sessionId ||
+      row.user_id !== actor.actorId
+    )
+      return unavailable;
     if (!configured(deps, row))
       return { ok: false, code: 'PROVIDER_NOT_READY' };
     if (!publicEnrollment(row).canReconcile)
       return { ok: true, data: publicEnrollment(row) };
-    const identity = {
-      customerRef: row.customer_ref,
-      orderId: row.order_id,
-      amountKrw: row.initial_price_krw,
-    };
-    const verified =
-      row.provider === 'toss'
-        ? await deps.toss.query(identity)
-        : row.tid
-          ? await deps.kakao.query({ ...identity, tid: row.tid })
-          : null;
-    // A lookup rejection/not-found is not proof that the previous charge failed.
-    // Reconciliation never calls ready/exchange/charge/approve or rotates a key.
-    if (!verified?.ok || !validPayment(row, verified.data))
-      return { ok: true, data: publicEnrollment(row) };
-    if (row.provider === 'kakaopay' && !row.credential_ciphertext)
-      return projection(
-        await deps.db.recordReconciliation(
-          actor.actorId,
-          row.session_id,
-          verified.data,
-          deps.evidenceRef(),
-        ),
-      );
-    return projection(
-      await deps.db.finalize(
-        actor.actorId,
-        row.session_id,
-        verified.data,
-        deps.evidenceRef(),
-        null,
-      ),
-    );
+    if (!deps.recovery) return unavailable;
+    const recovered = await deps.recovery.recover(row.user_id, row.session_id);
+    if (!recovered.ok) return recovered;
+    // The same bounded case/lease used by the worker owns query and settlement.
+    // Refresh the actor-bound projection; never expose private recovery facts.
+    const refreshed = await deps.db.read(actor, row.session_id);
+    if (!refreshed.ok) return refreshed;
+    if (
+      refreshed.data.session_id !== row.session_id ||
+      refreshed.data.user_id !== actor.actorId
+    )
+      return unavailable;
+    return projection(refreshed);
   } catch {
     return unavailable;
   }

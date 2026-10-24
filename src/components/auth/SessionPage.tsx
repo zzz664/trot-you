@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { InstallStatusCard } from '@/components/onboarding/InstallStatusCard';
 import { SubscriptionEntry } from '@/components/subscription/SubscriptionEntry';
 import { RefundEntry } from '@/components/admin/refunds/RefundEntry';
+import { ReconciliationEntry } from '@/components/admin/reconciliation/ReconciliationEntry';
 import { ArtistCatalogEntry } from '@/components/artists/ArtistCatalogEntry';
 import { AuthForm } from './AuthForm';
 import { Card } from '@/components/ui/Card';
@@ -40,7 +41,10 @@ export async function SessionPage({ path }: { path: string }) {
       )}
       <SubscriptionEntry />
       {path === routes.admin && state.profile.role === 'admin' && (
-        <RefundEntry />
+        <>
+          <RefundEntry />
+          <ReconciliationEntry />
+        </>
       )}
       <Card title={t('sessionTitle')}>
         <p>{t('sessionDescription')}</p>
