@@ -1374,6 +1374,94 @@ export type Database = {
         };
         Returns: undefined;
       };
+      notification_capabilities: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          alimtalk_configured: boolean;
+          delivery_implemented: boolean;
+          device_receipt_supported: boolean;
+          webpush_configured: boolean;
+        }[];
+      };
+      notification_claim: {
+        Args: { p_job_id: string };
+        Returns: {
+          auth: string;
+          endpoint: string;
+          job_id: string;
+          lease_expires_at: string;
+          lease_token: string;
+          p256dh: string;
+          route_id: string;
+          route_kind: string;
+          source_id: string;
+          source_kind: string;
+        }[];
+      };
+      notification_complete: {
+        Args: {
+          p_evidence_ref: string;
+          p_job_id: string;
+          p_outcome: string;
+          p_token: string;
+        };
+        Returns: string;
+      };
+      notification_enqueue: {
+        Args: { p_source_id: string; p_source_kind: string };
+        Returns: number;
+      };
+      notification_get_preferences: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          billing: boolean;
+          new_message: boolean;
+          schedule: boolean;
+          webpush_enabled: boolean;
+        }[];
+      };
+      notification_list_due: {
+        Args: { p_limit?: number };
+        Returns: {
+          id: string;
+        }[];
+      };
+      notification_list_uncertain: {
+        Args: {
+          p_after_job_id?: string;
+          p_after_lease_expires_at?: string;
+          p_limit?: number;
+        };
+        Returns: {
+          cancellation_requested_at: string;
+          job_id: string;
+          lease_expires_at: string;
+          lease_token: string;
+        }[];
+      };
+      notification_register_device: {
+        Args: {
+          p_actor_id: string;
+          p_auth: string;
+          p_consent_version: string;
+          p_endpoint: string;
+          p_p256dh: string;
+        };
+        Returns: string;
+      };
+      notification_revoke_device: {
+        Args: { p_actor_id: string; p_device_id: string };
+        Returns: undefined;
+      };
+      notification_set_preferences: {
+        Args: {
+          p_billing: boolean;
+          p_new_message: boolean;
+          p_schedule: boolean;
+          p_webpush_enabled: boolean;
+        };
+        Returns: undefined;
+      };
       point_admin_adjust: {
         Args: {
           p_amount: number;

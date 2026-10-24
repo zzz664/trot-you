@@ -144,6 +144,7 @@ export const settingDecisions = {
   'moderation.forbidden_patterns': 'moderation-rules-unset',
   'moderation.profanity_words': 'moderation-word-list-unset',
   'notification.batch_size': 'delivery-capacity-unverified',
+  'notification.retry_max': 'notification-retry-and-lease-policy-unapproved',
 } as const satisfies Partial<Record<SettingKey, string>>;
 
 export const unresolvedSettingDecisions = Object.freeze([
@@ -164,6 +165,11 @@ export const unresolvedSettingDecisions = Object.freeze([
   'moderation-rules-unset',
   'moderation-word-list-unset',
   'delivery-capacity-unverified',
+  'notification-consent-version-unapproved',
+  'notification-retry-and-lease-policy-unapproved',
+  'notification-schedule-lead-policy-unapproved',
+  'webpush-provider-origin-validation-unimplemented',
+  'alimtalk-provider-templates-and-phone-consent-unset',
   'rate-limit-values-unset',
   'media-upload-byte-limits-unset',
   'public-support-and-legal-copy-unset',
