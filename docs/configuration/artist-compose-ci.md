@@ -35,9 +35,15 @@ The UI matrix covers normal/large/xlarge text scales at 360px and 1280px and
 captures name validation, text preview, saved draft, photo preparation, saved photo, recording
 disclosure, active/finished recording, video authoring/file preparation and the
 actual artist menu reached by navigation.
+At every scale and width, actual Back/Forward restoration also exercises a
+temporarily unavailable context read: the cleared editor and visible reload
+control are captured, reload is explicitly clicked, and the real API restores
+the exact saved URL, body and draft row before a second recovery screenshot.
 Additional screenshots cover protected media, the unsaved-change dialog, actual
 Next/First links in a 51-assigned-artist menu, and the foreign-owned-draft error
 recovery link back to the artist menu (narrow/xlarge).
+The dedicated suite contains 37 cases and 86 planned ordinary screenshots; the
+keyless composer case remains in the generic suite.
 Screenshots require normal visual inspection after actual CI execution. A passed
 `--list`, fixture test, typecheck or build is not a browser/visual pass.
 

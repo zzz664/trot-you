@@ -126,3 +126,24 @@ parser boundary and existing security policies were not changed. Actual CI for
 these corrections remains pending; prior screenshot review cannot establish that
 those runtime fixes pass. The earlier Docker bind failure and real-device capture
 limitations remain distinct from these source corrections.
+
+## Corrected runtime verification and final visual coverage
+
+Run `40137039777`, exact remote head
+`d6f24e366bc7cd2c1858334bafa1dbbb1d5e78ed` and tree
+`1867a668ff3c88dbbeacb2d6fcabd956efc54b89`, passed **all 37 compose browser
+cases**, including the three previously failing recording-upload, completed-cancel
+and Back/Forward restoration flows. All 12 jobs are green: 4,680 unit tests, 114 fixture checks, 2,960 pgTAP
+assertions twice, 244 independent-session checks, zero generated-type drift and
+369 browser cases (including 37 compose). Normal review of all 74 composer and
+299 existing screenshots found no new layout blocker. These results are for the
+exact application head above, not an unexecuted later test-only checkpoint.
+
+The final test-only coverage extension adds no application/schema behavior. The
+same six-scale matrix now captures the new restoration-read failure/reload view,
+explicitly clicks reload, and verifies the real API restores the exact saved URL,
+body and draft row. This keeps 37 cases and raises the planned ordinary screenshot
+total from 74 to **86**. No successful draft data is synthesized for recovery.
+Local aggregate checks and all 17 fixture/discovery guards pass; execution and
+normal visual review of those 12 additional screenshots require this checkpoint's
+actual CI. No further feature scope is included in this coverage checkpoint.

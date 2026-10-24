@@ -822,6 +822,63 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       await button(page, copy.save).click();
       await expect(page.getByText(copy.saved, { exact: true })).toBeVisible();
       await screenshot(page, info, `saved-text-${scale}-${width}`);
+      const saved = inspectDrafts(world)[0]!;
+      const savedPath = artistComposePath(world.artist.slug, saved.id);
+      expect(saved.body).toBe('허구 인사: {이름}');
+      await expect(page).toHaveURL(savedPath);
+      await page.goBack();
+      await expect(page).toHaveURL(routes.artist);
+
+      // Re-enter the cached route through real history, but make its fresh
+      // context read temporarily unavailable. Never synthesize a saved draft.
+      const contextRoute = `**${endpoint(world)}`;
+      const failedReads: unknown[] = [];
+      await page.route(contextRoute, async (route) => {
+        if (route.request().method() !== 'POST') return route.continue();
+        failedReads.push(route.request().postDataJSON());
+        await route.fulfill({
+          status: 503,
+          headers: { 'cache-control': 'no-store' },
+          json: { ok: false, code: 'UNAVAILABLE' },
+        });
+      });
+      await page.goForward();
+      await expect(page).toHaveURL(savedPath);
+      await expect(page.locator('html')).toHaveAttribute(
+        'data-font-scale',
+        scale,
+      );
+      await expect(page.getByRole('alert')).toHaveText(copy.errors.UNAVAILABLE);
+      await expect(textInput(page)).toHaveCount(0);
+      await expect(page.locator('[data-message-id]')).toHaveCount(0);
+      await expect(button(page, copy.reload)).toBeEnabled();
+      expect(failedReads.length).toBeGreaterThan(0);
+      for (const read of failedReads)
+        expect(read).toEqual({ messageId: saved.id });
+      expect(inspectDrafts(world)).toEqual([saved]);
+      await screenshot(page, info, `restore-read-error-${scale}-${width}`);
+
+      await page.unroute(contextRoute);
+      const reloaded = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === endpoint(world) &&
+          response.request().method() === 'POST',
+      );
+      await button(page, copy.reload).click();
+      const restored = await reloaded;
+      expect(restored.status()).toBe(200);
+      expect(restored.request().postDataJSON()).toEqual({
+        messageId: saved.id,
+      });
+      await expect(page).toHaveURL(savedPath);
+      await expect(textInput(page)).toHaveValue(saved.body!);
+      await expect(
+        page.locator(`[data-message-id="${saved.id}"]`),
+      ).toBeVisible();
+      await expect(page.getByRole('alert')).toHaveCount(0);
+      await expect(button(page, copy.reload)).toHaveCount(0);
+      expect(inspectDrafts(world)).toEqual([saved]);
+      await screenshot(page, info, `restore-read-recovered-${scale}-${width}`);
       await button(page, copy.new).click();
       await button(page, copy.kinds.photo).click();
       await saveFromUi(page, '허구 사진 안내');
