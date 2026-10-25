@@ -233,7 +233,7 @@ async function fixtures(db) {
   const other = uuid();
   const artist = uuid();
   await db.query(`insert into auth.users(id,email,raw_user_meta_data) values('${admin}','${admin}@example.invalid','{}'),('${other}','${other}@example.invalid','{}');
-    update public.profiles set role='admin',onboarding_completed_at=now() where id in('${admin}','${other}');
+    update public.profiles set role='admin',call_name='가상일정팬',onboarding_completed_at=clock_timestamp() where id in('${admin}','${other}');
     insert into public.artists(id,slug,name,grade,status) values('${artist}','schedule-race-${artist}','Fictional schedule race artist','B','active');`);
   const event = JSON.parse(
     await db.query(`begin; ${save(admin, artist)} commit;`),

@@ -17,7 +17,7 @@ select ok((select bool_and(not has_function_privilege(r,oid,'EXECUTE')) from pg_
 
 insert into auth.users(id,email,raw_user_meta_data)
 select ('af100000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'schedule-management-'||n||'@example.invalid','{}'::jsonb from generate_series(1,6)n;
-update public.profiles set onboarding_completed_at=now() where id::text like 'af100000-%';
+update public.profiles set call_name='가상일정팬',onboarding_completed_at=clock_timestamp() where id::text like 'af100000-%';
 update public.profiles set role='admin' where id in('af100000-0000-4000-8000-000000000001','af100000-0000-4000-8000-000000000002');
 update public.profiles set role='artist' where id='af100000-0000-4000-8000-000000000004';
 update public.profiles set role='admin',is_restricted=true where id='af100000-0000-4000-8000-000000000005';

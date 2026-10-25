@@ -81,7 +81,7 @@ try {
   psql(`insert into auth.users(id,email,raw_user_meta_data) values
     ('af800000-0000-4000-8000-000000000001','schedule-upgrade-admin@example.invalid','{}'),
     ('af800000-0000-4000-8000-000000000002','schedule-upgrade-fan@example.invalid','{}');
-    update public.profiles set onboarding_completed_at=now() where id::text like 'af800000-%';
+    update public.profiles set call_name='가상일정팬',onboarding_completed_at=clock_timestamp() where id::text like 'af800000-%';
     update public.profiles set role='admin' where id='af800000-0000-4000-8000-000000000001';
     insert into public.artists(id,slug,name,grade,status) values
     ('af800000-0000-4000-8000-000000000003','schedule-upgrade-artist','Fictional upgrade artist','B','active');
