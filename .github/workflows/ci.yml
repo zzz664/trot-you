@@ -53,6 +53,8 @@ jobs:
       - run: npm run test:db:webpush-concurrency
       - run: npm run test:db:billing-notice-concurrency
       - run: npm run test:db:admin-artist-concurrency
+      - run: npm run test:db:admin-settings-concurrency
+      - run: node scripts/test-admin-settings-upgrade.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()

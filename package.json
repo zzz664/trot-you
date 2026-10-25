@@ -75,7 +75,8 @@
     "test:e2e:billing-notices": "playwright test --config playwright.billing-notices.config.ts",
     "test:db:admin-artist-concurrency": "node scripts/test-admin-artist-concurrency.mjs",
     "test:admin-artists-fixture": "node --test scripts/admin-artists-local-config.test.mjs",
-    "test:e2e:admin-artists": "playwright test --config playwright.admin-artists.config.ts"
+    "test:e2e:admin-artists": "playwright test --config playwright.admin-artists.config.ts",
+    "test:db:admin-settings-concurrency": "node scripts/test-admin-settings-concurrency.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",
