@@ -40,7 +40,13 @@ const snapshot = () =>
  'artists',(select jsonb_agg(to_jsonb(a) order by a.id) from public.artists a),
  'members',(select jsonb_agg(to_jsonb(m) order by m.artist_id,m.user_id) from public.artist_members m),
  'schedules',(select jsonb_agg(to_jsonb(s) order by s.id) from public.schedules s),
- 'settings',(select jsonb_agg(to_jsonb(s) order by s.key) from public.app_settings s),
+ 'settings',jsonb_build_object(
+   'state',(select jsonb_agg(to_jsonb(s) order by s.group_key) from private.admin_settings_state s),
+   'display',(select jsonb_agg(to_jsonb(s) order by s.singleton) from private.admin_display_settings s),
+   'audit',(select jsonb_agg(to_jsonb(s) order by s.created_at,s.id) from private.admin_settings_audit s),
+   'operations',(select jsonb_agg(to_jsonb(s) order by s.actor_id,s.operation_id) from private.admin_settings_operations s),
+   'message',(select jsonb_agg(to_jsonb(s) order by s.singleton) from private.message_policy s),
+   'community',(select jsonb_agg(to_jsonb(s) order by s.singleton) from private.community_policy s)),
  'policies',(select jsonb_agg(to_jsonb(p) order by p.artist_id,p.month) from private.settlement_policies p),
  'notifications',(select jsonb_agg(to_jsonb(n) order by n.id) from private.notification_jobs n));`),
   );
@@ -92,6 +98,7 @@ try {
     ('b1800000-0000-4000-8000-000000000004','content-upgrade-paused','Fictional paused upgrade artist','B','paused');
     insert into public.artist_members(artist_id,user_id) values
     ('b1800000-0000-4000-8000-000000000003','b1800000-0000-4000-8000-000000000002');
+    insert into private.admin_display_settings(singleton,page_size) values(true,23);
     begin; set local role authenticated; set local "request.jwt.claim.sub"='b1800000-0000-4000-8000-000000000001';
     select public.content_calendar_upsert('b1800000-0000-4000-8000-000000000003','2028-02-29','Before legacy edit','Original example');
     select public.content_calendar_upsert('b1800000-0000-4000-8000-000000000003','2028-02-29',E'  Preserved\\nlegacy topic  ',E'Legacy\\001example');
@@ -100,6 +107,11 @@ try {
     select public.schedule_create('b1800000-0000-4000-8000-000000000003','event','Unchanged public schedule','2028-02-29T10:00:00+09:00');
     commit;`);
   const before = snapshot();
+  assert.equal(before.settings.display[0].page_size, 23);
+  assert.ok(
+    before.settings.audit.length > 0,
+    'Populated settings audit must be included in upgrade preservation.',
+  );
   execFileSync(localCli, ['migration', 'up', '--local'], { stdio: 'inherit' });
   assert.deepEqual(
     snapshot(),
