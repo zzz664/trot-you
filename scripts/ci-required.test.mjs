@@ -117,6 +117,26 @@ test('docs-only may skip DB, but never quality or selector validation', () => {
   }
 });
 
+test('new calendar failures and stale inventories cannot pass the aggregate', () => {
+  const plan = fullPlan();
+  for (const result of ['failure', 'cancelled', 'skipped']) {
+    const needs = results(plan);
+    needs['content-calendar-browser'].result = result;
+    assert.throws(
+      () => validateResults(plan, needs, SHA),
+      /content-calendar-browser: expected success/,
+    );
+  }
+  const missing = results(plan);
+  delete missing['content-calendar-browser'];
+  assert.throws(() => validateResults(plan, missing, SHA), /inventory/);
+  delete plan.jobs['content-calendar-browser'];
+  assert.throws(
+    () => validateResults(plan, results(plan), SHA),
+    /job inventory/,
+  );
+});
+
 test('selected DB failure is not accepted when every browser passed', () => {
   const plan = fullPlan();
   const needs = results(plan);

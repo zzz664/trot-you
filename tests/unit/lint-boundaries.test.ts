@@ -98,4 +98,28 @@ describe('configuration and pure-layer lint boundaries', () => {
       ),
     ).toContain('no-restricted-imports');
   });
+  it.each(['button', 'input', 'a'])(
+    'keeps calendar %s controls inside accessible primitives',
+    async (element) => {
+      expect(
+        await rules(
+          'src/components/content-calendar/Probe.tsx',
+          `export const Probe = () => <${element} />;`,
+        ),
+      ).toContain('no-restricted-syntax');
+    },
+  );
+  it('keeps calendar data and provider I/O outside UI components', async () => {
+    for (const importPath of [
+      '@/server/db/content-calendar',
+      '@/server/adapters/payment/toss',
+    ]) {
+      expect(
+        await rules(
+          'src/components/content-calendar/Probe.tsx',
+          `import value from '${importPath}'; export { value };`,
+        ),
+      ).toContain('no-restricted-imports');
+    }
+  });
 });

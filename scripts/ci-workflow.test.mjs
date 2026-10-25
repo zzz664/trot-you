@@ -36,6 +36,12 @@ const jobs = jobBodies(workflow);
 // The historical hashes stay immutable. Feature33 adds these exact gates;
 // removing only their reviewed insertion blocks must recover every old byte.
 const reviewedAdditions = {
+  quality: [
+    {
+      before: '      - run: npx playwright install --with-deps chromium\n',
+      text: '      - run: npm run test:content-calendar-fixture\n',
+    },
+  ],
   database: [
     {
       before: '      - run: npm run db:types\n',
@@ -182,6 +188,79 @@ describe('CI workflow safety and unchanged regression coverage', () => {
       original.replace('npm run db:lint', 'echo skipped original lint'),
     ])
       assert.throws(() => verifyLegacySteps('database', changed));
+  });
+
+  it('rejects missing, duplicated, relocated or weakened reviewed fixture gates', () => {
+    const original = jobs.quality;
+    const added = reviewedAdditions.quality[0].text;
+    for (const changed of [
+      original.replace(added, ''),
+      original.replace(added, added + added),
+      original
+        .replace(added, '')
+        .replace('      - run: npm ci\n', `      - run: npm ci\n${added}`),
+      original.replace(
+        'npm run test:content-calendar-fixture',
+        'echo skipped calendar fixtures',
+      ),
+      original.replace('npm run check:all', 'echo skipped original quality'),
+    ])
+      assert.throws(() => verifyLegacySteps('quality', changed));
+  });
+
+  it('runs the registered calendar suite in its isolated Auth/database fixture job', () => {
+    const calendar = jobs['content-calendar-browser'];
+    const required = [
+      'run: node scripts/auth-local-ci.mjs configure',
+      'run: npm run db:start',
+      'run: npm run db:reset',
+      'run: node scripts/auth-local-ci.mjs environment',
+      'run: node scripts/content-calendar-local-ci.mjs environment',
+      'run: npm run build',
+      'run: npx playwright install --with-deps chromium',
+      'run: npm run test:e2e:content-calendar',
+      'uses: actions/upload-artifact@v4',
+      'name: content-calendar-browser-results',
+      'run: npm run db:stop -- --no-backup',
+    ];
+    let previous = -1;
+    for (const gate of required) {
+      const index = calendar.indexOf(gate);
+      assert.ok(
+        index > previous,
+        `Calendar gate missing or out of order: ${gate}`,
+      );
+      previous = index;
+    }
+    assert.match(
+      calendar,
+      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
+    );
+    assert.match(
+      calendar,
+      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
+    );
+    assert.match(calendar, /timeout-minutes: 25/);
+    const config = readFileSync(
+      new URL('../playwright.config.ts', import.meta.url),
+      'utf8',
+    );
+    assert.ok(config.includes("'**/content-calendar/**'"));
+    const scripts = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    ).scripts;
+    assert.equal(
+      scripts['test:e2e:content-calendar'],
+      'playwright test --config playwright.content-calendar.config.ts',
+    );
+    assert.equal(
+      scripts['test:content-calendar-fixture'],
+      'node --test scripts/content-calendar-local-config.test.mjs',
+    );
+    assert.equal(
+      scripts['test:db:content-calendar-concurrency'],
+      'node scripts/test-content-calendar-concurrency.mjs',
+    );
   });
 
   it('retains both pgTAP passes, all concurrency suites, and populated upgrades', () => {

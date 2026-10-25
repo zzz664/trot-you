@@ -20,6 +20,7 @@ export const BROWSER_JOBS = Object.freeze([
   'admin-subscriptions-browser',
   'schedules-browser',
   'schedule-notices-browser',
+  'content-calendar-browser',
 ]);
 
 export const CONDITIONAL_JOBS = Object.freeze(['database', ...BROWSER_JOBS]);
@@ -50,7 +51,14 @@ const payment = browsers(
   'billing-notices',
   'admin-subscriptions',
 );
-const schedules = browsers('auth', 'schedules', 'schedule-notices');
+// Calendar consumes shared schedule date/navigation helpers, activity and artist
+// choices. New calendar paths remain unknown/full until separately reviewed.
+const schedules = browsers(
+  'auth',
+  'schedules',
+  'schedule-notices',
+  'content-calendar',
+);
 const notification = browsers(
   'auth',
   'webpush',
@@ -179,7 +187,7 @@ export const FEATURE_RULES = Object.freeze([
   },
   {
     id: 'artist-reply-activity',
-    jobs: browsers('auth', 'activity'),
+    jobs: browsers('auth', 'activity', 'content-calendar'),
     patterns: [
       /^src\/(?:components|server(?:\/services)?)\/artist-reply-activity\//,
       /^src\/(?:client|config)\/artist-reply-activity\.ts$/,
@@ -192,7 +200,7 @@ export const FEATURE_RULES = Object.freeze([
   },
   {
     id: 'admin-artists-and-access',
-    jobs: [...communication, 'schedules-browser'],
+    jobs: [...communication, 'schedules-browser', 'content-calendar-browser'],
     patterns: [
       /^src\/(?:components|server(?:\/services)?)\/admin-artists\//,
       /^src\/(?:client|config)\/admin-artists\.ts$/,

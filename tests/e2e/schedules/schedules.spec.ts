@@ -1452,20 +1452,27 @@ test('accepted create with lost response cannot replay an old administrator oper
   // Change only this fictional local session's cookies. The mounted page keeps
   // actor A's key; actor B must not inherit or replay A's pending operation.
   await world.other.signIn(context);
-  const denied = page.waitForResponse((response) => {
-    const url = new URL(response.url());
+  const pickerPath = `${routes.adminSchedulesApi}?artists=1&page=1`;
+  const denied = await observeScheduleSave(page, pickerPath, (response) =>
+    failure(response, 403, 'FORBIDDEN'),
+  );
+  const deniedRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
     return (
+      request.method() === 'GET' &&
       url.pathname === routes.adminSchedulesApi &&
       url.searchParams.get('artists') === '1' &&
-      response.status() === 403
+      url.searchParams.get('page') === '1'
     );
   });
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  const denial = await denied;
-  expect(denial.request().headers()[SCHEDULES.actorHeader.toLowerCase()]).toBe(
+  const [, , denial] = await Promise.all([
+    page.evaluate(() => window.dispatchEvent(new Event('focus'))),
+    denied.result,
+    deniedRequest,
+  ]);
+  expect(denial.headers()[SCHEDULES.actorHeader.toLowerCase()]).toBe(
     world.admin.id,
   );
-  await failure(denial, 403, 'FORBIDDEN');
   await expect(main(page).getByRole('alert')).toHaveText(copy.errors.FORBIDDEN);
   await expect(form).toHaveCount(0);
   await expect(button(main(page), copy.retryOperation)).toHaveCount(0);
@@ -1475,20 +1482,17 @@ test('accepted create with lost response cannot replay an old administrator oper
     'admin-account-switch-forbidden-no-old-retry-xlarge-360',
     'xlarge',
   );
-  const restored = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return (
-      url.pathname === routes.adminSchedulesApi &&
-      url.searchParams.get('artists') === '1' &&
-      response.status() === 403
-    );
-  });
-  await page.evaluate(() =>
-    window.dispatchEvent(
-      new PageTransitionEvent('pageshow', { persisted: true }),
-    ),
+  const restored = await observeScheduleSave(page, pickerPath, (response) =>
+    failure(response, 403, 'FORBIDDEN'),
   );
-  await failure(await restored, 403, 'FORBIDDEN');
+  await Promise.all([
+    page.evaluate(() =>
+      window.dispatchEvent(
+        new PageTransitionEvent('pageshow', { persisted: true }),
+      ),
+    ),
+    restored.result,
+  ]);
   await expect(form).toHaveCount(0);
   await failure(
     await context.request.post(adminScheduleApiPath('save'), {
@@ -1500,17 +1504,24 @@ test('accepted create with lost response cannot replay an old administrator oper
   );
   expect(writes).toHaveLength(1);
   await page.unroute(`**${adminScheduleApiPath('save')}`);
-  const fresh = page.waitForResponse((response) => {
-    const url = new URL(response.url());
+  const fresh = await observeScheduleSave(page, pickerPath, async (response) =>
+    adminArtistListSchema.parse(await success(response)),
+  );
+  const freshRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
     return (
+      request.method() === 'GET' &&
       url.pathname === routes.adminSchedulesApi &&
       url.searchParams.get('artists') === '1' &&
-      response.status() === 200
+      url.searchParams.get('page') === '1'
     );
   });
-  await page.reload();
-  const picker = await fresh;
-  expect(picker.request().headers()[SCHEDULES.actorHeader.toLowerCase()]).toBe(
+  const [, , picker] = await Promise.all([
+    page.reload(),
+    fresh.result,
+    freshRequest,
+  ]);
+  expect(picker.headers()[SCHEDULES.actorHeader.toLowerCase()]).toBe(
     world.other.id,
   );
   await expect(page).toHaveURL(adminSchedulePath('new'));
@@ -1605,13 +1616,15 @@ test('same-name artists remain distinct by visible slug and selecting one saves 
     .fill(`${world.month}-27`);
   await form.getByLabel(copy.startTime, { exact: true }).fill('16:00');
   await form.getByRole('checkbox', { name: copy.confirm, exact: true }).check();
-  const response = page.waitForResponse(
-    (response) =>
-      response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === adminScheduleApiPath('save'),
+  const saved = await observeScheduleSave(
+    page,
+    adminScheduleApiPath('save'),
+    async (response) => adminScheduleSchema.parse(await success(response)),
   );
-  await button(form, copy.createSave).click();
-  const created = adminScheduleSchema.parse(await success(await response));
+  const [, created] = await Promise.all([
+    button(form, copy.createSave).click(),
+    saved.result,
+  ]);
   expect(created.artist_id).toBe(two.id);
   expect(created.artist_slug).toBe(two.slug);
   await expect(page).toHaveURL(adminSchedulePath(created.id));
@@ -1791,21 +1804,19 @@ test('page-two artist selection survives uncertain create and actor revalidation
   await expect(
     main(page).getByText(copy.uncertain, { exact: true }),
   ).toBeVisible();
-  const restored = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return (
-      url.pathname === routes.adminSchedulesApi &&
-      url.searchParams.get('artists') === '1' &&
-      url.searchParams.get('page') === '1' &&
-      response.status() === 200
-    );
-  });
-  await page.evaluate(() =>
-    window.dispatchEvent(
-      new PageTransitionEvent('pageshow', { persisted: true }),
-    ),
+  const restored = await observeScheduleSave(
+    page,
+    `${routes.adminSchedulesApi}?artists=1&page=1`,
+    async (response) => adminArtistListSchema.parse(await success(response)),
   );
-  await success(await restored);
+  await Promise.all([
+    page.evaluate(() =>
+      window.dispatchEvent(
+        new PageTransitionEvent('pageshow', { persisted: true }),
+      ),
+    ),
+    restored.result,
+  ]);
   await expect(selected).toBeChecked();
   await expect(selected).toBeDisabled();
   await expect(form.getByLabel(copy.titleLabel, { exact: true })).toHaveValue(

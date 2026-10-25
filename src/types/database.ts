@@ -246,6 +246,7 @@ export type Database = {
           date: string;
           example_text: string | null;
           id: string;
+          revision: number;
           topic: string;
           updated_at: string;
         };
@@ -257,6 +258,7 @@ export type Database = {
           date: string;
           example_text?: string | null;
           id?: string;
+          revision?: number;
           topic: string;
           updated_at?: string;
         };
@@ -267,6 +269,7 @@ export type Database = {
           date?: string;
           example_text?: string | null;
           id?: string;
+          revision?: number;
           topic?: string;
           updated_at?: string;
         };
@@ -1817,6 +1820,32 @@ export type Database = {
       community_update_post: {
         Args: { p_body: string; p_post_id: string; p_title: string };
         Returns: undefined;
+      };
+      content_calendar_admin_delete: {
+        Args: {
+          p_confirmed: boolean;
+          p_entry_id: string;
+          p_expected_revision: number;
+          p_operation_id: string;
+        };
+        Returns: Json;
+      };
+      content_calendar_admin_list: {
+        Args: { p_artist_id: string; p_month: string };
+        Returns: Json;
+      };
+      content_calendar_admin_save: {
+        Args: {
+          p_entry_id?: string;
+          p_expected_revision?: number;
+          p_input?: Json;
+          p_operation_id: string;
+        };
+        Returns: Json;
+      };
+      content_calendar_artist_context: {
+        Args: { p_artist_slug: string; p_month: string };
+        Returns: Json;
       };
       content_calendar_delete: {
         Args: { p_entry_id: string };

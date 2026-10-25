@@ -1,3 +1,4 @@
+import calendarStyles from '@/components/content-calendar/content-calendar.module.css';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { ArtistAccessEntry } from '@/components/admin-artists/AdminArtistsEntry';
@@ -5,6 +6,7 @@ import { AuthForm } from '@/components/auth/AuthForm';
 import { Card } from '@/components/ui/Card';
 import { ComposeErrorScreen } from '@/components/artist-compose-menu/ComposeErrorScreen';
 import {
+  artistContentCalendarPath,
   artistComposeMenuPath,
   artistComposePath,
   routes,
@@ -24,6 +26,7 @@ export default async function ArtistPage({
   const dispatch = await getTranslations('artistDispatch');
   const activity = await getTranslations('artistReplyActivity');
   const account = await getTranslations('adminArtists');
+  const calendar = await getTranslations('contentCalendar');
   return (
     <main className="app-shell">
       <h1>{auth('artistTitle')}</h1>
@@ -48,14 +51,22 @@ export default async function ArtistPage({
           <p>{t('empty')}</p>
         ) : (
           result.data.artists.map((artist) => (
-            <Link
-              key={artist.id}
-              href={artistComposePath(artist.slug)}
-              prefetch={false}
-              className="ui-button ui-button--primary"
-            >
-              {t('compose', { name: artist.name })}
-            </Link>
+            <div key={artist.id} className={calendarStyles.stack}>
+              <Link
+                href={artistComposePath(artist.slug)}
+                prefetch={false}
+                className="ui-button ui-button--primary"
+              >
+                {t('compose', { name: artist.name })}
+              </Link>
+              <Link
+                href={artistContentCalendarPath(artist.slug)}
+                prefetch={false}
+                className="ui-button ui-button--secondary"
+              >
+                {calendar('artistTitle', { name: artist.name })}
+              </Link>
+            </div>
           ))
         )}
         {result.data.nextSlug && (

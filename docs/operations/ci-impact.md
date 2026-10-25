@@ -4,7 +4,7 @@
 
 The `CI` workflow starts for every supported pull request; it has no workflow-level
 path filters. `impact` runs the dependency-free selector, Git-history, aggregate,
-and workflow-contract tests before making a selection. `quality` remains unchanged:
+and workflow-contract tests before making a selection. `quality` retains every original gate:
 lint/format, typecheck, all unit tests, contrast, production build, all local fixture
 checks, and the keyless browser suite still run.
 
@@ -12,11 +12,11 @@ For a code PR targeting `develop`, the complete database job still runs: DB lint
 both consecutive pgTAP passes, all 29 concurrency scripts, all five populated
 upgrades, real generated schema types, typecheck, and committed-type drift checks.
 Only a nonempty change set containing `README.md` and/or Markdown files under
-`docs/` may intentionally skip the database and all 19 isolated feature browsers.
+`docs/` may intentionally skip the database and all 20 isolated feature browsers.
 
 Feature-browser selection is **enabled**, not permanent shadow mode. It applies to
 the entire PR, not merely its newest commit. A localized schedule UI change selects
-3 of 19 feature browsers; a leaf admin-settings change selects 2 of 19. These are
+4 of 20 feature browsers; a leaf admin-settings change selects 2 of 20. These are
 job counts, not measured duration or billing savings.
 
 ## Selection registry
@@ -28,12 +28,12 @@ therefore cannot silently receive no coverage.
 
 | Feature paths                                                                                        | Browser dependency group                                                                      |
 | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Schedules/notices UI, clients, HTTP/services, routes, schedule utilities and tests                   | Auth, schedules, schedule notices                                                             |
+| Schedules/notices UI, clients, HTTP/services, routes, schedule utilities and tests                   | Auth, schedules, schedule notices, content calendar                                           |
 | Web Push/billing-notice UI, clients, HTTP/services, notification services, Web Push worker and tests | Auth, Web Push, billing notices, schedule notices, schedules                                  |
 | Checkout/enrollment/renewal/subscription/refund/reconciliation paths and billing-period utility      | Auth, enrollment, renewal, cancellation, reconciliation, billing notices, admin subscriptions |
 | Media/chat/replies/speech/compose/dispatch paths and message rendering                               | Auth, media, chat, reply, speech, compose, dispatch, activity, admin artists                  |
-| Artist reply activity                                                                                | Auth, activity                                                                                |
-| Admin artist/access management                                                                       | Communication group above, plus schedules                                                     |
+| Artist reply activity                                                                                | Auth, activity, content calendar                                                              |
+| Admin artist/access management                                                                       | Communication group above, plus schedules and content calendar                                |
 | Leaf admin settings                                                                                  | Auth, admin settings                                                                          |
 | Leaf admin subscriptions                                                                             | Auth, admin subscriptions                                                                     |
 
@@ -49,6 +49,10 @@ Examples of deliberate dependency coverage:
   fixtures are used by compose.
 - Renewal extends enrollment Playwright configuration. Enrollment, renewal,
   cancellation, and reconciliation fixtures form a dependency chain.
+- Content calendar reuses schedule date/navigation helpers, artist activity, and
+  admin artist choices. Those groups select the new calendar browser. New
+  content-calendar paths themselves deliberately remain full fallback until
+  their dependency boundary has separately reviewed evidence.
 - Shared session/home entry components are full triggers, even inside an otherwise
   selective feature directory.
 
@@ -127,7 +131,9 @@ merged develop `4b4a9f55de1fb5c61302dcf0fc28d42eae570f65`. Those setup, test, cl
 and artifact steps remain byte-for-byte unchanged after removing only the exact
 reviewed feature33 additions recorded in `ci-workflow.test.mjs`. The new
 content-calendar concurrency and populated-upgrade gates run before official type
-generation; tests reject missing, duplicated, moved or weakened gates. The
+generation, and its fixture checks join the always-on quality job. Tests reject
+missing, duplicated, moved or weakened gates. The isolated calendar browser is
+registered in both the selector inventory and required aggregate. The
 historical baseline is not rewritten to claim these additions existed earlier.
 New suites must be added to the registry, workflow, and aggregate; do not falsely attribute a
 new job to the historical baseline. Deliberate future test-step changes require

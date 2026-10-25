@@ -18,7 +18,7 @@ const has = (paths, ...jobs) => {
 
 describe('conservative dependency registry', () => {
   it('has one stable job inventory and unique, valid dependency groups', () => {
-    assert.equal(BROWSER_JOBS.length, 19);
+    assert.equal(BROWSER_JOBS.length, 20);
     assert.equal(new Set(CONDITIONAL_JOBS).size, CONDITIONAL_JOBS.length);
     const rules = [...FULL_RULES, ...FEATURE_RULES];
     assert.equal(new Set(rules.map(({ id }) => id)).size, rules.length);
@@ -92,6 +92,17 @@ describe('conservative dependency registry', () => {
     '.env.example',
     '.nvmrc',
     'next.config.ts',
+    'src/components/content-calendar/ContentCalendarScreen.tsx',
+    'src/server/content-calendar/http.ts',
+    'src/server/services/content-calendar/read.ts',
+    'src/client/content-calendar.ts',
+    'src/app/admin/content-calendar/page.tsx',
+    'src/app/artist/[slug]/calendar/page.tsx',
+    'src/app/api/artist/[slug]/calendar/route.ts',
+    'tests/unit/content-calendar-ui.test.tsx',
+    'tests/e2e/content-calendar/content-calendar.spec.ts',
+    'scripts/content-calendar-local-ci.mjs',
+    'playwright.content-calendar.config.ts',
     'new-unknown-feature.ts',
     'docs/executable.mjs',
   ]) {
@@ -114,11 +125,11 @@ describe('conservative dependency registry', () => {
       'schedule-notices',
     );
     assert.equal(plan.mode, 'selective');
-    assert.equal(selected(plan).length, 3);
+    assert.equal(selected(plan).length, 4);
     assert.equal(plan.jobs.database, true);
   });
 
-  it('selects two browsers for leaf admin settings instead of all nineteen', () => {
+  it('selects two browsers for leaf admin settings instead of all twenty', () => {
     const plan = has(
       ['src/components/admin-settings/AdminSettingsScreen.tsx'],
       'auth',
@@ -204,6 +215,25 @@ describe('conservative dependency registry', () => {
       );
   });
 
+  it('keeps the new calendar browser attached to all reused feature dependencies', () => {
+    for (const path of [
+      'src/server/services/artist-reply-activity/activity.ts',
+      'src/components/artist-reply-activity/ArtistReplyActivityScreen.tsx',
+      'src/lib/artist-reply-activity.ts',
+      'src/server/services/admin-artists/read.ts',
+      'tests/unit/admin-artists-service.test.ts',
+      'scripts/admin-artists-local-ci.mjs',
+      'src/lib/schedule-navigation.ts',
+      'src/lib/schedule-view.ts',
+      'src/lib/schedule-time.ts',
+      'tests/unit/schedule-view.test.ts',
+      'tests/e2e/schedules/screenshot-capture.ts',
+      'scripts/schedules-local-ci.mjs',
+      'scripts/activity-local-ci.mjs',
+    ])
+      has([path], 'content-calendar');
+  });
+
   it('unions disjoint groups and is independent of path ordering', () => {
     const paths = [
       'src/client/schedules.ts',
@@ -217,7 +247,7 @@ describe('conservative dependency registry', () => {
       'schedule-notices',
       'admin-settings',
     );
-    assert.equal(selected(plan).length, 4);
+    assert.equal(selected(plan).length, 5);
     assert.deepEqual(plan, selectImpact([...paths].reverse()));
   });
 
@@ -225,7 +255,7 @@ describe('conservative dependency registry', () => {
     for (const known of ['docs/readme.md', 'src/client/schedules.ts']) {
       const plan = selectImpact([known, 'src/server/new-feature/index.ts']);
       assert.equal(plan.mode, 'full');
-      assert.equal(selected(plan).length, 19);
+      assert.equal(selected(plan).length, 20);
     }
   });
 
@@ -248,7 +278,7 @@ describe('conservative dependency registry', () => {
     assert.equal(plan.mode, 'full');
     assert.equal(plan.paths, null);
     assert.equal(plan.pathCount, 1500);
-    assert.equal(selected(plan).length, 19);
+    assert.equal(selected(plan).length, 20);
   });
 });
 

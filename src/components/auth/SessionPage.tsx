@@ -1,3 +1,4 @@
+import { ContentCalendarEntry } from '@/components/content-calendar/ContentCalendarEntry';
 import { ScheduleEntry } from '@/components/schedules/ScheduleEntry';
 import { AdminSubscriptionsEntry } from '@/components/admin-subscriptions/AdminSubscriptionsEntry';
 import { AdminSettingsEntry } from '@/components/admin-settings/AdminSettingsEntry';
@@ -25,6 +26,7 @@ export async function SessionPage({ path }: { path: string }) {
   const artistCopy = await getTranslations('adminArtists');
   const settingsCopy = await getTranslations('adminSettings');
   const subscriptionsCopy = await getTranslations('adminSubscriptions');
+  const calendarCopy = await getTranslations('contentCalendar');
   const title =
     path === routes.restricted
       ? 'restrictedTitle'
@@ -76,6 +78,11 @@ export async function SessionPage({ path }: { path: string }) {
             label={subscriptionsCopy('open')}
           />
           <ScheduleEntry admin />
+          <ContentCalendarEntry
+            title={calendarCopy('adminTitle')}
+            description={calendarCopy('adminDescription')}
+            label={calendarCopy('entryOpen')}
+          />
           <RefundEntry />
           <ReconciliationEntry />
         </>
