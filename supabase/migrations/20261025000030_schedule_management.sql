@@ -117,16 +117,19 @@ begin
   foreach key in array array['lat','lng'] loop
     if jsonb_typeof(p_input->key) not in('number','null') then raise exception 'SCHEDULE_INVALID_INPUT' using errcode='22023'; end if;
   end loop;
-  if p_input->>'starts_at' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
-    or (p_input->>'ends_at' is not null and p_input->>'ends_at' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$') then
+  if p_input->>'starts_at' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$'
+    or (p_input->>'ends_at' is not null and p_input->>'ends_at' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$') then
     raise exception 'SCHEDULE_INVALID_INPUT' using errcode='22023'; end if;
   select * into parsed from jsonb_populate_record(null::public.schedules,p_input);
+  -- Transport supports four-digit AD UTC instants only, not PostgreSQL BC
+  -- serialization. Historical AD dates still use real Asia/Seoul timezone rules.
   if parsed.title !~ '[^[:space:]]' or length(parsed.title)>1000 or length(parsed.description)>100000
     or (parsed.place_name is not null and (parsed.place_name !~ '[^[:space:]]' or length(parsed.place_name)>2000))
     or (parsed.address is not null and (parsed.address !~ '[^[:space:]]' or length(parsed.address)>2000))
-    or not isfinite(parsed.starts_at) or parsed.starts_at<(timestamp '0001-01-01' at time zone 'Asia/Seoul')
+    or not isfinite(parsed.starts_at) or parsed.starts_at<timestamptz '0001-01-01 00:00:00+00'
     or parsed.starts_at>=(timestamp '10000-01-01' at time zone 'Asia/Seoul')
     or (parsed.ends_at is not null and (not isfinite(parsed.ends_at) or parsed.ends_at<=parsed.starts_at
+      or parsed.ends_at<timestamptz '0001-01-01 00:00:00+00'
       or parsed.ends_at>(timestamp '10000-01-01' at time zone 'Asia/Seoul')))
     or (parsed.lat is null)<>(parsed.lng is null)
     or (parsed.lat is not null and not (parsed.lat between -90 and 90 and parsed.lng between -180 and 180)) then

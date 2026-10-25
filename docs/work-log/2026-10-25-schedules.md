@@ -19,3 +19,22 @@ Implements private-spec feature31: fan KST month/list/detail schedules, browser-
 Database syntax/fixture/static checks are recorded at each immutable checkpoint. Actual PostgreSQL/pgTAP, race and upgrade execution requires the CI-managed disposable local Supabase instance; Docker is unavailable in the editing executor. The already-established local browser socket restriction is not retried or escalated. CI browser evidence and all three font scales at360/1280 remain required before completion.
 
 No real account, recipient, payment, private location, provider request, policy approval, deployment or scheduler is exercised. Test source rows are fictional local fixtures. Private source documents are not copied into this repository.
+
+## Application integration and review
+
+- Added server-only validation/services/database adapters and bounded same-origin JSON transport. No missing configuration is converted into fake data/success.
+- Added accessible fan month/list/detail views, cursor continuation and explicit partial-calendar notice, current-access filter, and public-coordinate map links. Added admin month paging, create/edit/delete, optimistic conflict preservation, and exact-payload retry after uncertain writes.
+- Interruption review found that a child editor's operation ref would be lost on tab revalidation. Pending operations now live in the mounted screen, survive same-actor interruptions, and clear on authority loss. All screen requests bind the original mount actor to fresh authentication via a same-origin header; a different signed-in administrator cannot replay an old actor's pending create as a new operation. The header never grants authority.
+- Historical calendar review found fixed+09 arithmetic disagreed with the inherited `Asia/Seoul` SQL contract. Replaced it with IANA conversion; shared fixtures cover local mean time, the1908 midnight gap,1988 DST gaps/folds, modern/leap dates and extreme serialization boundaries in both JS and actual pgTAP. No arbitrary business-era cutoff was added. Nonexistent form times reject; ambiguous times choose the later instant consistently with PostgreSQL.
+- The first real DB checkpoint CI failed on a fictional completed-profile fixture without its required calling name. Corrected all new pgTAP/race/upgrade identity fixtures, preserving production constraints. Browser fixture subscription creation timestamps were also placed before the first/current periods. The initial failed run did not reach schema generation and is not reported as a DB pass.
+- The shared admin introduction's old prototype wording was left unchanged; schedule entry copy is feature-specific.
+
+Further exact-head check results, generated schema hash and actual browser/pixel evidence are recorded after CI, not inferred from the local source review.
+
+## Verified application checkpoint
+
+- Imported the official `database-types` artifact12594082199 from CI run40179057847, exact remote head3c2c7ad6fb347bb6d976ede8984d6ef87e93e4e5. The88,154-byte file is byte-identical (SHA256 `28c47de1bec69e70ba3d130da79a49a8b56b43406dda2f95aa47a47d7339f9ee`). No generated declaration was handwritten.
+- That DB-first checkpoint passed3890 pgTAP assertions twice,361 race/rollback scenarios and3 populated upgrades. Its new schedule portion was95 pgTAP,14 races and1 upgrade. All18 other jobs passed; only the intentional committed-generated-schema drift gate failed. This does **not** claim coverage of the later timezone/microsecond assertions.
+- Full local `npm run check:all` passed: lint/Prettier, actual generated-schema typecheck,7027 unit tests,10 contrast pairs, optimized Next build and PWA generation. All321 local fixture guard tests passed separately.
+- New browser coverage is22 isolated schedules tests plus7 keyless tests, including both3-font×360/1280 matrices, offscreen target captures, actual settled URLs/headings, repeat/interrupted operations, authority changes and account-switch retry protection. These tests await the next exact-head CI run; no local browser/socket retry was attempted.
+- Precise overlap comparison retains PostgreSQL microseconds rather than collapsing sub-millisecond events; API/SQL reject more than6 fractional digits instead of silently rounding them. Original timestamp strings remain unchanged for cursor and non-time edits.

@@ -909,6 +909,7 @@ export type Database = {
           lat: number | null;
           lng: number | null;
           place_name: string | null;
+          revision: number;
           starts_at: string;
           status: Database['public']['Enums']['schedule_status'];
           title: string;
@@ -927,6 +928,7 @@ export type Database = {
           lat?: number | null;
           lng?: number | null;
           place_name?: string | null;
+          revision?: number;
           starts_at: string;
           status?: Database['public']['Enums']['schedule_status'];
           title: string;
@@ -944,6 +946,7 @@ export type Database = {
           lat?: number | null;
           lng?: number | null;
           place_name?: string | null;
+          revision?: number;
           starts_at?: string;
           status?: Database['public']['Enums']['schedule_status'];
           title?: string;
@@ -2487,6 +2490,30 @@ export type Database = {
         Args: { p_attempt_id: string; p_lease_token: string };
         Returns: undefined;
       };
+      schedule_admin_delete: {
+        Args: {
+          p_confirmed: boolean;
+          p_expected_revision: number;
+          p_operation_id: string;
+          p_schedule_id: string;
+        };
+        Returns: Json;
+      };
+      schedule_admin_get: { Args: { p_schedule_id: string }; Returns: Json };
+      schedule_admin_list: {
+        Args: { p_month: string; p_page?: number };
+        Returns: Json;
+      };
+      schedule_admin_save: {
+        Args: {
+          p_confirmed?: boolean;
+          p_expected_revision?: number;
+          p_input?: Json;
+          p_operation_id: string;
+          p_schedule_id?: string;
+        };
+        Returns: Json;
+      };
       schedule_create: {
         Args: {
           p_address?: string;
@@ -2565,6 +2592,10 @@ export type Database = {
           isOneToOne: false;
           isSetofReturn: true;
         };
+      };
+      schedule_my_artists: {
+        Args: Record<PropertyKey, never>;
+        Returns: string[];
       };
       schedule_set_notification: {
         Args: { p_enabled: boolean; p_schedule_id: string };

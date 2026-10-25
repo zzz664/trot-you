@@ -1,3 +1,4 @@
+import { ScheduleEntry } from '@/components/schedules/ScheduleEntry';
 import { AdminSubscriptionsEntry } from '@/components/admin-subscriptions/AdminSubscriptionsEntry';
 import { AdminSettingsEntry } from '@/components/admin-settings/AdminSettingsEntry';
 import { getTranslations } from 'next-intl/server';
@@ -50,6 +51,7 @@ export async function SessionPage({ path }: { path: string }) {
           <WebPushEntry />
           <BillingNoticeEntry />
           <ArtistCatalogEntry />
+          <ScheduleEntry />
         </>
       )}
       <SubscriptionEntry />
@@ -73,6 +75,7 @@ export async function SessionPage({ path }: { path: string }) {
             description={subscriptionsCopy('entryDescription')}
             label={subscriptionsCopy('open')}
           />
+          <ScheduleEntry admin />
           <RefundEntry />
           <ReconciliationEntry />
         </>

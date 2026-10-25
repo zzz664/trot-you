@@ -78,6 +78,10 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 
 [작동·정책·수신 경계](docs/configuration/billing-notices.md)를 참고하세요. 승인된 불변 정책의 KST 일정에 맞춰 현재 구독의 정확한 예정 금액·결제일을 본인 전용 앱 내 안내와 선택 푸시 outbox에 원자적으로 기록합니다. `/me/billing-notices`에서 읽음 표시, 선택 결제 안내 설정, 본인 구독 관리로 이동할 수 있습니다. 취소·예약 변경·정책/금액 변경·불명 결제 결과는 현재 조건을 다시 검사하여 오래된 안내를 숨깁니다. **앱 내 등록·읽음 표시·푸시 공급자 접수는 갱신에 필요한 검증된 전달 증거가 아닙니다.** 기존 사전 전달 필수 조건은 그대로 닫혀 있으며 정책·worker·실제 푸시·Cron을 자동 활성화하지 않습니다.
 
+## 공식 일정·관리
+
+[화면·지도·운영 경계](docs/configuration/schedules.md)와 [DB 충돌·재시도 계약](docs/database/schedule-management.md)을 참고하세요. `/schedules`에서 한국 시간 월간·목록·상세와 현재 구독 이용 권한 기반 내 가수 필터를 제공합니다. 공개 행사 좌표만 포함한 네이버 앱/카카오 웹 지도 링크를 직접 눌러 열며 SDK·위치 수집·자동 이동은 없습니다. `/admin/schedules`의 현재 관리자는 초안/공개 일정 등록·수정·삭제를 revision/멱등 작업 키로 관리합니다. 일정 알림과 콘텐츠 캘린더는 후속 기능이며 실제 계정·외부 지도 이동·배포·Cron·정책을 활성화하지 않습니다.
+
 ## 연동 설정 기반
 
 [설정·오류·로그·운영 설정 안내](docs/configuration/integration-foundations.md)를 참고하세요. 기본 결제 mode는 `disabled`이고, 키 누락이나 잘못된 mode를 mock 성공으로 바꾸지 않습니다. `configured`는 credential 형태/존재만 뜻하며 모든 연동의 `operational`은 아직 `false`입니다. 운영 설정 기본값은 DB 값이나 승인된 정책이 아닌 문서 기반 draft입니다.

@@ -20,6 +20,7 @@ export default defineConfig({
     '**/admin-artists/**',
     '**/admin-settings/**',
     '**/admin-subscriptions/**',
+    '**/schedules/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
