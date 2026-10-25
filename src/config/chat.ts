@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { artistSlugSchema } from './artists';
 
 // Technical bounds, not approved access/history policy. Policy remains in DB.
-export const CHAT_PAGE_SIZE = 30;
+// The default page size is read from the audited database display setting.
 export const CHAT_MAX_PAGE_SIZE = 100;
 export const CHAT_CURSOR_MAX_LENGTH = 512;
 export const CHAT_BODY_LIMIT = 1024;

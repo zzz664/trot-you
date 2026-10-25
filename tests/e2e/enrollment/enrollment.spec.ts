@@ -450,9 +450,17 @@ for (const scenario of [
       }
       const response = await started;
       expect(response.status()).toBe(200);
-      expect(await response.json()).toMatchObject({
+      // The held POST belongs to the document we intentionally left. Chromium
+      // may discard that old response body after navigation, even with HTTP 200.
+      // Verify its committed result through the exact current-cookie read-only
+      // status API instead; never replay start to recover test evidence.
+      const completed = await context.request.get(
+        `${routes.enrollmentStatus}?session=${sessionId}`,
+      );
+      expect(completed.status()).toBe(200);
+      expect(await completed.json()).toMatchObject({
         ok: true,
-        data: { status: { sessionId, status: 'manual_review' } },
+        data: { sessionId, status: 'manual_review' },
       });
       await page.unroute(startPath);
       await page

@@ -69,11 +69,21 @@ const pageSchema = z
 export function createChatPagePort(client: ChatServiceClient): ChatPagePort {
   return {
     async page(actorId, slug, limit, before) {
+      // An unavailable/invalid operational read fails closed. The database owns
+      // the explicit compatibility default, not a hidden client fallback.
+      const settings = await client.rpc('chat_settings');
+      const parsedSettings = z
+        .strictObject({
+          page_size: z.number().int().min(1).max(CHAT_MAX_PAGE_SIZE),
+        })
+        .safeParse(settings.data);
+      if (settings.error || !parsedSettings.success)
+        return { ok: false, code: 'UNAVAILABLE' };
       const { data, error } = await client
         .rpc('fan_chat_page', {
           p_actor_id: actorId,
           p_artist_slug: slug,
-          p_limit: limit,
+          p_limit: limit ?? parsedSettings.data.page_size,
           ...(before
             ? { p_before_sent_at: before.sentAt, p_before_id: before.id }
             : {}),

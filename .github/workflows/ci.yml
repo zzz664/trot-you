@@ -99,6 +99,7 @@ jobs:
       - run: npm run test:webpush-fixture
       - run: npm run test:billing-notices-fixture
       - run: npm run test:admin-artists-fixture
+      - run: npm run test:admin-settings-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
@@ -600,6 +601,39 @@ jobs:
         if: always()
         with:
           name: admin-artists-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
+
+  admin-settings-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/admin-settings-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Real local Auth/RPC and fictional numeric policies only. No legal terms,
+      # payment/provider enablement, remote approval, account, role or scheduler.
+      - run: npm run test:e2e:admin-settings
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-settings-browser-results
           path: |
             playwright-report/
             test-results/

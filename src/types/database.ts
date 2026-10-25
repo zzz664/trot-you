@@ -1349,6 +1349,18 @@ export type Database = {
         };
         Returns: Json;
       };
+      admin_settings_list: { Args: Record<PropertyKey, never>; Returns: Json };
+      admin_settings_save: {
+        Args: {
+          p_confirmed: boolean;
+          p_decision_reference: string;
+          p_expected_revision: number;
+          p_group: string;
+          p_operation_id: string;
+          p_values: Json;
+        };
+        Returns: Json;
+      };
       analytics_daily_counts: {
         Args: { p_from: string; p_until: string };
         Returns: {
@@ -1649,6 +1661,7 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      chat_settings: { Args: Record<PropertyKey, never>; Returns: Json };
       checkout_cancel_session: {
         Args: { p_nonce_hash: string; p_session_id: string; p_user_id: string };
         Returns: undefined;
