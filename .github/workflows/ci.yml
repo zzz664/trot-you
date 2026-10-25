@@ -1,7 +1,14 @@
 name: CI
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, 'release/**', 'releases/**']
+    # edited includes base retargeting; merely leaving draft does not rerun CI.
+    types: [opened, synchronize, reopened, edited]
+  # No develop push run: PR validation must not be duplicated after every merge.
+  push:
+    branches: [main, 'release/**', 'releases/**']
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 permissions:
   contents: read
@@ -9,7 +16,26 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  impact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      plan: ${{ steps.select.outputs.plan }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      # Dependency-free selector/aggregate tests run even for documentation PRs.
+      - run: node --test scripts/ci-*.test.mjs
+      - id: select
+        run: node scripts/ci-impact.mjs
   database:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['database'] }}
     runs-on: ubuntu-latest
     # Verified feature31 database run approached 20min. Preserve every repeat,
     # race and populated upgrade while adding schedule notice migration gates.
@@ -122,6 +148,8 @@ jobs:
             test-results/
           retention-days: 7
   auth-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['auth-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -153,6 +181,8 @@ jobs:
       - run: npm run db:stop -- --no-backup
         if: always()
   enrollment-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['enrollment-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -184,6 +214,8 @@ jobs:
       - run: npm run db:stop -- --no-backup
         if: always()
   renewal-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['renewal-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -216,6 +248,8 @@ jobs:
       - run: npm run db:stop -- --no-backup
         if: always()
   cancellation-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['cancellation-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -249,6 +283,8 @@ jobs:
       - run: npm run db:stop -- --no-backup
         if: always()
   reconciliation-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['reconciliation-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -283,6 +319,8 @@ jobs:
       - run: npm run db:stop -- --no-backup
         if: always()
   media-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['media-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -316,6 +354,8 @@ jobs:
       - run: npm run db:stop -- --no-backup
         if: always()
   chat-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['chat-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -349,6 +389,8 @@ jobs:
         if: always()
 
   reply-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['reply-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -382,6 +424,8 @@ jobs:
         if: always()
 
   speech-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['speech-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -417,6 +461,8 @@ jobs:
         if: always()
 
   compose-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['compose-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -451,6 +497,8 @@ jobs:
         if: always()
 
   dispatch-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['dispatch-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -485,6 +533,8 @@ jobs:
         if: always()
 
   activity-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['activity-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -519,6 +569,8 @@ jobs:
         if: always()
 
   webpush-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['webpush-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -552,6 +604,8 @@ jobs:
         if: always()
 
   billing-notices-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['billing-notices-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -586,6 +640,8 @@ jobs:
         if: always()
 
   admin-artists-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['admin-artists-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -620,6 +676,8 @@ jobs:
         if: always()
 
   admin-settings-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['admin-settings-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -653,6 +711,8 @@ jobs:
         if: always()
 
   admin-subscriptions-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['admin-subscriptions-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -686,6 +746,8 @@ jobs:
         if: always()
 
   schedules-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['schedules-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -720,6 +782,8 @@ jobs:
         if: always()
 
   schedule-notices-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['schedule-notices-browser'] }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -751,3 +815,44 @@ jobs:
           retention-days: 7
       - run: npm run db:stop -- --no-backup
         if: always()
+  # Require this stable check in branch rules before relying on selective CI.
+  # always() is essential: upstream failure/cancellation/skips must be inspected.
+  ci-required:
+    if: ${{ always() }}
+    needs:
+      - impact
+      - quality
+      - database
+      - auth-browser
+      - enrollment-browser
+      - renewal-browser
+      - cancellation-browser
+      - reconciliation-browser
+      - media-browser
+      - chat-browser
+      - reply-browser
+      - speech-browser
+      - compose-browser
+      - dispatch-browser
+      - activity-browser
+      - webpush-browser
+      - billing-notices-browser
+      - admin-artists-browser
+      - admin-settings-browser
+      - admin-subscriptions-browser
+      - schedules-browser
+      - schedule-notices-browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Require every selected job and justify every skip
+        env:
+          CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/ci-required.mjs
