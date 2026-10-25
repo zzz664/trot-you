@@ -1,0 +1,26 @@
+.details {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+}
+
+.details div {
+  display: grid;
+  gap: var(--space-unit);
+}
+
+.details dd {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 2);
+}
+
+.actions > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

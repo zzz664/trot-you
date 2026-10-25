@@ -1,0 +1,6 @@
+import { billingNoticeHttp } from '@/server/billing-notices/http';
+import type { NextRequest } from 'next/server';
+export const runtime = 'nodejs';
+export function GET(request: NextRequest) {
+  return billingNoticeHttp(request, 'list');
+}

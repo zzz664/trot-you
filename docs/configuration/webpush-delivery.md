@@ -1,3 +1,8 @@
+> Follow-on update: the approved [billing prenotice](billing-notices.md) workflow
+> extends this worker to `billing_notice` jobs with the same current eligibility,
+> consent/session and unknown-outcome fences. Payment-event and schedule jobs
+> remain excluded. The original message-specific contract below is preserved.
+
 # Browser Web Push delivery
 
 This feature connects explicit browser opt-in to the existing message outbox.

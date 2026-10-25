@@ -64,6 +64,7 @@ const leaseSchema = z
   }));
 const deliverySchema = z
   .object({
+    source_kind: z.enum(['message', 'billing_notice']),
     job_id: z.uuid(),
     lease_token: z.uuid(),
     lease_expires_at: z.iso.datetime({ offset: true }),
@@ -75,6 +76,7 @@ const deliverySchema = z
     jobId: row.job_id,
     token: row.lease_token,
     expiresAt: row.lease_expires_at,
+    sourceKind: row.source_kind,
     endpoint: row.endpoint,
     p256dh: row.p256dh,
     auth: row.auth,

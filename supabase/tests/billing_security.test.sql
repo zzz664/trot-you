@@ -40,12 +40,29 @@ select ok((select bool_and(not has_table_privilege(r, t, 'SELECT'))
 select ok((select bool_and(not has_function_privilege(r, p.oid, 'EXECUTE'))
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   cross join unnest(array['anon', 'authenticated']) r
-  where n.nspname = 'public' and p.proname like 'billing\_%' escape '\'),
+  where n.nspname = 'public' and p.proname like 'billing\_%' escape '\'
+    and p.oid not in ('public.billing_notice_list(integer,timestamptz,uuid)'::regprocedure,
+      'public.billing_notice_mark_read(uuid)'::regprocedure,'public.billing_notice_preferences()'::regprocedure,
+      'public.billing_notice_set_preference(boolean)'::regprocedure)),
   'client roles cannot execute any privileged billing RPC');
 select ok((select bool_and(has_function_privilege('service_role', p.oid, 'EXECUTE'))
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'public' and p.proname like 'billing\_%' escape '\'),
+  where n.nspname = 'public' and p.proname like 'billing\_%' escape '\'
+    and p.oid not in ('public.billing_notice_list(integer,timestamptz,uuid)'::regprocedure,
+      'public.billing_notice_mark_read(uuid)'::regprocedure,'public.billing_notice_preferences()'::regprocedure,
+      'public.billing_notice_set_preference(boolean)'::regprocedure)),
   'service role has explicit billing RPC grants');
+-- These four exact signatures are owner-scoped inbox/read/preference APIs,
+-- not money/mandate operations. Every other billing_* RPC (including notice
+-- production and any future overload) remains subject to the service-only
+-- assertions above. Explicitly check both positive and negative grants here.
+select ok(has_function_privilege('authenticated',fn,'EXECUTE')
+  and not has_function_privilege('anon',fn,'EXECUTE')
+  and not has_function_privilege('service_role',fn,'EXECUTE'),
+  'only authenticated owner boundary has grant: '||fn)
+from unnest(array['public.billing_notice_list(integer,timestamptz,uuid)',
+  'public.billing_notice_mark_read(uuid)','public.billing_notice_preferences()',
+  'public.billing_notice_set_preference(boolean)']) fn;
 select ok((select bool_and(p.prosecdef and 'search_path=""' = any(p.proconfig))
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and (p.proname like 'billing\_%' escape '\' or p.proname = 'cancel_subscription')),

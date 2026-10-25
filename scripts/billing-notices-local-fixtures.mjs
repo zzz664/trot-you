@@ -1,0 +1,20 @@
+// Public non-secret constants for the disposable local CI job only.
+export const BILLING_NOTICES_CI_ENV = Object.freeze({
+  BILLING_NOTICES_ENABLED: 'true',
+  BILLING_NOTICES_CRON_SECRET:
+    'fictional-billing-notice-cron-ci-only-not-a-real-secret',
+  PAYMENTS_MODE: 'disabled',
+  TOSS_BILLING_ENABLED: 'false',
+  KAKAOPAY_SUBSCRIPTION_ENABLED: 'false',
+  PAYMENTS_RENEWALS_ENABLED: 'false',
+  PAYMENTS_REFUNDS_ENABLED: 'false',
+  PAYMENTS_RECONCILIATION_ENABLED: 'false',
+  WEBPUSH_ENABLED: 'false',
+  WEBPUSH_WORKER_ENABLED: 'false',
+  NEXT_PUBLIC_TOSS_CLIENT_KEY: '',
+  TOSS_SECRET_KEY: '',
+  TOSS_BILLING_MID: '',
+  KAKAOPAY_SECRET_KEY: '',
+  KAKAOPAY_RECURRING_CID: '',
+  KAKAOPAY_CID_SECRET: '',
+});

@@ -51,6 +51,7 @@ jobs:
       - run: node scripts/test-dispatch-concurrency.mjs
       - run: node scripts/test-artist-reply-activity-concurrency.mjs
       - run: npm run test:db:webpush-concurrency
+      - run: npm run test:db:billing-notice-concurrency
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
@@ -93,6 +94,7 @@ jobs:
       - run: npm run test:dispatch-fixture
       - run: npm run test:activity-fixture
       - run: npm run test:webpush-fixture
+      - run: npm run test:billing-notices-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
@@ -526,6 +528,40 @@ jobs:
         if: always()
         with:
           name: webpush-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
+
+  billing-notices-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/billing-notices-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Real Auth, exact-current notice inbox and disabled-by-default worker
+      # with fictional policy/subscription snapshots. No real push, PG request,
+      # browser permission grant or recurring scheduler is activated.
+      - run: npm run test:e2e:billing-notices
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: billing-notices-browser-results
           path: |
             playwright-report/
             test-results/

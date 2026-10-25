@@ -16,6 +16,7 @@ export default defineConfig({
     '**/dispatch/**',
     '**/activity/**',
     '**/webpush/**',
+    '**/billing-notices/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

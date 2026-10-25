@@ -69,5 +69,15 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
         copy.errors.SETUP_NOT_READY,
       );
       await main.getByRole('link', { name: copy.back, exact: true }).click();
-      await expect(page).toHaveURL('http://127.0.0.1:3100/');
+      // Home is guarded even without keys. Wait for the final login landing,
+      // not the transient / URL before the server redirect finishes.
+      await expect(
+        page.getByRole('main').getByRole('heading', {
+          name: messages.auth.startTitle,
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(page).toHaveURL(
+        `http://127.0.0.1:3100${routes.start}?next=${encodeURIComponent(routes.home)}`,
+      );
     });

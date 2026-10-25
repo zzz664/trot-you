@@ -1,3 +1,8 @@
+> Follow-on migration `20261025000025_billing_notices.sql` adds only the
+> approved `billing_notice` source to the actual worker. It returns a safe
+> `source_kind` discriminator at final preparation and preserves all message
+> behavior. See [billing notice configuration](../configuration/billing-notices.md).
+
 # Session-bound Web Push delivery
 
 Migration `20261025000024_webpush_delivery.sql` extends the existing transactional
