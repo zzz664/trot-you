@@ -20,3 +20,7 @@
 ## Completion boundary
 
 This is configuration-ready implementation, not operational artist onboarding or production authorization. No actual user data, role, secret, credential, provider configuration, invitation, deployment or financial policy was changed.
+
+## First CI checkpoint correction
+
+CI applied all original checkpoint migrations successfully, then `db:lint` rejected unused local actor variables in the list/detail read RPCs. Those variables are replaced with `PERFORM` calls retaining the same current-admin locking/authorization; the new paged detail RPC uses the same correction. This first run did not reach pgTAP, races or generated types. The correction requires a new full database CI run and makes no mutation-policy change.

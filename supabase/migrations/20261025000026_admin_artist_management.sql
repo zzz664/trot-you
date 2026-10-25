@@ -212,9 +212,9 @@ $$;
 
 create function public.admin_artist_list(p_page integer default 1) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare actor uuid; rows_json jsonb; total integer;
+declare rows_json jsonb; total integer;
 begin
-  actor:=private.admin_artist_actor();
+  perform private.admin_artist_actor();
   if p_page is null or p_page not between 1 and 1000 then raise exception 'ADMIN_ARTIST_INVALID_INPUT' using errcode='22023'; end if;
   with candidates as materialized (select id,display_order,slug from public.artists order by display_order,slug,id offset (p_page-1)*20 limit 21),
     page as(select * from candidates order by display_order,slug,id limit 20)
@@ -225,9 +225,9 @@ end;
 $$;
 create function public.admin_artist_detail(p_artist_id uuid) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare actor uuid; a public.artists%rowtype; cfg private.message_policy%rowtype;
+declare a public.artists%rowtype; cfg private.message_policy%rowtype;
 begin
-  actor:=private.admin_artist_actor(); a:=private.admin_artist_lock(p_artist_id);
+  perform private.admin_artist_actor(); a:=private.admin_artist_lock(p_artist_id);
   select * into cfg from private.message_policy where singleton for share;
   return jsonb_build_object('artist',private.admin_artist_projection(a.id),
     'previews',coalesce((select jsonb_agg(private.admin_artist_message_projection(m.id) order by m.preview_order)
