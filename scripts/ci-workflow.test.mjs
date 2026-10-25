@@ -47,7 +47,9 @@ const reviewedAdditions = {
       before: '      - run: npm run db:types\n',
       text:
         '      - run: npm run test:db:content-calendar-concurrency\n' +
-        '      - run: node scripts/test-content-calendar-upgrade.mjs\n',
+        '      - run: node scripts/test-content-calendar-upgrade.mjs\n' +
+        '      - run: npm run test:db:community-posts-concurrency\n' +
+        '      - run: node scripts/test-community-posts-upgrade.mjs\n',
     },
   ],
 };
@@ -186,6 +188,14 @@ describe('CI workflow safety and unchanged regression coverage', () => {
         'echo skipped original integration',
       ),
       original.replace('npm run db:lint', 'echo skipped original lint'),
+      original.replace(
+        'npm run test:db:community-posts-concurrency',
+        'echo skipped board races',
+      ),
+      original.replace(
+        'node scripts/test-community-posts-upgrade.mjs',
+        'echo skipped board upgrade',
+      ),
     ])
       assert.throws(() => verifyLegacySteps('database', changed));
   });
@@ -275,12 +285,12 @@ describe('CI workflow safety and unchanged regression coverage', () => {
           /run: (?:npm run test:db:[^\n]*concurrency|node scripts\/test-[^\n]*concurrency\.mjs)\n/g,
         ) || []
       ).length,
-      29,
+      30,
     );
     assert.equal(
       (database.match(/run: node scripts\/test-[^\n]*upgrade\.mjs\n/g) || [])
         .length,
-      5,
+      6,
     );
     assert.match(database, /git diff --exit-code -- src\/types\/database\.ts/);
     assert.match(database, /npm run db:lint/);
