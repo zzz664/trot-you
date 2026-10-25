@@ -314,6 +314,7 @@ describe('required fields for every integration', () => {
     KAKAOPAY_RECURRING_CID: 'TCSUBSCRIP',
     VAPID_PUBLIC_KEY: 'public_fixture',
     VAPID_PRIVATE_KEY: 'private_fixture',
+    VAPID_SUBJECT: 'mailto:synthetic@example.invalid',
     ALIMTALK_API_KEY: 'alimtalk_fixture',
     CRON_SECRET: 'cron_fixture_long_enough',
   };
@@ -322,6 +323,7 @@ describe('required fields for every integration', () => {
     ['toss_card_billing', 'TOSS_SECRET_KEY'],
     ['kakaopay_subscription', 'KAKAOPAY_SECRET_KEY'],
     ['webpush', 'VAPID_PRIVATE_KEY'],
+    ['webpush', 'VAPID_SUBJECT'],
     ['alimtalk', 'ALIMTALK_API_KEY'],
     ['cron', 'CRON_SECRET'],
   ] as const)(

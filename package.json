@@ -67,6 +67,8 @@
     "test:activity-fixture": "node --test scripts/activity-local-config.test.mjs",
     "test:e2e:activity": "playwright test --config playwright.activity.config.ts",
     "test:db:activity-concurrency": "node scripts/test-artist-reply-activity-concurrency.mjs",
+    "test:webpush-fixture": "node --test scripts/webpush-local-config.test.mjs",
+    "test:e2e:webpush": "playwright test --config playwright.webpush.config.ts",
     "test:db:webpush-concurrency": "node scripts/test-webpush-concurrency.mjs"
   },
   "dependencies": {

@@ -8,6 +8,9 @@ const mock = vi.hoisted(() => ({
   activate: vi.fn(),
   fetch: vi.fn(),
   match: vi.fn(),
+  notification: vi.fn(),
+  clients: vi.fn(),
+  open: vi.fn(),
 }));
 vi.mock('serwist', () => ({
   Serwist: class {
@@ -39,6 +42,8 @@ beforeEach(async () => {
   vi.stubGlobal('self', {
     location: { origin },
     caches: storage,
+    registration: { showNotification: mock.notification },
+    clients: { matchAll: mock.clients, openWindow: mock.open },
     __SW_MANIFEST: [
       { url: asset, revision: null },
       { url: '/offline.html', revision: 'digest' },
@@ -52,8 +57,15 @@ beforeEach(async () => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it('registers only install/activate/fetch, never CACHE_URLS, push or subscriptions', () => {
-  expect(Object.keys(listeners)).toEqual(['install', 'activate', 'fetch']);
+it('registers static cache and visible push handlers, never background enrollment', () => {
+  expect(Object.keys(listeners)).toEqual([
+    'install',
+    'activate',
+    'fetch',
+    'push',
+    'notificationclick',
+    'message',
+  ]);
   const options = mock.construct.mock.calls[0]![0];
   expect(options.precacheEntries).toHaveLength(2);
   expect(options.runtimeCaching).toEqual([]);
@@ -148,4 +160,65 @@ it('delegates entry cleanup to Serwist and waits for application-version cleanup
   expect(storage.delete).toHaveBeenCalledExactlyOnceWith(
     `${PWA.cachePrefix}v0`,
   );
+});
+
+it('keeps the push event alive until its generic notification displays', async () => {
+  const event = {
+    data: {
+      text: () =>
+        JSON.stringify({ body: 'private', url: 'https://evil.example' }),
+    },
+    waitUntil: vi.fn(),
+  };
+  listeners.push!(event as never);
+  await event.waitUntil.mock.calls[0]![0];
+  expect(mock.notification).toHaveBeenCalledOnce();
+  expect(JSON.stringify(mock.notification.mock.calls[0])).not.toMatch(
+    /private|evil/,
+  );
+});
+it('a throwing push payload reader still receives a generic visible notice', async () => {
+  const event = {
+    data: {
+      text: () => {
+        throw new Error('damaged');
+      },
+    },
+    waitUntil: vi.fn(),
+  };
+  listeners.push!(event as never);
+  await event.waitUntil.mock.calls[0]![0];
+  expect(mock.notification).toHaveBeenCalledOnce();
+});
+it('notification click closes the notice and ignores malicious stored navigation data', async () => {
+  mock.clients.mockResolvedValue([]);
+  const event = {
+    notification: { close: vi.fn(), data: { url: 'https://evil.example' } },
+    waitUntil: vi.fn(),
+  };
+  listeners.notificationclick!(event as never);
+  await event.waitUntil.mock.calls[0]![0];
+  expect(event.notification.close).toHaveBeenCalledOnce();
+  expect(mock.open).toHaveBeenCalledWith(`${origin}/me/subscriptions`);
+});
+it('answers only the narrow public worker capability message and never activates on request', async () => {
+  const { WEBPUSH_CLIENT } = await import('@/config/webpush-client');
+  const port = { postMessage: vi.fn() };
+  listeners.message!({ data: 'SKIP_WAITING', ports: [port] } as never);
+  listeners.message!({ data: 'CACHE_URLS', ports: [port] } as never);
+  listeners.message!({
+    data: WEBPUSH_CLIENT.capabilityRequest,
+    ports: [],
+  } as never);
+  expect(port.postMessage).not.toHaveBeenCalled();
+  listeners.message!({
+    data: WEBPUSH_CLIENT.capabilityRequest,
+    ports: [port],
+  } as never);
+  expect(port.postMessage).toHaveBeenCalledWith({
+    type: WEBPUSH_CLIENT.capabilityResponse,
+    version: WEBPUSH_CLIENT.workerVersion,
+  });
+  expect(mock.activate).not.toHaveBeenCalled();
+  expect(mock.fetch).not.toHaveBeenCalled();
 });

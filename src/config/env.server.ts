@@ -5,6 +5,7 @@ import {
   DISPATCH_CRON_SECRET_MAX_LENGTH,
 } from './message-dispatch';
 import { KAKAOPAY_TEST_CIDS } from './integrations';
+import { WEBPUSH } from './webpush';
 import { parseCancellationTestRuntime } from './cancellation-test-runtime';
 import { parseReconciliationTestRuntime } from './reconciliation-test-runtime';
 import {
@@ -63,6 +64,16 @@ const serverEnvSchema = publicEnvSchema.extend({
   ),
   VAPID_PUBLIC_KEY: optionalEnvValue(secretSchema),
   VAPID_PRIVATE_KEY: optionalEnvValue(secretSchema),
+  VAPID_SUBJECT: optionalEnvValue(z.string().min(1).max(2048)),
+  WEBPUSH_ENABLED: flagSchema,
+  WEBPUSH_WORKER_ENABLED: flagSchema,
+  WEBPUSH_CRON_SECRET: optionalEnvValue(
+    z
+      .string()
+      .min(WEBPUSH.secretMinLength)
+      .max(WEBPUSH.secretMaxLength)
+      .regex(/^[A-Za-z0-9_-]+$/),
+  ),
   ALIMTALK_API_KEY: optionalEnvValue(secretSchema),
   CRON_SECRET: optionalEnvValue(secretSchema.min(16)),
   MESSAGE_DISPATCH_ENABLED: flagSchema,
@@ -143,6 +154,15 @@ export function parseServerEnv(
   )
     return failure('CONFIGURATION_INVALID');
   if (
+    (env.WEBPUSH_WORKER_ENABLED &&
+      (!env.WEBPUSH_ENABLED || !env.WEBPUSH_CRON_SECRET)) ||
+    (env.WEBPUSH_CRON_SECRET &&
+      [
+        env.CRON_SECRET,
+        env.RENEWAL_CRON_SECRET,
+        env.RECONCILIATION_CRON_SECRET,
+        env.MESSAGE_DISPATCH_CRON_SECRET,
+      ].includes(env.WEBPUSH_CRON_SECRET)) ||
     (env.MESSAGE_DISPATCH_ENABLED && !env.MESSAGE_DISPATCH_CRON_SECRET) ||
     (env.MESSAGE_DISPATCH_CRON_SECRET &&
       [

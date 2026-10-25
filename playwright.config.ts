@@ -15,6 +15,7 @@ export default defineConfig({
     '**/compose/**',
     '**/dispatch/**',
     '**/activity/**',
+    '**/webpush/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

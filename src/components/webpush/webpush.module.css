@@ -1,0 +1,18 @@
+.stack {
+  display: grid;
+  min-width: 0;
+  gap: calc(var(--space-unit) * 2);
+}
+.stack p {
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-unit);
+}
+.actions > * {
+  min-width: 0;
+  max-width: 100%;
+}

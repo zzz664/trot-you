@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { InstallStatusCard } from '@/components/onboarding/InstallStatusCard';
+import { WebPushEntry } from '@/components/webpush/WebPushEntry';
 import { SubscriptionEntry } from '@/components/subscription/SubscriptionEntry';
 import { RefundEntry } from '@/components/admin/refunds/RefundEntry';
 import { ReconciliationEntry } from '@/components/admin/reconciliation/ReconciliationEntry';
@@ -36,6 +37,7 @@ export async function SessionPage({ path }: { path: string }) {
       {path === routes.home && state.profile.role === 'fan' && (
         <>
           <InstallStatusCard />
+          <WebPushEntry />
           <ArtistCatalogEntry />
         </>
       )}

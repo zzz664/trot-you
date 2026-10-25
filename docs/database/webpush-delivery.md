@@ -97,10 +97,13 @@ device receipt or user read. No such receipt/read column is fabricated.
 
 ## Verification and limits
 
-Three rollback-only pgTAP suites add 108 assertions. The disposable-local-only
+Four rollback-only pgTAP suites add 126 assertions. The disposable-local-only
 independent-session script adds 24 race scenarios, observes actual backend PIDs
-with `pg_blocking_pids`, and resets fictional fixtures on exit. Existing outbox
-fixture contracts remain unchanged, with explicit new compatibility assertions
+with `pg_blocking_pids`, and resets fictional fixtures on exit. A SQL-only bulk suite creates 1,000 fictional session-bound recipients through
+registration RPCs, verifies real message fan-out/dedupe and 100-row bounded
+drain pages, rejects revoked/currently restricted recipients, and records only
+proven test non-sends. It is not a provider-throughput or timing/SLA measurement.
+Existing outbox fixture contracts remain unchanged, with explicit new compatibility assertions
 for legacy null-session rows. Actual CI migration/lint/tests/races and genuine
 schema generation are required; local syntax/lint checks do not replace them.
 

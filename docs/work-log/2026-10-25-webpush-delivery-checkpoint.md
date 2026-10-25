@@ -75,3 +75,41 @@ retries never start before lease expiry. Ordinary/concurrent replays cannot
 move that deadline. Thirteen additional pgTAP assertions and two race cases cover
 null/zero/bounds, provider minimums, ambiguous/final outcomes and replay. Actual
 execution remains pending CI, as above.
+
+## Additional bulk coverage (no schema change)
+
+A fourth rollback-only suite adds 18 assertions for 1,000 fictional recipients
+registered through the session-bound RPC and a real message-dispatch fan-out.
+It verifies source replay dedupe, 100-row list/drain bounds, current-recipient
+restriction and post-claim revocation. The drain makes no provider call and
+records only known test non-sends, with zero accepted notifications. This is a
+functional backlog/count check, not a latency or delivery-SLA claim. Total written
+new pgTAP coverage is now 126 assertions; actual execution remains pending CI.
+
+## First actual CI: fixture ambiguity repaired
+
+[Run 40151754788](https://github.com/zzz664/trot-you/actions/runs/40151754788)
+checked head `453c34db49a5b68cf87511b10317c8aedbc511fb` through merge checkout
+`808f70a`. Actual Supabase migration/reset and database lint passed. The first
+pgTAP pass reached 3,215 assertions, including the 76-assertion new delivery
+suite, before two later suites failed at their shared rollback-only fixture
+helper. Its local variable `message_id` conflicted with the real
+`notification_jobs.message_id` column. It is now `v_message_id`, and the source
+query qualifies every referenced jobs column in both affected test files.
+No production behavior or assertion was weakened. The new bulk helper was
+reviewed for the same ambiguity and does not share those names.
+
+The failed run did not establish the remaining new gate/Retry-After assertions,
+second pgTAP pass, race scripts or generated schema output. Those checks and the
+additional bulk suite still require actual CI; no type artifact existed from
+this failed attempt.
+
+## Corrected checkpoint verified
+
+The corrected checkpoint subsequently passed 3,247 pgTAP assertions twice,
+297 independent-session races and generated-schema validation in
+[run 40152209775](https://github.com/zzz664/trot-you/actions/runs/40152209775).
+The application imported the genuine artifact unchanged. See
+[checkpoint provenance](2026-10-25-webpush-checkpoint-ci.md) for exact head,
+tree and artifact hashes. This supersedes the earlier pending checkpoint status,
+not the still-pending 18-assertion bulk suite or final application/browser checks.

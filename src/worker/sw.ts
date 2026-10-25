@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { Serwist, type PrecacheEntry } from 'serwist';
 import { PWA } from '@/config/pwa';
+import { openWebPush, respondWebPushCapability, showWebPush } from './webpush';
 import {
   isOfflineDocumentRequest,
   isPublicPrecacheRequest,
@@ -72,4 +73,19 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
-// No CACHE_URLS listener, push subscription, notification or background queue.
+self.addEventListener('push', (event) => {
+  let raw: string | null = null;
+  try {
+    raw = event.data?.text() ?? null;
+  } catch {
+    // A damaged payload cannot inject arbitrary notification text or URLs.
+  }
+  event.waitUntil(showWebPush(self.registration, raw));
+});
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(openWebPush(self.clients, origin));
+});
+self.addEventListener('message', respondWebPushCapability);
+// No CACHE_URLS or pushsubscriptionchange auto-enrollment, credential storage,
+// background registration or notification receipt/read acknowledgement.

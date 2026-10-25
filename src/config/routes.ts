@@ -10,6 +10,11 @@ export const routes = {
   artists: '/artists',
   artistMessages: '/api/artists',
   analytics: '/api/analytics',
+  notifications: '/settings/notifications',
+  notificationInstallGuide:
+    '/settings/notifications#notification-install-guide',
+  pushSubscription: '/api/push/subscribe',
+  sendNotifications: '/api/cron/send-notifications',
   mediaUpload: '/api/media/upload-url',
   mediaComplete: '/api/media/complete',
   mediaRead: '/api/media/signed-url',
