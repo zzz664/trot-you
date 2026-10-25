@@ -75,12 +75,14 @@ language sql stable set search_path='' as $$
         and private.webpush_session_active(p_job.user_id,d.auth_session_id,p_at))
       and private.schedule_notice_window(s.starts_at,p_at,p.hour_kst));
 $$;
-create or replace function private.notification_enqueue_source(p_kind text,p_source uuid) returns integer
+create or replace function private.notification_enqueue_source_legacy(p_kind text,p_source uuid) returns integer
 language plpgsql set search_path = '' as $$
 declare cfg private.notification_policy%rowtype; route uuid; due timestamptz; affected integer;
 begin
   if p_kind is null or p_kind not in ('message','payment','schedule') or p_source is null then
     raise exception 'NOTIFICATION_SOURCE_INVALID' using errcode='22023'; end if;
+  -- Managed-message wrapper from migration 00022 remains untouched.
+  -- Only its legacy schedule delegation is retired by this feature.
   if p_kind='schedule' then return 0; end if;
   select * into cfg from private.notification_policy;
   if cfg.singleton is null or not cfg.webpush_enabled then return 0; end if;

@@ -8,6 +8,11 @@ grant all on schedule_notice_context to authenticated,service_role;
 select is((select count(*) from private.schedule_notice_policies),0::bigint,'migration approves no notice policy');
 select is((select count(*) from private.schedule_notice_policy_current),0::bigint,'migration activates no notice policy');
 select is((select count(*) from private.schedule_notice_scan_cursor),0::bigint,'migration fabricates no completed scan');
+select ok(pg_get_functiondef('private.notification_enqueue_source(text,uuid)'::regprocedure) like '%private.artist_dispatch_submissions%'
+ and pg_get_functiondef('private.notification_enqueue_source(text,uuid)'::regprocedure) like '%fanout_completed=true,notification_queued=cardinality(devices)>0%'
+ and pg_get_functiondef('private.notification_enqueue_source(text,uuid)'::regprocedure) like '%DISPATCH_BACKPRESSURE%'
+ and pg_get_functiondef('private.notification_enqueue_source(text,uuid)'::regprocedure) like '%notification_enqueue_source_legacy%',
+ 'schedule migration preserves managed-message frozen fanout wrapper, backpressure and completion state');
 select ok((select bool_and(not has_table_privilege(r,t,'SELECT,INSERT,UPDATE,DELETE'))
  from unnest(array['anon','authenticated','service_role']) r cross join unnest(array[
  'private.schedule_notice_policies','private.schedule_notice_policy_current','private.schedule_notice_scan_cursor'])t),'no raw notice policy/cursor access');

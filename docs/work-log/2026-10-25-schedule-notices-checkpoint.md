@@ -58,3 +58,21 @@ schema-drift failure is not a merge pass.
 
 No private source document is published. The prior independent-media runtime
 review denial remains unchanged and was not retried, replicated or probed.
+
+## First checkpoint CI regression and correction
+
+Actual run `40184991194` on remote `ac1cfcfbf811ce44769bab16c87eefbd68e14b0d`
+passed the new schedule-notice pgTAP file but failed existing message dispatch
+assertions, including frozen-recipient replay, queue-state projection and atomic
+fanout backpressure. Recovery then aborted with `DISPATCH_OPERATION_CONFLICT`.
+No generated schema artifact was produced; this is a failed checkpoint, not an
+expected type-drift-only result.
+
+Diagnosis identified a production regression in migration 00031: it replaced
+`notification_enqueue_source` using the old generic implementation, thereby
+bypassing the managed-dispatch wrapper introduced in migration 00022. The
+correction retires schedule enqueue only in the existing renamed
+`notification_enqueue_source_legacy` helper. The current managed wrapper and its
+snapshot/backpressure bookkeeping remain intact. Existing failing expectations
+are retained unchanged; a migration regression assertion also protects the
+wrapper. Full actual CI must be rerun before the database is considered verified.
