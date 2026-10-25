@@ -10,7 +10,7 @@ grant all on notification_context to authenticated,service_role;
 insert into auth.users(id,email,raw_user_meta_data)
 select ('c1000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,
  'notification-lifecycle-' || n || '@example.invalid','{}'::jsonb from generate_series(1,6) n;
-update public.profiles set call_name='가상 알림 사용자',onboarding_completed_at=now()
+update public.profiles set call_name='가상 알림 사용자',onboarding_completed_at=clock_timestamp()
  where id::text like 'c1000000-%' and id <> 'c1000000-0000-4000-8000-000000000005';
 update public.profiles set role='artist' where id='c1000000-0000-4000-8000-000000000003';
 update public.profiles set role='admin' where id='c1000000-0000-4000-8000-000000000004';
@@ -290,13 +290,32 @@ rollback to notification_source_atomic;
 select is((select count(*) from public.messages where id='c3000000-0000-4000-8000-000000000007'),0::bigint,'source rollback removes publication');
 select is((select count(*) from private.notification_jobs where source_id='c3000000-0000-4000-8000-000000000007'),0::bigint,'source rollback also removes its outbox');
 
--- Official events schedule their notice relative to the source timestamp;
--- deletion preserves source identity while suppressing unclaimed work.
+-- Approved next-KST-day publication replaces the legacy rolling-hour trigger.
+-- This rollback-only policy/session does not approve or activate a real service.
+insert into private.schedule_notice_policies(version,hour_kst,approved_at,published_at)
+ values('c7000000-0000-4000-8000-000000000001',0,now(),now());
+insert into private.schedule_notice_policy_current(policy_version)
+ values('c7000000-0000-4000-8000-000000000001');
+insert into auth.sessions(id,user_id,created_at,updated_at)
+ values('c1100000-0000-4000-8000-000000000001','c1000000-0000-4000-8000-000000000001',now(),now());
+set local role service_role;
+select is(public.webpush_register_device('c1000000-0000-4000-8000-000000000001',
+ 'c1100000-0000-4000-8000-000000000001','https://push.example.invalid/device-three',repeat('D',87),repeat('A',22),'fictional-consent-v1'),
+ (select id from notification_context where key='device3'),'explicit session binding preserves the owned device identity');
+reset role;
+-- Deletion preserves source identity while suppressing unclaimed work.
 insert into public.schedules(id,artist_id,type,status,title,starts_at,created_by) values
  ('c5000000-0000-4000-8000-000000000001','c2000000-0000-4000-8000-000000000001','event','published','가상 일정',
- now()+interval '12 hours','c1000000-0000-4000-8000-000000000004');
+ (((clock_timestamp() at time zone 'Asia/Seoul')::date+1)::timestamp+interval '12 hours') at time zone 'Asia/Seoul',
+ 'c1000000-0000-4000-8000-000000000004');
+select is((select count(*) from private.notification_jobs where source_id='c5000000-0000-4000-8000-000000000001'),0::bigint,
+ 'publishing an event alone never bypasses the approved next-day worker');
+set local role service_role;
+select is((select push_jobs from public.schedule_notice_create('c5000000-0000-4000-8000-000000000001')),1,
+ 'explicit next-day queueing includes the one eligible session-bound device');
+reset role;
 select is((select count(*) from private.notification_jobs where source_id='c5000000-0000-4000-8000-000000000001'),1::bigint,
- 'published schedule enqueues only eligible consented subscribers');
+ 'approved next-day worker queues only eligible consented subscribers');
 select ok((select next_attempt_at between now() and clock_timestamp() from private.notification_jobs
  where source_id='c5000000-0000-4000-8000-000000000001'),'already-due schedule notice uses current server time rather than backdating');
 select ok((select route_kind='schedule' and route_id=source_id and schedule_id=source_id from private.notification_jobs
@@ -378,11 +397,18 @@ select is((select count(*) from public.notification_claim((select id from notifi
  'billing claim checks verified ownership rather than requiring ongoing paid-message entitlement');
 reset role;
 
--- Postponing a schedule after a proven non-send must respect both the retry
--- delay and the revised event notice time, without resetting attempt history.
+-- Postponing invalidates the original immutable next-day snapshot rather than
+-- recycling it under a new event time; consumed retry history remains intact.
 insert into public.schedules(id,artist_id,type,status,title,starts_at,created_by) values
  ('c5000000-0000-4000-8000-000000000002','c2000000-0000-4000-8000-000000000001','event','published','가상 연기 일정',
- now()+interval '12 hours','c1000000-0000-4000-8000-000000000004');
+ (((clock_timestamp() at time zone 'Asia/Seoul')::date+1)::timestamp+interval '12 hours') at time zone 'Asia/Seoul',
+ 'c1000000-0000-4000-8000-000000000004');
+select is((select count(*) from private.notification_jobs where source_id='c5000000-0000-4000-8000-000000000002'),0::bigint,
+ 'publishing an event alone never bypasses the approved next-day worker');
+set local role service_role;
+select is((select push_jobs from public.schedule_notice_create('c5000000-0000-4000-8000-000000000002')),1,
+ 'explicit next-day queueing includes the one eligible session-bound device');
+reset role;
 insert into notification_context(key,id) select 'postpone-job',id from private.notification_jobs
  where source_id='c5000000-0000-4000-8000-000000000002';
 set local role service_role;
@@ -398,34 +424,43 @@ select is(public.schedule_update('c5000000-0000-4000-8000-000000000002','event',
  now()+interval '3 days',p_status=>'published'),'c5000000-0000-4000-8000-000000000002'::uuid,
  'authorized event postponement preserves source identity');
 reset role;
-select is((select next_attempt_at from private.notification_jobs where id=(select id from notification_context where key='postpone-job')),
- now()+interval '2 days','postponed event moves retry to the new source notice boundary');
+select ok((select cancellation_requested_at is not null from private.notification_jobs
+ where id=(select id from notification_context where key='postpone-job')),
+ 'postponed event invalidates its queued notice instead of inventing a new approval');
 select is((select attempt_count from private.notification_jobs where id=(select id from notification_context where key='postpone-job')),1,
  'postponement never resets the consumed retry budget');
 select is((select state from private.notification_jobs where id=(select id from notification_context where key='postpone-job')),
- 'retry_wait','postponement does not relabel known non-send as a fresh queue entry');
+ 'canceled','postponement terminally suppresses the old source/device snapshot');
 set local role service_role;
 select is((select count(*) from public.notification_claim((select id from notification_context where key='postpone-job'))),0::bigint,
- 'worker cannot send a postponed retry before the new notice time');
+ 'worker cannot lease an invalidated postponed reminder');
 reset role;
 set local role authenticated;
 select is(public.schedule_update('c5000000-0000-4000-8000-000000000002','event','가상 앞당김 일정',
- now()+interval '12 hours',p_status=>'published'),'c5000000-0000-4000-8000-000000000002'::uuid,
+ (((clock_timestamp() at time zone 'Asia/Seoul')::date+1)::timestamp+interval '12 hours') at time zone 'Asia/Seoul',p_status=>'published'),'c5000000-0000-4000-8000-000000000002'::uuid,
  'event can move earlier without granting a retry-delay bypass');
 reset role;
-select ok((select j.next_attempt_at >= a.finished_at+make_interval(secs=>j.retry_seconds)
- and j.next_attempt_at <= clock_timestamp()+make_interval(secs=>j.retry_seconds)
- from private.notification_jobs j join private.notification_attempts a on a.job_id=j.id and a.ordinal=j.attempt_count
- where j.id=(select id from notification_context where key='postpone-job')),
- 'earlier edit retains the true non-send backoff instead of an obsolete postponed event delay');
+select is((select state from private.notification_jobs where id=(select id from notification_context where key='postpone-job')),
+ 'canceled','moving the event back cannot resurrect its invalidated source/device identity');
+set local role service_role;
+select is((select push_jobs from public.schedule_notice_create('c5000000-0000-4000-8000-000000000002')),0,
+ 'a repeated next-day worker cannot recreate a canceled identity after a timestamp edit');
+reset role;
 select is((select count(*) from private.notification_attempts where job_id=(select id from notification_context where key='postpone-job')),1::bigint,
  'source edits do not manufacture provider attempts');
 
--- A source can also move while a worker already holds the lease. The later
--- known non-send backoff must not outrun the current event time at re-claim.
+-- A source can also move while a worker holds the lease. Preserve the uncertain
+-- in-flight identity, then terminate it on verified non-send without retry.
 insert into public.schedules(id,artist_id,type,status,title,starts_at,created_by) values
  ('c5000000-0000-4000-8000-000000000003','c2000000-0000-4000-8000-000000000001','event','published','가상 진행 중 연기',
- now()+interval '12 hours','c1000000-0000-4000-8000-000000000004');
+ (((clock_timestamp() at time zone 'Asia/Seoul')::date+1)::timestamp+interval '12 hours') at time zone 'Asia/Seoul',
+ 'c1000000-0000-4000-8000-000000000004');
+select is((select count(*) from private.notification_jobs where source_id='c5000000-0000-4000-8000-000000000003'),0::bigint,
+ 'publishing an event alone never bypasses the approved next-day worker');
+set local role service_role;
+select is((select push_jobs from public.schedule_notice_create('c5000000-0000-4000-8000-000000000003')),1,
+ 'explicit next-day queueing includes the one eligible session-bound device');
+reset role;
 insert into notification_context(key,id) select 'leased-postpone-job',id from private.notification_jobs
  where source_id='c5000000-0000-4000-8000-000000000003';
 set local role service_role;
@@ -440,16 +475,16 @@ reset role;
 set local role service_role;
 select is(public.notification_complete((select id from notification_context where key='leased-postpone-job'),
  (select token from notification_context where key='leased-postpone-claim'),'not_sent','c9000000-0000-4000-8000-000000000009'),
- 'retry_wait','proven non-send of the old lease remains retryable, not an assumed acceptance');
+ 'canceled','proven non-send of the invalidated lease terminates without invented acceptance');
 reset role;
 update private.notification_jobs set next_attempt_at=clock_timestamp()-interval '1 second'
  where id=(select id from notification_context where key='leased-postpone-job');
 set local role service_role;
 select is((select count(*) from public.notification_claim((select id from notification_context where key='leased-postpone-job'))),0::bigint,
- 'current event notice boundary blocks an old due backoff after in-flight postponement');
+ 'invalidated in-flight snapshot cannot be leased despite an artificially due backoff');
 reset role;
-select is((select next_attempt_at from private.notification_jobs where id=(select id from notification_context where key='leased-postpone-job')),
- now()+interval '3 days','claim repairs stale backoff to the current locked source notice time');
+select is((select state from private.notification_jobs where id=(select id from notification_context where key='leased-postpone-job')),
+ 'canceled','re-claim leaves the known non-send cancellation terminal');
 select is((select attempt_count from private.notification_jobs where id=(select id from notification_context where key='leased-postpone-job')),1,
  'postponement recheck consumes no second lease or retry ordinal');
 

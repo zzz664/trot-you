@@ -11,9 +11,9 @@ concurrency:
 jobs:
   database:
     runs-on: ubuntu-latest
-    # Baseline exact-head database run took 16m34s; preserve full repeat/race
-    # checks while adding another populated upgrade and disposable resets.
-    timeout-minutes: 25
+    # Verified feature31 database run approached 20min. Preserve every repeat,
+    # race and populated upgrade while adding schedule notice migration gates.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,6 +61,8 @@ jobs:
       - run: node scripts/test-admin-subscriptions-upgrade.mjs
       - run: node scripts/test-schedule-management-concurrency.mjs
       - run: node scripts/test-schedule-management-upgrade.mjs
+      - run: node scripts/test-schedule-notice-concurrency.mjs
+      - run: node scripts/test-schedule-notice-upgrade.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()

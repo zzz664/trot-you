@@ -176,8 +176,11 @@ select is(public.webpush_recover_expired((select id from notice_push_context whe
 reset role;
 select is((select state from private.notification_attempts where token=(select token from notice_push_context where label='optout')),'unknown','suppressed ambiguous prepared attempt never becomes proven non-send');
 select is((select count(*) from private.renewal_notice_receipts),0::bigint,'transport uncertainty never creates billing evidence');
--- Existing generic payment source remains DB-only: enabling billing notices
--- does not broaden the worker to all payment/schedule notifications.
-select ok(pg_get_functiondef('public.webpush_list_due(integer)'::regprocedure) like '%in(''message'',''billing_notice'')%', 'worker remains exact two-kind allowlist, no payment/schedule widening');
+-- Generic payment receipts remain DB-only. Schedule notices are the separate
+-- approved next-day kind, never an unconditional broadening to every source.
+select ok(pg_get_functiondef('public.webpush_list_due(integer)'::regprocedure) like '%in(''message'',''billing_notice'',''schedule'')%',
+ 'worker retains its exact three-kind allowlist excluding generic payment receipts');
+select ok(pg_get_functiondef('private.webpush_job_eligible(private.notification_jobs,timestamptz)'::regprocedure) like '%schedule_notice_job_current%',
+ 'schedule delivery additionally requires its current approved next-day snapshot');
 select * from finish();
 rollback;
