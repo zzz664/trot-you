@@ -60,6 +60,8 @@ export const routes = {
   admin: '/admin',
   adminArtists: '/admin/artists',
   adminSettings: '/admin/settings',
+  adminSubscriptions: '/admin/subscriptions',
+  adminSubscriptionsApi: '/api/admin/subscriptions',
   adminSettingsPolicies: '/admin/settings/policies',
   adminSettingsApi: '/api/admin/settings',
   adminArtistsApi: '/api/admin/artists',
@@ -207,4 +209,14 @@ export function adminArtistApiPath(
 
 export function adminSettingsPolicyPath(section: string) {
   return `${routes.adminSettingsPolicies}#${encodeURIComponent(section)}`;
+}
+
+export function adminSubscriptionPath(
+  query: { from: string; to: string; artist_id: string | null; page: number },
+  api = false,
+) {
+  const params = new URLSearchParams({ from: query.from, to: query.to });
+  if (query.artist_id) params.set('artist_id', query.artist_id);
+  if (query.page > 1) params.set('page', String(query.page));
+  return `${api ? routes.adminSubscriptionsApi : routes.adminSubscriptions}?${params.toString()}`;
 }

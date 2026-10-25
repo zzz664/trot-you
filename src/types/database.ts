@@ -1361,6 +1361,15 @@ export type Database = {
         };
         Returns: Json;
       };
+      admin_subscription_dashboard: {
+        Args: {
+          p_artist_id?: string;
+          p_from: string;
+          p_page?: number;
+          p_to: string;
+        };
+        Returns: Json;
+      };
       analytics_daily_counts: {
         Args: { p_from: string; p_until: string };
         Returns: {

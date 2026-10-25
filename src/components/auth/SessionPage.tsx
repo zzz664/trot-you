@@ -1,3 +1,4 @@
+import { AdminSubscriptionsEntry } from '@/components/admin-subscriptions/AdminSubscriptionsEntry';
 import { AdminSettingsEntry } from '@/components/admin-settings/AdminSettingsEntry';
 import { getTranslations } from 'next-intl/server';
 import { InstallStatusCard } from '@/components/onboarding/InstallStatusCard';
@@ -22,6 +23,7 @@ export async function SessionPage({ path }: { path: string }) {
   const t = await getTranslations('auth');
   const artistCopy = await getTranslations('adminArtists');
   const settingsCopy = await getTranslations('adminSettings');
+  const subscriptionsCopy = await getTranslations('adminSubscriptions');
   const title =
     path === routes.restricted
       ? 'restrictedTitle'
@@ -65,6 +67,11 @@ export async function SessionPage({ path }: { path: string }) {
             title={settingsCopy('entryTitle')}
             description={settingsCopy('entryDescription')}
             label={settingsCopy('entryOpen')}
+          />
+          <AdminSubscriptionsEntry
+            title={subscriptionsCopy('title')}
+            description={subscriptionsCopy('entryDescription')}
+            label={subscriptionsCopy('open')}
           />
           <RefundEntry />
           <ReconciliationEntry />

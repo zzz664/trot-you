@@ -11,7 +11,9 @@ concurrency:
 jobs:
   database:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Baseline exact-head database run took 16m34s; preserve full repeat/race
+    # checks while adding another populated upgrade and disposable resets.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -55,6 +57,8 @@ jobs:
       - run: npm run test:db:admin-artist-concurrency
       - run: npm run test:db:admin-settings-concurrency
       - run: node scripts/test-admin-settings-upgrade.mjs
+      - run: npm run test:db:admin-subscriptions-concurrency
+      - run: node scripts/test-admin-subscriptions-upgrade.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
@@ -100,6 +104,7 @@ jobs:
       - run: npm run test:billing-notices-fixture
       - run: npm run test:admin-artists-fixture
       - run: npm run test:admin-settings-fixture
+      - run: npm run test:admin-subscriptions-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
@@ -634,6 +639,39 @@ jobs:
         if: always()
         with:
           name: admin-settings-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
+
+  admin-subscriptions-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/admin-subscriptions-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Real local Auth/RPC with fictional aggregate fixtures only. No real account,
+      # billing/provider action, policy approval, remote data or scheduler.
+      - run: npm run test:e2e:admin-subscriptions
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-subscriptions-browser-results
           path: |
             playwright-report/
             test-results/

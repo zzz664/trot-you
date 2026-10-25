@@ -19,6 +19,7 @@ export default defineConfig({
     '**/billing-notices/**',
     '**/admin-artists/**',
     '**/admin-settings/**',
+    '**/admin-subscriptions/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
