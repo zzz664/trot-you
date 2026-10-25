@@ -18,6 +18,13 @@ select ok((select bool_and(not has_function_privilege(r,oid,'EXECUTE')) from pg_
   where pronamespace='private'::regnamespace and proname like 'subscription_dashboard_%'),'private dashboard helpers are not directly executable');
 select ok((select prosecdef and 'search_path=""'=any(proconfig) from pg_proc where oid='public.admin_subscription_dashboard(date,date,uuid,integer)'::regprocedure),
   'dashboard uses a pinned definer search path');
+set local role anon;
+select throws_ok($$select public.admin_subscription_dashboard('2020-01-01','2020-01-31')$$,'42501',null,'anonymous direct execution denied before projection');
+reset role;
+set local role service_role;
+select throws_ok($$select public.admin_subscription_dashboard('2020-01-01','2020-01-31')$$,'42501',null,'service actor cannot execute human administrator dashboard');
+select throws_ok($$select * from private.subscription_cancellation_history$$,'42501',null,'service actor cannot inspect cancellation identity rows');
+reset role;
 
 insert into auth.users(id,email,raw_user_meta_data)
 select ('af100000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'dashboard-private-'||n||'@example.invalid','{}'::jsonb from generate_series(1,12)n;
@@ -190,5 +197,21 @@ select is(jsonb_array_length(pg_temp.dashboard(null,2)->'artists'),5,'next page 
 select is(pg_temp.dashboard(null,2)->'artists'->0->>'id','af900000-0000-4000-8000-000000000019','tied names use deterministic UUID boundary');
 select is(pg_temp.dashboard(null,2)->'artists'->0->'period'->'renewal_rate','null'::jsonb,'zero-activity artist has no fabricated conversion');
 select is(pg_temp.dashboard(null,2)->>'total_artists','25','total includes all states');
+reset role;
+-- Direct insertion has no observable previous state; preserve evidence but do
+-- not call an unproven canceled row a paid cancellation.
+insert into public.subscriptions(id,user_id,artist_id,provider,status,canceled_at)
+values(pg_temp.sid(10),'af100000-0000-4000-8000-000000000002','af200000-0000-4000-8000-000000000002','toss','canceled',clock_timestamp());
+select is((select source from private.subscription_cancellation_history where subscription_id=pg_temp.sid(10)),'observed','inserted cancellation marker has observed not legacy source');
+select is((select was_paid from private.subscription_cancellation_history where subscription_id=pg_temp.sid(10)),false,'unproven inserted cancellation is not a paid event');
+-- A recorded renewal later within the current KST date is not due yet.
+insert into private.payment_mandates(id,subscription_id,provider,environment,merchant_account,provider_customer_ref,secure_credential_ref,consent_version)
+values('af500000-0000-4000-8000-000000000001',pg_temp.sid(4),'toss','test','fictional-future-cohort',gen_random_uuid(),gen_random_uuid(),'fictional');
+insert into private.billing_obligations(subscription_id,mandate_id,period_start,period_end,amount_krw,is_initial,is_intro,price_version,grace_seconds,retry_seconds,max_retries,state,next_attempt_at)
+select pg_temp.sid(4),'af500000-0000-4000-8000-000000000001',boundary,boundary+interval '1 month',1000,false,false,'fictional',0,1,0,'open',boundary
+from (select (((clock_timestamp() at time zone 'Asia/Seoul')::date+1)::timestamp at time zone 'Asia/Seoul')-interval '1 microsecond' as boundary)q;
+set local role authenticated;
+select is(public.admin_subscription_dashboard((clock_timestamp() at time zone 'Asia/Seoul')::date,
+ (clock_timestamp() at time zone 'Asia/Seoul')::date,pg_temp.artist())->'summary'->'period'->>'renewal_due','0','later current-day obligation is excluded until its due instant');
 select * from finish();
 rollback;

@@ -16,3 +16,13 @@ values('af700000-0000-4000-8000-000000000007','toss','test','fictional-upgrade-m
 -- A cancellation cleared before migration is irretrievable and not fabricated.
 update public.subscriptions set status='canceled',canceled_at='2020-01-11' where id='af700000-0000-4000-8000-000000000006';
 update public.subscriptions set status='pending',canceled_at=null where id='af700000-0000-4000-8000-000000000006';
+
+-- Older paid history cannot make an elapsed-period pending abort paid again.
+insert into public.artists(id,slug,name,grade,status)
+values('af700000-0000-4000-8000-000000000009','subscription-upgrade-abort','Fictional retained pending abort','B','active');
+insert into public.subscriptions(id,user_id,artist_id,provider,status,current_period_start,current_period_end,canceled_at)
+values('af700000-0000-4000-8000-000000000010','af700000-0000-4000-8000-000000000002','af700000-0000-4000-8000-000000000009','toss','canceled','2019-12-01','2020-01-01','2020-01-10');
+insert into public.payment_events(id,subscription_id,kind,amount_krw,provider,period_start,period_end,occurred_at,recorded_at)
+values('af700000-0000-4000-8000-000000000011','af700000-0000-4000-8000-000000000010','charge',1000,'toss','2019-12-01','2020-01-01','2019-12-01','2019-12-01');
+insert into private.payment_event_verifications(event_id,provider,environment,merchant_account,provider_action_id,evidence_ref)
+values('af700000-0000-4000-8000-000000000011','toss','test','fictional-upgrade-merchant','fictional-upgrade-abort','af700000-0000-4000-8000-000000000012');

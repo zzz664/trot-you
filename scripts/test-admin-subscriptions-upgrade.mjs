@@ -112,6 +112,13 @@ try {
     ),
     '1',
   );
+  assert.equal(
+    psql(
+      "select was_paid from private.subscription_cancellation_history where subscription_id='af700000-0000-4000-8000-000000000010';",
+    ),
+    'f',
+    'Retained marker outside its old paid/grace window is not classified paid from lifetime money alone.',
+  );
   const dashboard = JSON.parse(
     psql(`begin; set local role authenticated; set local "request.jwt.claim.sub"='af700000-0000-4000-8000-000000000001';
     select public.admin_subscription_dashboard('2020-01-01','2020-01-31','af700000-0000-4000-8000-000000000003'); rollback;`),
@@ -138,7 +145,7 @@ try {
     psql(
       "select count(*) from private.subscription_cancellation_history where source='retained_marker';",
     ),
-    '1',
+    '2',
   );
   console.info(
     'PASS: pre-00029 retained marker imports once without changing source rows; erased history stays unknown and later episodes append.',
