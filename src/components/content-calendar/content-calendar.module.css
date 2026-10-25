@@ -1,0 +1,50 @@
+.screen {
+  overflow-wrap: anywhere;
+}
+.stack,
+.list,
+.editor,
+.fields,
+.metrics {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+}
+.list {
+  list-style: none;
+  padding: 0;
+}
+.list > li {
+  min-width: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-unit);
+}
+.actions > * {
+  max-width: 100%;
+}
+.body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.metrics {
+  margin: 0;
+}
+.metrics dd {
+  margin: 0;
+  font-weight: bold;
+}
+.editor,
+.notice {
+  border: var(--border-width) solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  padding: calc(var(--space-unit) * 2);
+}

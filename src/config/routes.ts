@@ -6,6 +6,8 @@ export const routes = {
   scheduleNoticePreference: '/api/schedule-notices/preference',
   scheduleNoticeEvent: '/api/schedule-notices/event',
   notifySchedulesCron: '/api/cron/notify-schedules',
+  adminContentCalendar: '/admin/content-calendar',
+  adminContentCalendarApi: '/api/admin/content-calendar',
   adminSchedules: '/admin/schedules',
   adminSchedulesApi: '/api/admin/schedules',
   start: '/start',
@@ -254,4 +256,29 @@ export function adminScheduleApiPath(action?: 'save' | 'delete') {
   return action
     ? `${routes.adminSchedulesApi}/${action}`
     : routes.adminSchedulesApi;
+}
+
+export function adminContentCalendarPath(
+  month: string,
+  artistId?: string | null,
+  page = 1,
+  api = false,
+) {
+  const query = new URLSearchParams({ month });
+  if (artistId) query.set('artist_id', artistId);
+  if (page > 1) query.set('page', String(page));
+  return `${api ? routes.adminContentCalendarApi : routes.adminContentCalendar}?${query}`;
+}
+export function adminContentCalendarApiPath(action?: 'save' | 'delete') {
+  return action
+    ? `${routes.adminContentCalendarApi}/${action}`
+    : routes.adminContentCalendarApi;
+}
+export function artistContentCalendarPath(
+  slug: string,
+  month?: string,
+  api = false,
+) {
+  const base = `${api ? routes.artistComposeApi : routes.artist}/${encodeURIComponent(slug)}/calendar`;
+  return month ? `${base}?${new URLSearchParams({ month })}` : base;
 }

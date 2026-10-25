@@ -37,7 +37,7 @@ const snapshot = () =>
   'schedules',(select jsonb_agg(to_jsonb(s)-'revision' order by s.id) from public.schedules s),
   'catalog',(select jsonb_agg(to_jsonb(s) order by s.id) from public.schedule_catalog s),
   'optouts',(select jsonb_agg(to_jsonb(o) order by o.user_id,o.schedule_id) from public.schedule_notification_optouts o),
-  'content',(select jsonb_agg(to_jsonb(c) order by c.id) from public.content_calendar c),
+  'content',(select jsonb_agg(to_jsonb(c)-'revision' order by c.id) from public.content_calendar c),
   'audit',(select jsonb_agg(to_jsonb(a) order by a.id) from public.calendar_audit_log a),
   'profiles',(select jsonb_agg(to_jsonb(p) order by p.id) from public.profiles p));`),
   );

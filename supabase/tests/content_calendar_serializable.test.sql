@@ -1,0 +1,10 @@
+begin isolation level serializable;
+create extension if not exists pgtap with schema extensions;
+set local search_path=public,extensions;
+select no_plan();
+set local role authenticated;
+select throws_ok($$select public.content_calendar_admin_list(gen_random_uuid(),'2028-02-01')$$,'25001','SCHEDULE_ISOLATION_UNSUPPORTED','admin read refuses unsupported serializable mode');
+select throws_ok($$select public.content_calendar_artist_context('content-calendar-1','2028-02-01')$$,'25001','ARTIST_REPLY_ISOLATION_UNSUPPORTED','artist read refuses unsupported serializable mode');
+reset role;
+select * from finish();
+rollback;

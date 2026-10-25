@@ -22,6 +22,7 @@ export default defineConfig({
     '**/admin-subscriptions/**',
     '**/schedules/**',
     '**/schedule-notices/**',
+    '**/content-calendar/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
