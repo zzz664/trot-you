@@ -474,9 +474,23 @@ for (const scale of ['normal', 'large', 'xlarge'] as const) {
     await page
       .getByRole('link', { name: copy.allReplies, exact: true })
       .click();
+    await expect(page).toHaveURL(
+      `${appOrigin}${artistReplyActivityPath(world.artist.slug)}`,
+    );
+    await expect(
+      main(page).getByText(copy.allSelected, { exact: true }),
+    ).toBeVisible();
     await page
       .getByRole('link', { name: copy.backToArtists, exact: true })
       .click();
+    // A link click can return before the client route settles. Reloading now
+    // must refresh the menu, not interrupt navigation and reload the old feed.
+    await expect(page).toHaveURL(
+      `${appOrigin}${routes.artistReplyActivityMenu}`,
+    );
+    await expect(
+      main(page).getByRole('heading', { name: copy.menuTitle, exact: true }),
+    ).toBeVisible();
     addArtists(world, 51);
     await page.reload();
     await page.getByRole('link', { name: copy.menuMore, exact: true }).click();
