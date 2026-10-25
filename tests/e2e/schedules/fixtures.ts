@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
+import { captureSettledSchedulePage } from './screenshot-capture';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import {
@@ -377,10 +378,7 @@ export async function screenshot(
   scale: Scale,
 ) {
   await assertRenderedScale(page, scale);
-  await page.screenshot({
-    path: info.outputPath(`${name}.png`),
-    fullPage: true,
-  });
+  await captureSettledSchedulePage(page, info.outputPath(`${name}.png`));
 }
 export function setFont(actor: Identity, scale: Scale) {
   assert.ok(['normal', 'large', 'xlarge'].includes(scale));

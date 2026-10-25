@@ -113,3 +113,31 @@ build. The complete fixture suite had 351 passing tests; the final 30-case
 schedule-notice guard/discovery suite passed again after the role/browser fixes.
 The committed schema still matches its official SHA-256 exactly. Actual final
 application CI, all browser cases and ordinary pixel review remain pending.
+
+## Full-page evidence settling correction
+
+Application CI `40204274820` at remote
+`3c63fd8818807781240628c46bfbe5e66e971622` passed all 655 browser cases,
+including 20 new schedule-notice cases and the earlier admin-save response
+capture repair. Ordinary pixel review found eight existing schedule full-page
+PNGs whose captured height ended before the final notice/calendar content.
+Native original-image bottoms confirm an evidence race: the event/month
+assertions settled before the independently loaded notice preference panel
+expanded. This is not evidence of an application clipping defect. All 81 new
+notice captures already waited for preference state and were complete; the
+88 admin-settings captures also had no concrete visual defect.
+
+The legacy full-page helper now waits for an existing notice panel's rendered
+preference state and loading-status removal before Chromium measures page
+height. Admin, intentional loading and revoked-state pages without a notice
+panel retain their explicit assertions. No arbitrary delay, retry, fabricated
+response or relaxed behavior assertion is added. Three unit regressions prove
+capture ordering, no-panel handling and failure rather than partial evidence.
+Actual corrected-head browser capture and renewed pixel review remain required.
+No application/DB/schema/workflow source changed for this correction.
+
+Correction verification: full local `npm run check:all` passed again with
+7,251 unit tests across 245 files, strict types, lint/format, contrast and
+production/PWA builds. The existing schedules fixture/discovery suite also
+passed all 28 checks. The official generated schema remains byte-identical.
+Browser runtime was not attempted locally; corrected CI/pixel evidence is pending.
