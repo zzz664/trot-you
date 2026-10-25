@@ -54,6 +54,15 @@ test('keyless activity pages show a real Retry and Back without fictional succes
       copy.errors.SETUP_NOT_READY,
     );
     await page.getByRole('link', { name: copy.back, exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`${routes.artist}$`));
+    // The artist landing is protected even in a keyless environment. Wait for
+    // its settled login destination, not the transient client-navigation URL.
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === routes.start &&
+        url.searchParams.get('next') === routes.artist,
+    );
+    await expect(
+      page.getByRole('button', { name: messages.auth.login, exact: true }),
+    ).toBeDisabled();
   }
 });

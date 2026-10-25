@@ -14,7 +14,10 @@ import {
 import sharp from 'sharp';
 import { ADMIN_ARTISTS_CI_ENV } from '../../../scripts/admin-artists-local-fixtures.mjs';
 import type { Database } from '../../../src/types/database';
-import type { ComposeDraft } from '../../../src/config/artist-compose';
+import type {
+  ComposeDraft,
+  ComposePageData,
+} from '../../../src/config/artist-compose';
 import {
   artistComposeApiPath,
   artistDispatchApiPath,
@@ -391,6 +394,21 @@ export async function createSentMessages(
       });
       expect(completed.status()).toBe(200);
       mediaId = (await completed.json()).data.mediaId as string;
+      // Completion attaches verified media and advances the existing composer
+      // CAS revision. Read the authoritative draft before a subsequent save;
+      // reusing the pre-upload revision must remain a genuine conflict.
+      const refreshed = await post(
+        context.request,
+        artistComposeApiPath(world.artist.slug),
+        { messageId: draft.id },
+      );
+      expect(refreshed.status()).toBe(200);
+      const current = ((await refreshed.json()).data as ComposePageData)
+        .selectedDraft;
+      expect(current?.id).toBe(draft.id);
+      expect(current?.revision).toBeGreaterThan(draft.revision);
+      expect(current?.media.map((item) => item.id)).toContain(mediaId);
+      draft = current!;
       const attached = await post(
         context.request,
         artistComposeApiPath(world.artist.slug, 'save'),
