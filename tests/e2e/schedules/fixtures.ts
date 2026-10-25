@@ -184,39 +184,52 @@ function calendarMonth(offset: number) {
   return new Date(Date.UTC(2036, offset, 1)).toISOString().slice(0, 7);
 }
 export const test = base.extend<{ world: World }>({
-  world: async ({}, provide) => {
+  world: async ({}, provide, info) => {
     const admin = await createIdentity('admin');
     const other = await createIdentity('admin');
     const fan = await createIdentity('fan');
     const emptyFan = await createIdentity('fan');
-    const offset = monthIndex++;
+    // Failed Playwright tests restart the worker but retain this disposable DB.
+    // workerIndex is unique after every restart; reserve disjoint month blocks
+    // so old rows cannot duplicate labels, contaminate lists or hide a picker.
+    const localIndex = monthIndex++;
+    assert.ok(
+      localIndex < 100,
+      'Increase the fixture month block before adding 100 tests per worker.',
+    );
+    const offset = info.workerIndex * 100 + localIndex;
+    assert.ok(
+      offset < 9000,
+      'The isolated suite exceeded its bounded fixture month range.',
+    );
+    const scope = `${info.workerIndex}-${localIndex}`;
     const month = calendarMonth(offset);
     const nextMonth = calendarMonth(offset + 1);
     const previousMonth = calendarMonth(offset - 1);
     const artist = {
       id: randomUUID(),
       slug: `ci-schedules-${9999 - offset}-${randomUUID()}`,
-      name: `허구 내 가수 ${month}`,
+      name: `허구 내 가수 ${month} · 점검 ${scope}`,
     };
     const unrelated = {
       id: randomUUID(),
       slug: `ci-schedules-${9999 - offset}-${randomUUID()}`,
-      name: `허구 다른 가수 ${month}`,
+      name: `허구 다른 가수 ${month} · 점검 ${scope}`,
     };
     const grace = {
       id: randomUUID(),
       slug: `ci-schedules-${9999 - offset}-${randomUUID()}`,
-      name: `허구 유예 가수 ${month}`,
+      name: `허구 유예 가수 ${month} · 점검 ${scope}`,
     };
     const canceled = {
       id: randomUUID(),
       slug: `ci-schedules-${9999 - offset}-${randomUUID()}`,
-      name: `허구 이용기간 남은 가수 ${month}`,
+      name: `허구 이용기간 남은 가수 ${month} · 점검 ${scope}`,
     };
     const inactive = {
       id: randomUUID(),
       slug: `ci-schedules-${9999 - offset}-${randomUUID()}`,
-      name: `허구 비공개 가수 ${month}`,
+      name: `허구 비공개 가수 ${month} · 점검 ${scope}`,
     };
     for (const item of [artist, unrelated, grace, canceled, inactive])
       localSql(`insert into public.artists(id,slug,name,intro,grade,status)

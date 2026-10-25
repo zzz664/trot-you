@@ -22,11 +22,14 @@ import { Textarea } from '@/components/ui/Textarea';
 import { useDialog } from '@/components/ui/DialogProvider';
 import styles from './schedules.module.css';
 
+export type ScheduleArtistChoice = { value: string; label: string };
+
 export function ScheduleEditor({
   initial,
   event,
   initialArtists,
   pendingOperation,
+  pendingArtist,
   busy,
   onArtistPage,
   onSave,
@@ -36,6 +39,7 @@ export function ScheduleEditor({
   event: AdminSchedule | null;
   initialArtists?: AdminArtistList;
   pendingOperation: RefObject<AdminScheduleSaveInput | null>;
+  pendingArtist?: RefObject<ScheduleArtistChoice | null>;
   busy: boolean;
   onArtistPage?: (
     page: number,
@@ -47,6 +51,7 @@ export function ScheduleEditor({
 }) {
   const t = useTranslations('schedules');
   const { showDialog, cancelDialog } = useDialog();
+  const pendingChoice = pendingArtist;
   const restored = pendingOperation.current?.input ?? initial;
   const [input, setInput] = useState(restored);
   const [start, setStart] = useState(() =>
@@ -69,10 +74,8 @@ export function ScheduleEditor({
   const [conflict, setConflict] = useState(false);
   const [artists, setArtists] = useState(initialArtists);
   const [artistPage, setArtistPage] = useState(1);
-  const [selectedArtist, setSelectedArtist] = useState<{
-    value: string;
-    label: string;
-  } | null>(null);
+  const [selectedArtist, setSelectedArtist] =
+    useState<ScheduleArtistChoice | null>(() => pendingChoice?.current ?? null);
   const operation = pendingOperation;
   const running = useRef(false);
   const mounted = useRef(true);
@@ -140,6 +143,11 @@ export function ScheduleEditor({
           });
           if (decision !== 'confirmed' || !mounted.current) return;
         }
+        if (!event && pendingChoice)
+          pendingChoice.current =
+            artistOptions.find(
+              (choice) => choice.value === parsed.data.artist_id,
+            ) ?? null;
         operation.current = {
           operation_id: crypto.randomUUID(),
           schedule_id: event?.id ?? null,
@@ -152,10 +160,12 @@ export function ScheduleEditor({
       if (!mounted.current || !result) return;
       if (result.ok) {
         operation.current = null;
+        if (pendingChoice) pendingChoice.current = null;
         setUncertain(false);
       } else if (result.code === 'UNAVAILABLE') setUncertain(true);
       else {
         operation.current = null;
+        if (pendingChoice) pendingChoice.current = null;
         setUncertain(false);
         setConflict(result.code === 'CONFLICT');
       }
@@ -168,6 +178,7 @@ export function ScheduleEditor({
       value: artist.id,
       label: t('artistOption', {
         name: artist.name,
+        slug: artist.slug,
         status: t(`artistStatuses.${artist.status}`),
       }),
     })) ?? [];

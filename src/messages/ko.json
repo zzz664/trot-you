@@ -1737,7 +1737,7 @@
     "titleLabel": "일정 제목",
     "artistSelect": "가수 선택",
     "artistSelectHint": "등록 후 가수는 변경할 수 없습니다. 다른 가수의 일정은 새로 등록해 주세요.",
-    "artistOption": "{name} · {status}",
+    "artistOption": "{name} · {slug} · {status}",
     "artistStatuses": {
       "draft": "준비 중",
       "active": "활동 중",

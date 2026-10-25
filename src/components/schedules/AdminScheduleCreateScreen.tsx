@@ -9,12 +9,13 @@ import { routes, adminSchedulePath } from '@/config/routes';
 import { Loading } from '@/components/ui/Loading';
 import { InlineError } from '@/components/ui/InlineError';
 import { useScheduleResource } from './useScheduleResource';
-import { ScheduleEditor } from './ScheduleEditor';
+import { ScheduleEditor, type ScheduleArtistChoice } from './ScheduleEditor';
 import styles from './schedules.module.css';
 export function AdminScheduleCreateScreen({ actorKey }: { actorKey?: string }) {
   const t = useTranslations('schedules');
   const router = useRouter();
   const pendingOperation = useRef<AdminScheduleSaveInput | null>(null);
+  const pendingArtist = useRef<ScheduleArtistChoice | null>(null);
   const readArtists = useCallback(
     async (page: number, signal: AbortSignal) => {
       const result = await fetchScheduleArtists(page, signal, actorKey);
@@ -22,8 +23,10 @@ export function AdminScheduleCreateScreen({ actorKey }: { actorKey?: string }) {
         !signal.aborted &&
         !result.ok &&
         (result.code === 'UNAUTHENTICATED' || result.code === 'FORBIDDEN')
-      )
+      ) {
         pendingOperation.current = null;
+        pendingArtist.current = null;
+      }
       return result;
     },
     [actorKey],
@@ -62,6 +65,7 @@ export function AdminScheduleCreateScreen({ actorKey }: { actorKey?: string }) {
         <ScheduleEditor
           event={null}
           pendingOperation={pendingOperation}
+          pendingArtist={pendingArtist}
           initial={{
             artist_id: '',
             type: 'event',
@@ -89,10 +93,13 @@ export function AdminScheduleCreateScreen({ actorKey }: { actorKey?: string }) {
               result &&
               !result.ok &&
               (result.code === 'UNAUTHENTICATED' || result.code === 'FORBIDDEN')
-            )
+            ) {
               pendingOperation.current = null;
+              pendingArtist.current = null;
+            }
             if (result?.ok) {
               pendingOperation.current = null;
+              pendingArtist.current = null;
               state.clear();
               router.push(adminSchedulePath(result.data.id));
             }

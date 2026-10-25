@@ -37,6 +37,7 @@ import {
   setRestricted,
   addPaginationEvents,
   type World,
+  type Artist,
   type Scale,
 } from './fixtures';
 const messages: typeof import('../../../src/messages/ko.json') = JSON.parse(
@@ -50,6 +51,12 @@ const button = (root: Page | Locator, name: string) =>
   root.getByRole('button', { name, exact: true });
 const link = (root: Page | Locator, name: string) =>
   root.getByRole('link', { name, exact: true });
+function artistOption(artist: Artist) {
+  return messages.schedules.artistOption
+    .replace('{name}', artist.name)
+    .replace('{slug}', artist.slug)
+    .replace('{status}', messages.schedules.artistStatuses.active);
+}
 async function success(
   response: Pick<APIResponse, 'status' | 'headers' | 'json'>,
 ) {
@@ -133,6 +140,17 @@ async function fanList(page: Page, month: string) {
     main(page).getByRole('heading', { name: '공식 일정', exact: true }),
   ).toBeVisible();
   await expect(main(page).getByTestId('schedule-calendar')).toBeVisible();
+}
+async function expectAdminEmpty(page: Page) {
+  await expect(
+    main(page).getByText(messages.schedules.adminEmpty, { exact: true }),
+  ).toBeVisible();
+  const list = main(page).getByTestId('admin-schedule-list');
+  // An empty list has no visual box. Assert the loaded semantic empty state,
+  // attached result container and zero rows instead of visibility of that box.
+  await expect(list).toHaveCount(1);
+  await expect(list.locator(':scope > li')).toHaveCount(0);
+  await expect(main(page).getByRole('alert')).toHaveCount(0);
 }
 async function adminList(page: Page, month: string) {
   await page.goto(adminScheduleListPath(month));
@@ -413,14 +431,25 @@ test('strict routes reject invalid months, cursors, duplicate query keys, unsafe
       400,
       'INVALID_INPUT',
     );
+  const unconfirmedPublished = command(world, {
+    input: input(world, { status: 'published' }),
+    confirmed: false,
+  });
   await failure(
-    await post(context.request, adminScheduleApiPath('save'), {
-      ...create,
-      confirmed: false,
-    }),
+    await post(
+      context.request,
+      adminScheduleApiPath('save'),
+      unconfirmedPublished,
+    ),
     400,
     'CONFIRMATION_REQUIRED',
   );
+  // Confirmation is a publish boundary, not a restriction on private drafts.
+  const unconfirmedDraft = await save(
+    context.request,
+    command(world, { confirmed: false }),
+  );
+  expect(unconfirmedDraft.status).toBe('draft');
   await failure(
     await context.request.post(adminScheduleApiPath('save'), {
       headers: { Origin: 'https://example.invalid' },
@@ -774,7 +803,7 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       await expect(
         main(page).getByRole('heading', { name: copy.adminTitle, exact: true }),
       ).toBeVisible();
-      await expect(main(page).getByTestId('admin-schedule-list')).toBeVisible();
+      await expectAdminEmpty(page);
       await screenshot(
         page,
         info,
@@ -811,7 +840,7 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       );
       await form
         .getByRole('radio', {
-          name: `${world.artist.name} · ${copy.artistStatuses.active}`,
+          name: artistOption(world.artist),
           exact: true,
         })
         .check();
@@ -985,7 +1014,7 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       await expect(
         main(page).getByRole('heading', { name: copy.adminTitle, exact: true }),
       ).toBeVisible();
-      await expect(main(page).getByTestId('admin-schedule-list')).toBeVisible();
+      await expectAdminEmpty(page);
       await screenshot(
         page,
         info,
@@ -1375,7 +1404,7 @@ test('accepted create with lost response cannot replay an old administrator oper
   await expect(form).toBeVisible();
   await form
     .getByRole('radio', {
-      name: `${world.artist.name} · ${copy.artistStatuses.active}`,
+      name: artistOption(world.artist),
       exact: true,
     })
     .check();
@@ -1505,6 +1534,320 @@ test('accepted create with lost response cannot replay an old administrator oper
     page,
     info,
     'admin-account-switch-fresh-blank-create-xlarge-360',
+    'xlarge',
+  );
+});
+
+test('same-name artists remain distinct by visible slug and selecting one saves only that artist', async ({
+  world,
+  context,
+  page,
+}, info) => {
+  const copy = messages.schedules;
+  setFont(world.admin, 'xlarge');
+  await world.admin.signIn(context);
+  await page.setViewportSize({ width: 360, height: 900 });
+  const name = `허구 동명이인 가수 ${world.month}`;
+  const one = {
+    id: randomUUID(),
+    slug: `ci-schedules-0000-duplicate-${randomUUID()}`,
+    name,
+  };
+  const two = {
+    id: randomUUID(),
+    slug: `ci-schedules-0000-duplicate-${randomUUID()}`,
+    name,
+  };
+  for (const artist of [one, two])
+    localSql(
+      `insert into public.artists(id,slug,name,grade,status) values('${uuid(artist.id)}','${artist.slug}','${name}','B','active');`,
+    );
+  await page.goto(adminSchedulePath('new'));
+  await expect(page).toHaveURL(adminSchedulePath('new'));
+  await expect(
+    main(page).getByRole('heading', { name: copy.createTitle, exact: true }),
+  ).toBeVisible();
+  const form = main(page).getByTestId('admin-schedule-form');
+  const options = form.getByRole('group', {
+    name: copy.artistSelect,
+    exact: true,
+  });
+  const firstArtist = form.getByRole('radio', {
+    name: artistOption(one),
+    exact: true,
+  });
+  const secondArtist = form.getByRole('radio', {
+    name: artistOption(two),
+    exact: true,
+  });
+  await expect(firstArtist).toHaveCount(1);
+  await expect(secondArtist).toHaveCount(1);
+  await expect(options).toContainText(one.slug);
+  await expect(options).toContainText(two.slug);
+  await secondArtist.check();
+  await expect(secondArtist).toBeChecked();
+  await expect(firstArtist).not.toBeChecked();
+  await captureElement(
+    page,
+    options,
+    info,
+    'admin-duplicate-names-visible-slugs-xlarge-360',
+    'xlarge',
+  );
+  await form
+    .getByLabel(copy.titleLabel, { exact: true })
+    .fill('허구 동명이인 가수 선택 확인');
+  await form
+    .getByLabel(copy.startDate, { exact: true })
+    .fill(`${world.month}-27`);
+  await form.getByLabel(copy.startTime, { exact: true }).fill('16:00');
+  await form.getByRole('checkbox', { name: copy.confirm, exact: true }).check();
+  const response = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === adminScheduleApiPath('save'),
+  );
+  await button(form, copy.createSave).click();
+  const created = adminScheduleSchema.parse(await success(await response));
+  expect(created.artist_id).toBe(two.id);
+  expect(created.artist_slug).toBe(two.slug);
+  await expect(page).toHaveURL(adminSchedulePath(created.id));
+  await expect(
+    main(page).getByRole('heading', { name: copy.editTitle, exact: true }),
+  ).toBeVisible();
+  await expect(form.getByLabel(copy.titleLabel, { exact: true })).toHaveValue(
+    '허구 동명이인 가수 선택 확인',
+  );
+  expect(
+    localSql(
+      `select count(*) from public.schedules where artist_id='${uuid(one.id)}';`,
+    ),
+  ).toBe('0');
+  await screenshot(
+    page,
+    info,
+    'admin-duplicate-name-correct-artist-saved-xlarge-360',
+    'xlarge',
+  );
+});
+
+test('valid percent-encoded month and UUID routes settle to the requested fan/admin content rather than a blank loading page', async ({
+  world,
+  context,
+  page,
+}, info) => {
+  const copy = messages.schedules;
+  setFont(world.fan, 'xlarge');
+  await world.fan.signIn(context);
+  await page.setViewportSize({ width: 360, height: 900 });
+  const encodedList = scheduleListPath(world.month).replaceAll('-', '%2D');
+  await page.goto(encodedList);
+  await expect(page).toHaveURL(encodedList);
+  await expect(
+    main(page).getByRole('heading', { name: copy.title, exact: true }),
+  ).toBeVisible();
+  await expect(main(page).getByTestId('schedule-calendar')).toContainText(
+    world.event.title,
+  );
+  await screenshot(
+    page,
+    info,
+    'fan-encoded-month-settled-xlarge-360',
+    'xlarge',
+  );
+  const encodedDetail = scheduleDetailPath(
+    world.event.id,
+    world.month,
+  ).replaceAll('-', '%2D');
+  await page.goto(encodedDetail);
+  await expect(page).toHaveURL(encodedDetail);
+  await expect(
+    main(page).getByRole('heading', { name: copy.detailTitle, exact: true }),
+  ).toBeVisible();
+  await expect(
+    main(page).getByRole('heading', { name: world.event.title, exact: true }),
+  ).toBeVisible();
+  await captureElement(
+    page,
+    main(page).getByTestId('schedule-map-links'),
+    info,
+    'fan-encoded-uuid-maps-settled-xlarge-360',
+    'xlarge',
+  );
+  setFont(world.admin, 'xlarge');
+  await world.admin.signIn(context);
+  const encodedAdmin = `${adminScheduleListPath(world.month).replaceAll('-', '%2D')}&page=%31`;
+  await page.goto(encodedAdmin);
+  await expect(page).toHaveURL(encodedAdmin);
+  await expect(
+    main(page).getByRole('heading', { name: copy.adminTitle, exact: true }),
+  ).toBeVisible();
+  await expect(main(page).getByTestId('admin-schedule-list')).toContainText(
+    world.draft.title,
+  );
+  await screenshot(
+    page,
+    info,
+    'admin-encoded-query-settled-xlarge-360',
+    'xlarge',
+  );
+  const encodedEdit = adminSchedulePath(world.draft.id).replaceAll('-', '%2D');
+  await page.goto(encodedEdit);
+  await expect(page).toHaveURL(encodedEdit);
+  await expect(
+    main(page).getByRole('heading', { name: copy.editTitle, exact: true }),
+  ).toBeVisible();
+  await expect(
+    main(page)
+      .getByTestId('admin-schedule-form')
+      .getByLabel(copy.titleLabel, { exact: true }),
+  ).toHaveValue(world.draft.title);
+  await captureElement(
+    page,
+    main(page).getByTestId('admin-schedule-form'),
+    info,
+    'admin-encoded-uuid-form-settled-xlarge-360',
+    'xlarge',
+  );
+});
+
+test('page-two artist selection survives uncertain create and actor revalidation with its visible identity and exact operation intact', async ({
+  world,
+  context,
+  page,
+}, info) => {
+  const copy = messages.schedules;
+  setFont(world.admin, 'xlarge');
+  await world.admin.signIn(context);
+  await page.setViewportSize({ width: 360, height: 900 });
+  const ordering = world.artist.slug.match(/^ci-schedules-([0-9]+)-/)![1]!;
+  const root = `ci-schedules-0000-${ordering}-${randomUUID()}`;
+  const artists = Array.from({ length: 25 }, (_, index) => ({
+    id: randomUUID(),
+    slug: `${root}-${String(index).padStart(2, '0')}`,
+    name: `허구 선택 목록 가수 ${index} ${world.month}`,
+  }));
+  for (const artist of artists)
+    localSql(
+      `insert into public.artists(id,slug,name,grade,status) values('${uuid(artist.id)}','${artist.slug}','${artist.name}','B','active');`,
+    );
+  const chosen = artists[20]!;
+  const picker2 = adminArtistListSchema.parse(
+    await success(
+      await context.request.get(
+        `${routes.adminSchedulesApi}?artists=1&page=2`,
+        { headers: { [SCHEDULES.actorHeader]: world.admin.id } },
+      ),
+    ),
+  );
+  expect(picker2.artists.map((artist) => artist.id)).toContain(chosen.id);
+  await page.goto(adminSchedulePath('new'));
+  await expect(page).toHaveURL(adminSchedulePath('new'));
+  await expect(
+    main(page).getByRole('heading', { name: copy.createTitle, exact: true }),
+  ).toBeVisible();
+  const form = main(page).getByTestId('admin-schedule-form');
+  await expect(form).toBeVisible();
+  await expect(
+    form.getByRole('radio', { name: artistOption(chosen), exact: true }),
+  ).toHaveCount(0);
+  await button(form, copy.artistNext).click();
+  const selected = form.getByRole('radio', {
+    name: artistOption(chosen),
+    exact: true,
+  });
+  await expect(selected).toBeVisible();
+  await selected.check();
+  await captureElement(
+    page,
+    form.getByRole('group', { name: copy.artistSelect, exact: true }),
+    info,
+    'admin-page-two-artist-selected-xlarge-360',
+    'xlarge',
+  );
+  await form
+    .getByLabel(copy.titleLabel, { exact: true })
+    .fill('허구 두 번째 목록 가수 일정');
+  await form
+    .getByLabel(copy.startDate, { exact: true })
+    .fill(`${world.month}-28`);
+  await form.getByLabel(copy.startTime, { exact: true }).fill('17:00');
+  await form.getByRole('checkbox', { name: copy.confirm, exact: true }).check();
+  const bodies: string[] = [];
+  const acceptedIds: string[] = [];
+  await page.route(`**${adminScheduleApiPath('save')}`, async (route) => {
+    bodies.push(route.request().postData()!);
+    const response = await route.fetch();
+    const accepted = adminScheduleSchema.parse(await success(response));
+    expect(accepted.artist_id).toBe(chosen.id);
+    acceptedIds.push(accepted.id);
+    if (bodies.length === 1) await route.abort('connectionreset');
+    else await route.fulfill({ response });
+  });
+  await button(form, copy.createSave).click();
+  await expect(
+    main(page).getByText(copy.uncertain, { exact: true }),
+  ).toBeVisible();
+  const restored = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return (
+      url.pathname === routes.adminSchedulesApi &&
+      url.searchParams.get('artists') === '1' &&
+      url.searchParams.get('page') === '1' &&
+      response.status() === 200
+    );
+  });
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new PageTransitionEvent('pageshow', { persisted: true }),
+    ),
+  );
+  await success(await restored);
+  await expect(selected).toBeChecked();
+  await expect(selected).toBeDisabled();
+  await expect(form.getByLabel(copy.titleLabel, { exact: true })).toHaveValue(
+    '허구 두 번째 목록 가수 일정',
+  );
+  await expect(
+    main(page).getByText(copy.uncertain, { exact: true }),
+  ).toBeVisible();
+  await captureElement(
+    page,
+    form.getByRole('group', { name: copy.artistSelect, exact: true }),
+    info,
+    'admin-page-two-artist-retained-after-restore-xlarge-360',
+    'xlarge',
+  );
+  await captureElement(
+    page,
+    button(form, copy.retryOperation),
+    info,
+    'admin-page-two-exact-retry-offscreen-xlarge-360',
+    'xlarge',
+  );
+  await button(form, copy.retryOperation).click();
+  await expect(page).toHaveURL(adminSchedulePath(acceptedIds[0]!));
+  await expect(
+    main(page).getByRole('heading', { name: copy.editTitle, exact: true }),
+  ).toBeVisible();
+  await expect(
+    main(page).getByRole('heading', {
+      name: '허구 두 번째 목록 가수 일정',
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(bodies).toHaveLength(2);
+  expect(bodies[1]).toBe(bodies[0]);
+  expect(acceptedIds[1]).toBe(acceptedIds[0]);
+  expect(
+    localSql(
+      `select count(*) from public.schedules where artist_id='${uuid(chosen.id)}' and title='허구 두 번째 목록 가수 일정';`,
+    ),
+  ).toBe('1');
+  await screenshot(
+    page,
+    info,
+    'admin-page-two-retained-selection-saved-xlarge-360',
     'xlarge',
   );
 });

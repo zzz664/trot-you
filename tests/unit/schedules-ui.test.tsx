@@ -23,6 +23,7 @@ import {
   scheduleDetailPath,
   adminSchedulePath,
 } from '@/config/routes';
+import type { AdminArtist } from '@/config/admin-artists';
 import type {
   AdminScheduleSaveInput,
   AdminScheduleDeleteInput,
@@ -89,7 +90,7 @@ const wrapper = (children: ReactNode) => (
     <DialogProvider>{children}</DialogProvider>
   </NextIntlClientProvider>
 );
-const artist = {
+const artist: AdminArtist = {
   id: scheduleEvent.artist_id,
   slug: scheduleEvent.artist_slug,
   name: scheduleEvent.artist_name,
@@ -104,7 +105,7 @@ const artist = {
   updated_at: scheduleEvent.updated_at,
 };
 beforeEach(() => {
-  vi.clearAllMocks();
+  Object.values(mock).forEach((fn) => fn.mockReset());
   window.history.replaceState({}, '', routes.home);
   Object.defineProperty(document, 'visibilityState', {
     configurable: true,
@@ -367,7 +368,7 @@ it('retains uncertain create operation across hidden/visible authority revalidat
   await screen.findByLabelText(copy.titleLabel);
   fireEvent.click(
     screen.getByRole('radio', {
-      name: `${scheduleEvent.artist_name} · 활동 중`,
+      name: `${scheduleEvent.artist_name} · ${scheduleEvent.artist_slug} · 활동 중`,
     }),
   );
   fireEvent.change(screen.getByLabelText(copy.titleLabel), {
@@ -430,7 +431,7 @@ it('retries an acknowledged-late create after interrupted in-flight response wit
   await screen.findByLabelText(copy.titleLabel);
   fireEvent.click(
     screen.getByRole('radio', {
-      name: `${scheduleEvent.artist_name} · 활동 중`,
+      name: `${scheduleEvent.artist_name} · ${scheduleEvent.artist_slug} · 활동 중`,
     }),
   );
   fireEvent.change(screen.getByLabelText(copy.titleLabel), {
@@ -507,7 +508,7 @@ it('cross-actor403 clears a pending create before another mounted administrator 
   );
   fireEvent.click(
     screen.getByRole('radio', {
-      name: `${scheduleEvent.artist_name} · 활동 중`,
+      name: `${scheduleEvent.artist_name} · ${scheduleEvent.artist_slug} · 활동 중`,
     }),
   );
   fireEvent.change(screen.getByLabelText(copy.titleLabel), {
@@ -544,3 +545,175 @@ it('cross-actor403 clears a pending create before another mounted administrator 
   );
   expect(mock.save).toHaveBeenCalledTimes(1);
 });
+it('loads canonically equivalent encoded month and UUID URLs, but never loads newer navigation with old props', async () => {
+  const path = scheduleListPath('2026-10');
+  window.history.replaceState({}, '', `${routes.schedules}?month=2026%2D10`);
+  const rendered = render(
+    wrapper(
+      <SchedulesScreen
+        query={{ month: '2026-10', cursor: null }}
+        path={path}
+      />,
+    ),
+  );
+  await screen.findByTestId('schedule-calendar');
+  expect(mock.list).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: copy.refresh }));
+  await waitFor(() => expect(mock.list).toHaveBeenCalledTimes(2));
+  await screen.findByTestId('schedule-calendar');
+  window.history.replaceState({}, '', scheduleListPath('2026-11'));
+  act(() => window.dispatchEvent(new PopStateEvent('popstate')));
+  expect(screen.queryByTestId('schedule-calendar')).not.toBeInTheDocument();
+  expect(mock.list).toHaveBeenCalledTimes(2);
+  rendered.unmount();
+  const detail = scheduleDetailPath(scheduleEvent.id, '2026-10');
+  window.history.replaceState(
+    {},
+    '',
+    `${routes.schedules}/${scheduleEvent.id.replaceAll('-', '%2D')}?month=2026%2D10`,
+  );
+  render(
+    wrapper(
+      <ScheduleDetailScreen
+        id={scheduleEvent.id}
+        month="2026-10"
+        path={detail}
+      />,
+    ),
+  );
+  await screen.findByRole('heading', { name: scheduleEvent.title });
+  expect(mock.detail).toHaveBeenCalledTimes(1);
+});
+it('distinguishes same-name artist choices using each unique visible slug', async () => {
+  const another = {
+    ...artist,
+    id: '3b0d4317-b739-4670-a0ce-02173f1e8120',
+    slug: 'same-name-other',
+  };
+  const save = vi.fn().mockResolvedValue(ok(adminSchedule));
+  render(
+    wrapper(
+      <ScheduleEditor
+        event={null}
+        initial={{ ...scheduleInput, artist_id: '' }}
+        initialArtists={{
+          artists: [artist, another],
+          has_more: false,
+        }}
+        pendingOperation={{ current: null }}
+        busy={false}
+        onSave={save}
+        onCancel={vi.fn()}
+      />,
+    ),
+  );
+  const firstName = `${artist.name} · ${artist.slug} · 활동 중`;
+  const secondName = `${another.name} · ${another.slug} · 활동 중`;
+  expect(screen.getByRole('radio', { name: firstName })).toBeVisible();
+  fireEvent.click(screen.getByRole('radio', { name: secondName }));
+  expect(screen.getByRole('radio', { name: firstName })).not.toBeChecked();
+  expect(screen.getByRole('radio', { name: secondName })).toBeChecked();
+  fireEvent.click(screen.getByRole('checkbox', { name: copy.confirm }));
+  fireEvent.click(screen.getByRole('button', { name: copy.createSave }));
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+  expect(save.mock.calls[0]?.[0].input.artist_id).toBe(another.id);
+});
+it.each(['restore', 'actor switch'] as const)(
+  'retains page-two artist identity only for the bound pending create: %s',
+  async (flow) => {
+    const actorA = '3b0d4317-b739-4670-a0ce-02173f1e8110';
+    const actorB = '3b0d4317-b739-4670-a0ce-02173f1e8111';
+    const second = {
+      ...artist,
+      id: '3b0d4317-b739-4670-a0ce-02173f1e8120',
+      slug: 'second-page-artist',
+      name: '두 번째 목록 가수',
+    };
+    const selectedLabel = `${second.name} · ${second.slug} · 활동 중`;
+    mock.artists
+      .mockResolvedValue(ok({ artists: [artist], has_more: true }))
+      .mockResolvedValueOnce(ok({ artists: [artist], has_more: true }))
+      .mockResolvedValueOnce(ok({ artists: [second], has_more: false }));
+    mock.save
+      .mockResolvedValueOnce({ ok: false, code: 'UNAVAILABLE' })
+      .mockResolvedValueOnce(
+        ok({
+          ...adminSchedule,
+          artist_id: second.id,
+          artist_slug: second.slug,
+          artist_name: second.name,
+        }),
+      );
+    window.history.replaceState({}, '', adminSchedulePath('new'));
+    const rendered = render(
+      wrapper(<AdminScheduleCreateScreen actorKey={actorA} />),
+    );
+    await screen.findByRole('button', { name: copy.artistNext });
+    fireEvent.click(screen.getByRole('button', { name: copy.artistNext }));
+    fireEvent.click(await screen.findByRole('radio', { name: selectedLabel }));
+    fireEvent.change(screen.getByLabelText(copy.titleLabel), {
+      target: { value: '두 번째 가수의 미확정 일정' },
+    });
+    fireEvent.change(screen.getByLabelText(copy.startDate), {
+      target: { value: '2026-10-25' },
+    });
+    fireEvent.change(screen.getByLabelText(copy.startTime), {
+      target: { value: '18:00' },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: copy.confirm }));
+    fireEvent.click(screen.getByRole('button', { name: copy.createSave }));
+    await screen.findByText(copy.uncertain);
+    if (flow === 'restore') {
+      mock.artists.mockResolvedValue(ok({ artists: [artist], has_more: true }));
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        value: 'hidden',
+      });
+      act(() => document.dispatchEvent(new Event('visibilitychange')));
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        value: 'visible',
+      });
+      act(() => document.dispatchEvent(new Event('visibilitychange')));
+      const restored = await screen.findByRole('radio', {
+        name: selectedLabel,
+      });
+      expect(restored).toBeChecked();
+      expect(restored).toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: copy.artistNext }),
+      ).toBeDisabled();
+      expect(mock.save).toHaveBeenCalledTimes(1);
+      fireEvent.click(
+        screen.getByRole('button', { name: copy.retryOperation }),
+      );
+      await waitFor(() => expect(mock.save).toHaveBeenCalledTimes(2));
+      expect(mock.save.mock.calls[1]?.[0]).toEqual(
+        mock.save.mock.calls[0]?.[0],
+      );
+      expect(mock.save.mock.calls[1]?.[0].input.artist_id).toBe(second.id);
+    } else {
+      mock.artists.mockResolvedValueOnce({ ok: false, code: 'FORBIDDEN' });
+      act(() => window.dispatchEvent(new Event('focus')));
+      await screen.findByText(copy.errors.FORBIDDEN);
+      expect(
+        screen.queryByRole('radio', { name: selectedLabel }),
+      ).not.toBeInTheDocument();
+      mock.artists.mockResolvedValue(
+        ok({ artists: [artist], has_more: false }),
+      );
+      rendered.rerender(
+        wrapper(<AdminScheduleCreateScreen actorKey={actorB} />),
+      );
+      await screen.findByLabelText(copy.titleLabel);
+      expect(
+        screen.queryByRole('radio', { name: selectedLabel }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByLabelText(copy.titleLabel)).toHaveValue('');
+      expect(
+        screen.queryByRole('button', { name: copy.retryOperation }),
+      ).not.toBeInTheDocument();
+      expect(mock.save).toHaveBeenCalledTimes(1);
+    }
+  },
+);

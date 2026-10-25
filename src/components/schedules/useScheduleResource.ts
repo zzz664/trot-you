@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { scheduleRouteMatches } from '@/lib/schedule-navigation';
 import type { ScheduleError, ScheduleResult } from '@/config/schedules';
 
 // Actor-specific membership/admin snapshots are never kept in route payloads.
@@ -14,13 +15,10 @@ export function useScheduleResource<T>(
   const alive = useRef(false);
   const generation = useRef(0);
   const controller = useRef<AbortController | null>(null);
-  const matches = useCallback(() => {
-    const expected = new URL(path, window.location.origin);
-    return (
-      expected.pathname === window.location.pathname &&
-      expected.search === window.location.search
-    );
-  }, [path]);
+  const matches = useCallback(
+    () => scheduleRouteMatches(path, window.location.href),
+    [path],
+  );
   const stop = useCallback(() => {
     generation.current += 1;
     controller.current?.abort();
