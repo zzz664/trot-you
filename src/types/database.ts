@@ -56,11 +56,13 @@ export type Database = {
           contract_ended_at: string | null;
           contract_started_at: string | null;
           created_at: string;
+          display_order: number;
           grade: Database['public']['Enums']['artist_grade'];
           id: string;
           intro: string | null;
           name: string;
           profile_image_path: string | null;
+          revision: number;
           slug: string;
           status: Database['public']['Enums']['artist_status'];
           updated_at: string;
@@ -71,11 +73,13 @@ export type Database = {
           contract_ended_at?: string | null;
           contract_started_at?: string | null;
           created_at?: string;
+          display_order?: number;
           grade: Database['public']['Enums']['artist_grade'];
           id?: string;
           intro?: string | null;
           name: string;
           profile_image_path?: string | null;
+          revision?: number;
           slug: string;
           status?: Database['public']['Enums']['artist_status'];
           updated_at?: string;
@@ -85,11 +89,13 @@ export type Database = {
           contract_ended_at?: string | null;
           contract_started_at?: string | null;
           created_at?: string;
+          display_order?: number;
           grade?: Database['public']['Enums']['artist_grade'];
           id?: string;
           intro?: string | null;
           name?: string;
           profile_image_path?: string | null;
+          revision?: number;
           slug?: string;
           status?: Database['public']['Enums']['artist_status'];
           updated_at?: string;
@@ -1197,6 +1203,7 @@ export type Database = {
     Views: {
       artist_catalog: {
         Row: {
+          display_order: number;
           id: string;
           intro: string | null;
           name: string;
@@ -1205,6 +1212,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          display_order?: number | null;
           id?: string | null;
           intro?: string | null;
           name?: string | null;
@@ -1212,6 +1220,7 @@ export type Database = {
           slug?: string | null;
         };
         Update: {
+          display_order?: number | null;
           id?: string | null;
           intro?: string | null;
           name?: string | null;
@@ -1286,6 +1295,60 @@ export type Database = {
       };
     };
     Functions: {
+      admin_artist_cancel_invite: {
+        Args: {
+          p_confirmed: boolean;
+          p_expected_revision: number;
+          p_invitation_id: string;
+          p_operation_id: string;
+        };
+        Returns: Json;
+      };
+      admin_artist_detail: { Args: { p_artist_id: string }; Returns: Json };
+      admin_artist_detail_page: {
+        Args: { p_artist_id: string; p_page: number };
+        Returns: Json;
+      };
+      admin_artist_invite: {
+        Args: {
+          p_artist_id: string;
+          p_confirmed: boolean;
+          p_expected_revision: number;
+          p_is_manager: boolean;
+          p_operation_id: string;
+          p_target_user_id: string;
+        };
+        Returns: Json;
+      };
+      admin_artist_list: { Args: { p_page?: number }; Returns: Json };
+      admin_artist_previews: {
+        Args: {
+          p_artist_id: string;
+          p_expected_revision: number;
+          p_message_ids: string[];
+          p_operation_id: string;
+        };
+        Returns: Json;
+      };
+      admin_artist_save: {
+        Args: {
+          p_artist_id: string;
+          p_expected_revision: number;
+          p_input: Json;
+          p_operation_id: string;
+        };
+        Returns: Json;
+      };
+      admin_artist_unlink: {
+        Args: {
+          p_artist_id: string;
+          p_confirmed: boolean;
+          p_expected_revision: number;
+          p_operation_id: string;
+          p_target_user_id: string;
+        };
+        Returns: Json;
+      };
       analytics_daily_counts: {
         Args: { p_from: string; p_until: string };
         Returns: {
@@ -1329,6 +1392,24 @@ export type Database = {
       analytics_set_consent: {
         Args: { p_consent_version: string; p_granted: boolean };
         Returns: undefined;
+      };
+      artist_account_invitations: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      artist_account_invitations_page: {
+        Args: { p_page: number };
+        Returns: Json;
+      };
+      artist_account_respond: {
+        Args: {
+          p_accept: boolean;
+          p_confirmed: boolean;
+          p_expected_revision: number;
+          p_invitation_id: string;
+          p_operation_id: string;
+        };
+        Returns: Json;
       };
       artist_compose_artists: {
         Args: { p_after_slug?: string };

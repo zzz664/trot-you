@@ -52,6 +52,7 @@ select throws_ok($$select public.admin_artist_detail_page('ae200000-0000-4000-80
 select set_config('request.jwt.claim.sub','ae100000-0000-4000-8000-000000000002',true);
 select throws_ok($$select public.admin_artist_detail_page('ae200000-0000-4000-8000-000000000001',2)$$,'42501','ADMIN_ARTIST_FORBIDDEN','new pagination endpoint does not weaken admin gate');
 insert into admin_pages values('recipient_first',public.artist_account_invitations_page(1)),('recipient_second',public.artist_account_invitations_page(2));
+select is(public.artist_account_invitations_page(1)->>'user_id','ae100000-0000-4000-8000-000000000002','recipient identity comes from current authenticated RPC, never a cached page prop');
 select is(public.artist_account_invitations(),(select data from admin_pages where key='recipient_first'),'legacy recipient wrapper keeps exact first-page DTO');
 select is((select data->'invitations'->0->>'id' from admin_pages where key='recipient_first'),'ae500000-0000-4000-8000-000000000051','old actionable invitation sorts before historical responses');
 select is(jsonb_array_length((select data->'invitations' from admin_pages where key='recipient_first')),50,'recipient first page is bounded');

@@ -58,6 +58,7 @@ export function createArtistCatalogPort(
       const result = await client
         .from('artist_catalog')
         .select('slug,name,intro')
+        .order('display_order', { ascending: true })
         .order('slug', { ascending: true })
         .range(offset, offset + count - 1);
       if (result.error) return { ok: false, code: 'UNAVAILABLE' };

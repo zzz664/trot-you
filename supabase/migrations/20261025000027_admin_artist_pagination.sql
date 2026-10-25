@@ -35,7 +35,7 @@ begin
   if p.id is null or p.role not in('fan','artist') or (p.is_restricted and (p.restricted_until is null or p.restricted_until>clock_timestamp())) then
     raise exception 'ADMIN_ARTIST_FORBIDDEN' using errcode='42501'; end if;
   if p_page is null or p_page not between 1 and 1000 then raise exception 'ADMIN_ARTIST_INVALID_INPUT' using errcode='22023'; end if;
-  return jsonb_build_object('invitations',coalesce((select jsonb_agg(private.admin_artist_invitation_projection(i.id) order by i.actionable desc,i.created_at desc,i.id desc)
+  return jsonb_build_object('user_id',actor,'invitations',coalesce((select jsonb_agg(private.admin_artist_invitation_projection(i.id) order by i.actionable desc,i.created_at desc,i.id desc)
     from(select id,created_at,(state='pending' and expires_at>clock_timestamp()) as actionable from private.artist_account_invitations
       where target_user_id=actor order by actionable desc,created_at desc,id desc offset (p_page-1)*50 limit 50)i),'[]'::jsonb),
     'has_more',(select count(*)>p_page*50 from private.artist_account_invitations where target_user_id=actor),'account_link_ready',private.admin_artist_policy_ready());

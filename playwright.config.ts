@@ -17,6 +17,7 @@ export default defineConfig({
     '**/activity/**',
     '**/webpush/**',
     '**/billing-notices/**',
+    '**/admin-artists/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

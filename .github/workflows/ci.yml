@@ -96,6 +96,7 @@ jobs:
       - run: npm run test:activity-fixture
       - run: npm run test:webpush-fixture
       - run: npm run test:billing-notices-fixture
+      - run: npm run test:admin-artists-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
@@ -563,6 +564,40 @@ jobs:
         if: always()
         with:
           name: billing-notices-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
+
+  admin-artists-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/admin-artists-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Disposable local Auth/RPC and synthetic accepted media. Account linkage
+      # uses exact fictional existing users and explicit recipient consent;
+      # no real invitation email, provider, credentials, grant or scheduler.
+      - run: npm run test:e2e:admin-artists
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-artists-browser-results
           path: |
             playwright-report/
             test-results/

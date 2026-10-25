@@ -58,6 +58,10 @@ export const routes = {
   artistReplyActivityMenu: '/artist/replies',
   artistComposeApi: '/api/artist',
   admin: '/admin',
+  adminArtists: '/admin/artists',
+  adminArtistsApi: '/api/admin/artists',
+  artistAccess: '/me/artist-access',
+  artistAccessApi: '/api/artist-access',
   authLogin: '/api/auth/login',
   authCallback: '/api/auth/callback',
   authLogout: '/api/auth/logout',
@@ -178,4 +182,22 @@ export function billingNoticePath(cursor?: string | null) {
   return cursor
     ? `${routes.billingNotices}?cursor=${encodeURIComponent(cursor)}`
     : routes.billingNotices;
+}
+
+export function adminArtistPath(id: string, page = 1) {
+  const base = `${routes.adminArtists}/${encodeURIComponent(id)}`;
+  return page > 1 ? `${base}?page=${page}` : base;
+}
+export function artistAccessPath(page = 1) {
+  return page > 1 ? `${routes.artistAccess}?page=${page}` : routes.artistAccess;
+}
+export function adminArtistListPath(page: number) {
+  return page > 1 ? `${routes.adminArtists}?page=${page}` : routes.adminArtists;
+}
+export function adminArtistApiPath(
+  action?: 'save' | 'previews' | 'invite' | 'cancel-invite' | 'unlink',
+) {
+  return action
+    ? `${routes.adminArtistsApi}/${action}`
+    : routes.adminArtistsApi;
 }
