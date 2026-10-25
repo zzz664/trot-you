@@ -130,3 +130,32 @@ ESLint/Prettier, genuine-schema TypeScript, contrast and production Next/PWA bui
 all 168 CI selector/aggregate/workflow tests and all 383 fixture-contract tests.
 Hosted application/browser and pixel verification are still pending for the
 resulting head.
+
+## Final application CI and keyless observer correction
+
+Run 40223484899 on exact remote head
+`3ee35407a65b9ff4681a6536eb2ea90dee529dff` passed all 28 isolated calendar
+browser scenarios. Its verified calendar artifact contained 156 PNGs: 132 complete
+full-page states and 24 offscreen control captures, across all three fonts and
+360/1280 widths. Review of all images, including full-resolution long-page and
+form/dialog/activity detail checks, found no clipping, overlap, missing settled
+panels or stale private data in revoked/account-change states.
+
+The quality job did not pass: 77 keyless tests passed, three failed and one was
+flaky at the new calendar retry observer. All 11 retained failure traces showed a
+real same-route RSC GET returning 200 `text/x-component` and then Chromium marking
+the stream `net::ERR_ABORTED`; `Response.body()` was unavailable. There was no
+intervening document navigation or redirect, and the observed setup-error UI
+remained fail-closed. The trace does not establish the internal abort trigger.
+The narrow test-only repair captures the actual upstream body before forwarding,
+requires the exact origin/path/query and GET/RSC header, rejects redirects, and
+asserts status, RSC content type, no-store and the setup-not-ready response. Exact
+URL, heading, retry control and absence of private lists/forms/activity remain
+asserted after retry. Eight local observer tests cover ordering, isolation,
+once-only capture and propagated assertion failure. Final hosted verification
+for the repaired head is still required; the failed run is not called green.
+
+Local verification of this observer-only repair passed `npm run check:all`
+(7,626 units in 257 files, lint/format/typecheck/contrast and production Next/PWA
+build), all 168 CI selector/aggregate/workflow checks and all 383 fixture checks.
+The official generated schema remains byte-identical to the verified artifact.

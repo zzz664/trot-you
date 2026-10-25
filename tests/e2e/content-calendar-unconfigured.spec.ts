@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 import { FONT_SCALE_COOKIE } from '../../src/config/constants';
+import { observeCalendarRefresh } from './content-calendar/response-capture';
 import {
   routes,
   adminContentCalendarPath,
@@ -99,27 +100,45 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
           fullPage: true,
         });
         // router.refresh keeps the same visible error while its RSC request is
-        // in flight. Observe that real response before the next navigation;
-        // matching the unchanged alert alone is not evidence a retry finished.
-        const retried = page.waitForResponse(
-          (response) =>
-            new URL(response.url()).pathname ===
-              new URL(path, 'http://127.0.0.1:3100').pathname &&
-            response.request().headers()['rsc'] === '1',
+        // in flight. Capture the real body before forwarding: Chromium can
+        // cancel the refresh stream even while the document stays mounted.
+        const retried = await observeCalendarRefresh(
+          page,
+          path,
+          async (response) => {
+            expect(response.status()).toBe(200);
+            expect(response.headers()['content-type']).toContain(
+              'text/x-component',
+            );
+            expect(response.headers()['cache-control']).toContain('no-store');
+            const body = await response.body();
+            expect(body.byteLength).toBeGreaterThan(0);
+            expect(body.toString('utf8')).toContain('SETUP_NOT_READY');
+            return body;
+          },
         );
         await main
           .getByRole('button', { name: messages.ui.retry, exact: true })
           .click();
-        const retryResponse = await retried;
-        expect(retryResponse.status()).toBe(200);
-        await retryResponse.body();
+        await retried.result;
         await expect(page).toHaveURL(path);
+        await expect(
+          main.getByRole('heading', {
+            name: admin ? copy.adminTitle : copy.title,
+            exact: true,
+          }),
+        ).toBeVisible();
         await expect(main.getByRole('alert')).toHaveText(
           copy.errors.SETUP_NOT_READY,
         );
         await expect(
           main.getByRole('button', { name: messages.ui.retry, exact: true }),
         ).toBeEnabled();
+        await expect(main.getByTestId('content-calendar-list')).toHaveCount(0);
+        await expect(main.getByTestId('content-calendar-form')).toHaveCount(0);
+        await expect(main.getByTestId('content-calendar-activity')).toHaveCount(
+          0,
+        );
       }
       await page
         .getByRole('main')
