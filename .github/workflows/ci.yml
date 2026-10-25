@@ -59,6 +59,8 @@ jobs:
       - run: node scripts/test-admin-settings-upgrade.mjs
       - run: npm run test:db:admin-subscriptions-concurrency
       - run: node scripts/test-admin-subscriptions-upgrade.mjs
+      - run: node scripts/test-schedule-management-concurrency.mjs
+      - run: node scripts/test-schedule-management-upgrade.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
