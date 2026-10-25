@@ -66,7 +66,7 @@ select ok((select bool_and('search_path=""' = any(proconfig)) from pg_proc where
 select is(
   (select string_agg(column_name::text, ',' order by ordinal_position) from information_schema.columns
    where table_schema = 'public' and table_name = 'artist_catalog') collate "C",
-  'id,slug,name,profile_image_path,intro'::text collate "C",
+  'id,slug,name,profile_image_path,intro,display_order'::text collate "C",
   'catalog is an explicit safe-column projection');
 
 -- Anonymous: public catalog only. No user identifier or private contract leakage.
@@ -109,8 +109,8 @@ select throws_ok('delete from public.profiles where id = auth.uid()', '42501', n
 select throws_ok($$select public.set_profile_role(auth.uid(), 'admin')$$, '42501', 'FORBIDDEN', 'fan cannot use admin RPC');
 select throws_ok($$insert into public.artist_members (artist_id, user_id) values ('30000000-0000-4000-8000-000000000001', auth.uid())$$, '42501', null, 'fan cannot grant artist membership');
 select throws_ok($$insert into public.artists (slug, name, grade) values ('unauthorized', 'Bad', 'B')$$, '42501', null, 'fan cannot create an artist');
-with changed as (update public.artists set status = 'active' returning id) select is((select count(*) from changed), 0::bigint, 'fan cannot publish hidden artist');
-with changed as (delete from public.artists returning id) select is((select count(*) from changed), 0::bigint, 'fan cannot delete artist');
+select throws_ok($$update public.artists set status = 'active'$$, '42501', null, 'fan cannot publish hidden artist');
+select throws_ok($$delete from public.artists$$, '42501', null, 'fan cannot delete artist');
 select throws_ok($$update public.profiles set font_scale = 'tiny' where id = auth.uid()$$, '22P02', null, 'unknown font enum rejected');
 reset role;
 
@@ -134,9 +134,9 @@ select is((select count(*) from public.artists), 2::bigint, 'artist sees active 
 select is(private.is_artist_member('30000000-0000-4000-8000-000000000002'), true, 'manager binding authorizes own artist');
 select is(private.is_artist_member('30000000-0000-4000-8000-000000000003'), false, 'other artist membership denied');
 select is((select count(*) from public.artists where id = '30000000-0000-4000-8000-000000000003'), 0::bigint, 'artist cannot see other paused artist');
-with changed as (update public.artists set name = 'Forged' where id = '30000000-0000-4000-8000-000000000002' returning id) select is((select count(*) from changed), 0::bigint, 'artist cannot change administrator-managed artist profile');
-with changed as (delete from public.artist_members where user_id = auth.uid() returning artist_id) select is((select count(*) from changed), 0::bigint, 'artist cannot remove membership bindings');
-with changed as (update public.artist_members set is_manager = false where user_id = auth.uid() returning artist_id) select is((select count(*) from changed), 0::bigint, 'artist cannot change manager privilege');
+select throws_ok($$update public.artists set name = 'Forged' where id = '30000000-0000-4000-8000-000000000002'$$, '42501', null, 'artist cannot change administrator-managed artist profile');
+select throws_ok($$delete from public.artist_members where user_id = auth.uid()$$, '42501', null, 'artist cannot remove membership bindings');
+select throws_ok($$update public.artist_members set is_manager = false where user_id = auth.uid()$$, '42501', null, 'artist cannot change manager privilege');
 select throws_ok($$insert into public.artist_members (artist_id, user_id) values ('30000000-0000-4000-8000-000000000003', auth.uid())$$, '42501', null, 'artist cannot bind itself to another artist');
 select throws_ok($$select public.set_profile_role(auth.uid(), 'admin')$$, '42501', 'FORBIDDEN', 'artist cannot elevate via admin RPC');
 reset role;
@@ -170,12 +170,20 @@ select lives_ok($$select public.set_profile_role('10000000-0000-4000-8000-000000
 select is((select role::text from public.profiles where id = '10000000-0000-4000-8000-000000000002'), 'artist', 'authorized role change persisted');
 select throws_ok($$select public.set_profile_role('ffffffff-ffff-4fff-8fff-ffffffffffff', 'fan')$$, 'P0002', 'PROFILE_NOT_FOUND', 'missing profile yields explicit error');
 select throws_ok($$select public.set_profile_role('10000000-0000-4000-8000-000000000002', null)$$, '22004', 'ROLE_REQUIRED', 'null role rejected');
-select lives_ok($$insert into public.artists (id, slug, name, grade) values ('30000000-0000-4000-8000-000000000005', 'admin-created', '관리자 가상', 'B')$$, 'admin creates artist');
-select lives_ok($$update public.artists set status = 'active' where slug = 'admin-created'$$, 'admin publishes artist');
-select lives_ok($$insert into public.artist_members (artist_id, user_id, is_manager) values ('30000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000002', true)$$, 'admin grants manager membership');
+select throws_ok($$insert into public.artists (id, slug, name, grade) values ('30000000-0000-4000-8000-000000000005', 'admin-created', '관리자 가상', 'B')$$, '42501', null, 'admin must create through audited artist RPC');
+select throws_ok($$update public.artists set status = 'active' where slug = 'admin-created'$$, '42501', null, 'admin must publish through compare-and-set RPC');
+select throws_ok($$insert into public.artist_members (artist_id, user_id, is_manager) values ('30000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000002', true)$$, '42501', null, 'admin must use confirmed account invitation');
+-- Owner fixture retains coverage of the existing role-revocation trigger.
+reset role;
+insert into public.artists (id,slug,name,grade,status) values ('30000000-0000-4000-8000-000000000005','admin-created','관리자 가상','B','active');
+insert into public.artist_members (artist_id,user_id,is_manager) values ('30000000-0000-4000-8000-000000000005','10000000-0000-4000-8000-000000000002',true);
+set local role authenticated;
 select lives_ok($$select public.set_profile_role('10000000-0000-4000-8000-000000000002', 'fan')$$, 'admin revokes artist role');
 select is((select count(*) from public.artist_members where user_id = '10000000-0000-4000-8000-000000000002'), 0::bigint, 'role revocation clears old bindings');
-select lives_ok($$delete from public.artists where slug = 'admin-created'$$, 'admin deletes artist');
+select throws_ok($$delete from public.artists where slug = 'admin-created'$$, '42501', null, 'admin deactivates instead of destructive delete');
+reset role;
+delete from public.artists where slug = 'admin-created';
+-- Structural constraints remain enforced for trusted operator fixture writes.
 select throws_ok($$insert into public.artists (slug, name, grade) values ('Bad Slug', 'Invalid', 'B')$$, '23514', null, 'artist slug format enforced');
 select throws_ok($$insert into public.artists (slug, name, grade) values ('test-active', 'Duplicate', 'B')$$, '23505', null, 'artist slug uniqueness enforced');
 select throws_ok($$insert into public.artists (slug, name, grade, contract_started_at, contract_ended_at) values ('bad-dates', 'Invalid', 'B', '2026-12-31', '2026-01-01')$$, '23514', null, 'contract dates cannot be reversed');
