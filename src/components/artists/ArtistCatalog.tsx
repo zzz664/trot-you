@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { AuthForm } from '@/components/auth/AuthForm';
@@ -7,12 +8,18 @@ import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import type { ArtistCatalogData } from '@/config/artists';
-import { artistCatalogPath, artistPreviewPath, routes } from '@/config/routes';
+import {
+  artistCatalogPath,
+  artistPreviewPath,
+  communityBoardPath,
+  routes,
+} from '@/config/routes';
 import { ArtistSelectionFeedback } from './ArtistSelectionFeedback';
 import { useArtistSelection } from './useArtistSelection';
 
 export function ArtistCatalog({ data }: { data: ArtistCatalogData }) {
   const t = useTranslations('artists');
+  const communityCopy = useTranslations('communityPosts');
   const onboardingCopy = useTranslations('onboarding');
   const router = useRouter();
   const selection = useArtistSelection();
@@ -74,6 +81,15 @@ export function ArtistCatalog({ data }: { data: ArtistCatalogData }) {
                   >
                     {t('previewAction', { name: artist.name })}
                   </Button>
+                  {!data.onboarding && (
+                    <Link
+                      href={communityBoardPath(artist.slug)}
+                      prefetch={false}
+                      className="ui-button ui-button--secondary"
+                    >
+                      {communityCopy('boardOpen', { name: artist.name })}
+                    </Link>
+                  )}
                   {data.onboarding && (
                     <Button
                       disabled={selection.busy}

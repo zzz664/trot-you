@@ -9,14 +9,14 @@ lint/format, typecheck, all unit tests, contrast, production build, all local fi
 checks, and the keyless browser suite still run.
 
 For a code PR targeting `develop`, the complete database job still runs: DB lint,
-both consecutive pgTAP passes, all 29 concurrency scripts, all five populated
+both consecutive pgTAP passes, all 30 concurrency scripts, all six populated
 upgrades, real generated schema types, typecheck, and committed-type drift checks.
 Only a nonempty change set containing `README.md` and/or Markdown files under
-`docs/` may intentionally skip the database and all 20 isolated feature browsers.
+`docs/` may intentionally skip the database and all 21 isolated feature browsers.
 
 Feature-browser selection is **enabled**, not permanent shadow mode. It applies to
 the entire PR, not merely its newest commit. A localized schedule UI change selects
-4 of 20 feature browsers; a leaf admin-settings change selects 2 of 20. These are
+5 of 21 feature browsers; a leaf admin-settings change selects 3 of 21. These are
 job counts, not measured duration or billing savings.
 
 ## Selection registry
@@ -28,13 +28,13 @@ therefore cannot silently receive no coverage.
 
 | Feature paths                                                                                        | Browser dependency group                                                                      |
 | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Schedules/notices UI, clients, HTTP/services, routes, schedule utilities and tests                   | Auth, schedules, schedule notices, content calendar                                           |
+| Schedules/notices UI, clients, HTTP/services, routes, schedule utilities and tests                   | Auth, schedules, schedule notices, content calendar, community posts                          |
 | Web Push/billing-notice UI, clients, HTTP/services, notification services, Web Push worker and tests | Auth, Web Push, billing notices, schedule notices, schedules                                  |
 | Checkout/enrollment/renewal/subscription/refund/reconciliation paths and billing-period utility      | Auth, enrollment, renewal, cancellation, reconciliation, billing notices, admin subscriptions |
-| Media/chat/replies/speech/compose/dispatch paths and message rendering                               | Auth, media, chat, reply, speech, compose, dispatch, activity, admin artists                  |
+| Media/chat/replies/speech/compose/dispatch paths and message rendering                               | Auth, media, chat, reply, speech, compose, dispatch, activity, admin artists, community posts |
 | Artist reply activity                                                                                | Auth, activity, content calendar                                                              |
 | Admin artist/access management                                                                       | Communication group above, plus schedules and content calendar                                |
-| Leaf admin settings                                                                                  | Auth, admin settings                                                                          |
+| Leaf admin settings                                                                                  | Auth, admin settings, community posts                                                         |
 | Leaf admin subscriptions                                                                             | Auth, admin subscriptions                                                                     |
 
 The exact anchored patterns in the registry are authoritative. Unit tests,
@@ -53,6 +53,9 @@ Examples of deliberate dependency coverage:
   admin artist choices. Those groups select the new calendar browser. New
   content-calendar paths themselves deliberately remain full fallback until
   their dependency boundary has separately reviewed evidence.
+- Community posts reuse shared media/storage and schedule navigation, and consume
+  community policy edited through admin settings. Those groups include the board
+  browser. New board paths themselves remain unknown/full fallback.
 - Shared session/home entry components are full triggers, even inside an otherwise
   selective feature directory.
 
@@ -151,3 +154,9 @@ local-database resets: running them concurrently against one Supabase instance
 would be unsafe. A separate, measured improvement may shard the unchanged suites
 onto isolated runners; this PR does not do that. Browser selection reduces work
 and queue pressure, but the serial DB job can still determine elapsed CI time.
+
+Feature 34 adds the isolated `community-posts-browser` to the registry, aggregate,
+and full fallback inventory. Its synthetic Auth/board/private-storage job runs all
+existing setup, reset, build, artifact and cleanup gates. Exact added fixture,
+concurrency and populated-upgrade steps remain checked separately from immutable
+historical step hashes; no baseline hash was rewritten.

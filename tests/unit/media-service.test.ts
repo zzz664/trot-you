@@ -622,3 +622,56 @@ describe('provider token expiry is authority, not just client display metadata',
     },
   );
 });
+
+it('a shorter old bearer expiry permits a fresh grant until the separate entitlement deadline', async () => {
+  const d = deps();
+  const entitlementDeadline = time + 4800;
+  d.db.read.mockResolvedValue({
+    ok: true,
+    data: {
+      ...readSnapshot,
+      access_expires_at: new Date(entitlementDeadline).toISOString(),
+    },
+  });
+  d.now.mockReturnValue(time + 900);
+  d.storage.signRead.mockResolvedValue({
+    ok: true,
+    data: {
+      signedUrl: 'https://storage.example/read?token=first-fixture',
+      expiresAt: new Date(time + 3000).toISOString(),
+    },
+  });
+  const first = await readMediaUrl(d, actor, {
+    mediaId: media,
+    preview: false,
+  });
+  expect(first.ok).toBe(true);
+  d.now.mockReturnValue(time + 3100);
+  d.storage.signRead.mockResolvedValue({
+    ok: true,
+    data: {
+      signedUrl: 'https://storage.example/read?token=second-fixture',
+      expiresAt: new Date(time + 4000).toISOString(),
+    },
+  });
+  expect(first.ok && Date.parse(first.data.expiresAt) < d.now()).toBe(true);
+  const renewed = await readMediaUrl(d, actor, {
+    mediaId: media,
+    preview: false,
+  });
+  expect(renewed).toMatchObject({
+    ok: true,
+    data: { expiresAt: new Date(time + 4000).toISOString() },
+  });
+  expect(d.storage.signRead).toHaveBeenNthCalledWith(
+    2,
+    snapshot.object_path,
+    1,
+  );
+  d.now.mockReturnValue(entitlementDeadline);
+  expect(
+    await readMediaUrl(d, actor, { mediaId: media, preview: false }),
+  ).toEqual({ ok: false, code: 'EXPIRED' });
+  expect(d.storage.signRead).toHaveBeenCalledTimes(2);
+  expect(d.verify).not.toHaveBeenCalled();
+});

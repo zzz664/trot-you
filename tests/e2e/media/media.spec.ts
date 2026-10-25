@@ -17,6 +17,7 @@ import {
   unpreview,
   cancelMessage,
   inspectMedia,
+  inspectMediaEntitlement,
   inspectUpload,
   expireUpload,
   post,
@@ -26,6 +27,7 @@ import {
   type World,
 } from './fixtures';
 import { artistPreviewPath, routes } from '../../../src/config/routes';
+import { mediaEntitlementDeadlineReached } from './entitlement';
 // Type-only shape; Node's Playwright loader must not execute app JSON imports.
 const messages: typeof import('../../../src/messages/ko.json') = JSON.parse(
   readFileSync(
@@ -672,7 +674,12 @@ test('signed read lifetime is clamped to entitlement and actually expires at Sto
   await completeProfile(world.fan, world.artist);
   await world.fan.signIn(context);
   subscribe(world.fan, world.artist, 'active', 4);
+  const entitlement = inspectMediaEntitlement(world.fan, world.artist);
+  expect(entitlement.expired).toBe(false);
   const signed = await read(page.request, uploaded.mediaId, false);
+  expect(Date.parse(signed.expiresAt)).toBeLessThanOrEqual(
+    Date.parse(entitlement.expiresAt),
+  );
   expect(Date.parse(signed.expiresAt)).toBeLessThanOrEqual(Date.now() + 4000);
   expect((await page.request.get(signed.url)).ok()).toBe(true);
   await expect
@@ -681,6 +688,19 @@ test('signed read lifetime is clamped to entitlement and actually expires at Sto
       intervals: [1000],
     })
     .toBe(false);
+  // Integer-second capability expiry may precede the paid-period deadline.
+  // Keep Storage expiry independent, then observe the actual DB entitlement
+  // boundary before demanding that a fresh application grant be denied.
+  await expect
+    .poll(
+      () =>
+        mediaEntitlementDeadlineReached(
+          inspectMediaEntitlement(world.fan, world.artist),
+          entitlement.expiresAt,
+        ),
+      { timeout: 15_000, intervals: [1000] },
+    )
+    .toBe(true);
   await denied(
     await post(page.request, readPath, {
       mediaId: uploaded.mediaId,

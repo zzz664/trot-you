@@ -23,6 +23,7 @@ export default defineConfig({
     '**/schedules/**',
     '**/schedule-notices/**',
     '**/content-calendar/**',
+    '**/community-posts/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

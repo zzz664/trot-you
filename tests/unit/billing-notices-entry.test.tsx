@@ -28,6 +28,9 @@ vi.mock('@/components/admin/reconciliation/ReconciliationEntry', () => ({
 vi.mock('@/components/artists/ArtistCatalogEntry', () => ({
   ArtistCatalogEntry: () => null,
 }));
+vi.mock('@/components/community-posts/CommunityEntry', () => ({
+  CommunityEntry: () => <div data-testid="community-entry" />,
+}));
 vi.mock('@/components/schedules/ScheduleEntry', () => ({
   ScheduleEntry: () => null,
 }));
@@ -60,5 +63,23 @@ it.each([
     expect(
       screen.queryByTestId('billing-notice-entry'),
     ).not.toBeInTheDocument();
+  },
+);
+
+it.each([
+  ['fan', routes.home, true],
+  ['admin', routes.admin, true],
+  ['artist', routes.artist, false],
+  ['fan', routes.restricted, false],
+  ['fan', routes.onboarding, false],
+])(
+  'community entry stays on eligible %s %s pages',
+  async (role, path, visible) => {
+    mocks.guard.mockResolvedValue({
+      status: 'authenticated',
+      profile: { role },
+    });
+    render(await SessionPage({ path: path as string }));
+    expect(screen.queryByTestId('community-entry') !== null).toBe(visible);
   },
 );

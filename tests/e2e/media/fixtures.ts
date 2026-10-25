@@ -13,6 +13,7 @@ import {
 } from '@playwright/test';
 import sharp from 'sharp';
 import type { Database } from '../../../src/types/database';
+import { parseMediaEntitlement } from './entitlement';
 import {
   prepareFictionalDocuments,
   enableFictionalPolicy,
@@ -280,6 +281,22 @@ export function subscribe(
     values('${uuid(actor.id)}','${uuid(artist.id)}','toss','${state}',clock_timestamp()-interval '1 day',clock_timestamp()-interval '1 day',clock_timestamp()-interval '1 day',clock_timestamp()+make_interval(secs=>${seconds}),
       ${state === 'grace' ? "clock_timestamp()-interval '1 minute'" : 'null'},${state === 'grace' ? `clock_timestamp()+make_interval(secs=>${seconds})` : 'null'},${state === 'canceled' ? 'clock_timestamp()' : 'null'})
     on conflict(user_id,artist_id) do update set status=excluded.status,current_period_end=excluded.current_period_end,grace_started_at=excluded.grace_started_at,grace_ends_at=excluded.grace_ends_at,canceled_at=excluded.canceled_at,next_billing_at=null;`);
+}
+export function inspectMediaEntitlement(actor: Identity, artist: Artist) {
+  const snapshot: unknown = JSON.parse(
+    localSql(`with observed as materialized (select clock_timestamp() as observed_at)
+      select jsonb_build_object('actorId',s.user_id,'artistId',s.artist_id,
+        'expiresAt',s.current_period_end,'databaseNow',observed.observed_at,
+        'expired',s.current_period_end<=observed.observed_at)
+      from public.subscriptions s
+      join public.artists a on a.id=s.artist_id
+      join auth.users u on u.id=s.user_id
+      cross join observed
+      where s.user_id='${uuid(actor.id)}' and s.artist_id='${uuid(artist.id)}'
+        and s.status='active' and a.slug like 'ci-media-%'
+        and u.email ~ '^media-e2e-[0-9a-f-]{36}@example[.]invalid$';`),
+  );
+  return parseMediaEntitlement(snapshot, actor.id, artist.id);
 }
 export function restrict(actor: Identity) {
   localSql(

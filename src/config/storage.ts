@@ -131,3 +131,15 @@ export const STORAGE_MP4_EDITS = {
   maximumEntries: 2,
   mediaRateOne: 0x00010000,
 } as const;
+
+// Explicit server-selected board area; no caller-selected bucket or capability.
+export const STORAGE_BOARD_QUARANTINE_BUCKET = 'board-quarantine';
+export const STORAGE_BOARD_MEDIA_BUCKET = 'board-media';
+export const STORAGE_BOARD_UPLOAD_URL_PREFIX =
+  '/storage/v1/object/upload/sign/board-quarantine/';
+export const STORAGE_BOARD_READ_URL_PREFIX =
+  '/storage/v1/object/sign/board-media/';
+export const STORAGE_BOARD_MAX_BYTES = 10_485_760;
+export const STORAGE_BOARD_PATH_PATTERN = new RegExp(
+  `^${STORAGE_UUID_SOURCE}/${STORAGE_UUID_SOURCE}/${STORAGE_UUID_SOURCE}\\.(?:jpg|png|webp)$`,
+);

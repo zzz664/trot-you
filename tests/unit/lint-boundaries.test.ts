@@ -122,4 +122,28 @@ describe('configuration and pure-layer lint boundaries', () => {
       ).toContain('no-restricted-imports');
     }
   });
+  it.each(['button', 'input', 'a'])(
+    'keeps community board %s controls inside accessible primitives',
+    async (element) => {
+      expect(
+        await rules(
+          'src/components/community-posts/Probe.tsx',
+          `export const Probe = () => <${element} />;`,
+        ),
+      ).toContain('no-restricted-syntax');
+    },
+  );
+  it('keeps community board data and provider I/O outside UI components', async () => {
+    for (const importPath of [
+      '@/server/db/community-posts',
+      '@/server/adapters/payment/toss',
+    ]) {
+      expect(
+        await rules(
+          'src/components/community-posts/Probe.tsx',
+          `import value from '${importPath}'; export { value };`,
+        ),
+      ).toContain('no-restricted-imports');
+    }
+  });
 });
