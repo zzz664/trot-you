@@ -95,3 +95,31 @@ reviewed against that exact application head in CI.
 Remaining completion gates: actual full application CI (including unchanged
 schema drift), all new browser cases, and normal visual review of their captures.
 No local browser retry/escalation or live-provider/deployment operation occurred.
+
+## Actual application CI and visual coverage correction
+
+[Run 40147924853](https://github.com/zzz664/trot-you/actions/runs/40147924853)
+checked remote head `19cff1f035f7497e52a82b4d5c032923bfd3ca05`, tree
+`4459e55f5c1599a0767cf9b54961cb019699bddf`. Two disposable runner startup
+port collisions prevented chat/activity tests on attempt 1. The same-head
+failed-job rerun recovered both without source changes; all fourteen jobs then
+passed. Results: 5,247 units, 440 browser cases, 3,139 pgTAP assertions twice,
+273 races and zero generated-schema drift. The artifacts contained 758 captures,
+including all 77 new activity captures.
+
+Normal visual review then found a **coverage defect**, not a runtime layout bug:
+the empty-artist-menu case switched to the outsider account without setting that
+account's font. All three labeled captures therefore used its default large font.
+The test now sets the outsider's requested scale and asserts the actual HTML
+`data-font-scale` after navigation. The capture helper additionally checks the
+actual document scale before every scale-labeled screenshot, including narrow
+and desktop title formats. Seven new fixture regressions cover extraction and
+wiring. No visual case, UI action or screenshot is removed; the suite remains
+24 configured cases and 77 new captures. The corrected captures require a new
+exact-head CI run and normal visual review before completion.
+
+After the coverage correction, full local `npm run check:all` passed again:
+5,254 unit tests across 168 files, lint, typecheck, contrast, production build and
+PWA build. The 17 fixture/discovery guards passed, and the genuine generated
+schema checksum remained unchanged. This is not a substitute for the corrected
+actual CI captures; those remain the final visual acceptance gate.

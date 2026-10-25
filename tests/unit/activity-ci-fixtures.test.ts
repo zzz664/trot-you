@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ACTIVITY_FIXTURE_CALL_NAME,
   activityProfileFixtureSql,
+  activityCaptureScale,
 } from '../e2e/activity/profile-fixture';
 
 const actor = 'c5200000-0000-4000-8000-000000000001';
@@ -62,5 +63,39 @@ describe('artist reply activity fictional profile initialization', () => {
       'if (profileSetup !== null) localSql(profileSetup);',
     );
     expect(source).not.toContain('onboarding_completed_at=clock_timestamp()');
+  });
+});
+
+describe('activity screenshot scale contract', () => {
+  it.each(['normal', 'large', 'xlarge'] as const)(
+    'extracts %s for narrow and desktop capture titles',
+    (scale) => {
+      expect(activityCaptureScale(`${scale}: empty artist menu`)).toBe(scale);
+      expect(activityCaptureScale(`${scale} 360: feed`)).toBe(scale);
+      expect(activityCaptureScale(`${scale} 1280: feed`)).toBe(scale);
+    },
+  );
+  it.each(['ordinary read', 'normalization test', 'xlargeOther'])(
+    'does not invent a scale for %s',
+    (title) => {
+      expect(activityCaptureScale(title)).toBeNull();
+    },
+  );
+  it('asserts the actual document scale before every labeled capture and applies it to the switched account', () => {
+    const fixture = readFileSync(
+      new URL('../e2e/activity/fixtures.ts', import.meta.url),
+      'utf8',
+    );
+    const cases = readFileSync(
+      new URL('../e2e/activity/artist-reply-activity.spec.ts', import.meta.url),
+      'utf8',
+    );
+    expect(fixture).toContain(
+      'const scale = activityCaptureScale(info.title);',
+    );
+    expect(fixture).toMatch(
+      /toHaveAttribute\(\s*'data-font-scale',\s*scale,?\s*\)/,
+    );
+    expect(cases).toContain('setFont(world.outsider, scale);');
   });
 });

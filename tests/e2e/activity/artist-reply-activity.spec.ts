@@ -499,8 +499,13 @@ for (const scale of ['normal', 'large', 'xlarge'] as const) {
       `${appOrigin}${routes.artistReplyActivityMenu}`,
     );
     await screenshot(page, info, 'first-artist-menu-page');
+    setFont(world.outsider, scale);
     await world.outsider.signIn(context);
     await page.goto(routes.artistReplyActivityMenu);
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-font-scale',
+      scale,
+    );
     await expect(
       main(page).getByText(copy.menuEmpty, { exact: true }),
     ).toBeVisible();

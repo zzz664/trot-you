@@ -20,3 +20,8 @@ export function activityProfileFixtureSql(actorId: unknown, role: unknown) {
   return `update public.profiles set role='artist',call_name='${ACTIVITY_FIXTURE_CALL_NAME}',onboarding_completed_at=clock_timestamp()
     where id='${actorId}' and exists(select 1 from auth.users where id='${actorId}' and email ~ '^activity-e2e-[0-9a-f-]{36}@example[.]invalid$');`;
 }
+
+export function activityCaptureScale(title: string) {
+  const scale = /^(normal|large|xlarge)(?=[: ])/.exec(title)?.[1];
+  return scale ?? null;
+}

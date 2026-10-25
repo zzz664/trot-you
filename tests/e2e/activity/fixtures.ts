@@ -14,6 +14,7 @@ import {
 import type { Database } from '../../../src/types/database';
 import {
   activityProfileFixtureSql,
+  activityCaptureScale,
   ACTIVITY_FIXTURE_CALL_NAME,
 } from './profile-fixture';
 import {
@@ -264,6 +265,12 @@ export function expectNoExternal(context: BrowserContext) {
   expect(externalRequests.get(context)).toEqual([]);
 }
 export async function screenshot(page: Page, info: TestInfo, name: string) {
+  const scale = activityCaptureScale(info.title);
+  if (scale)
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-font-scale',
+      scale,
+    );
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
