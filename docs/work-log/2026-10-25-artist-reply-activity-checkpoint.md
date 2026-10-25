@@ -59,3 +59,22 @@ resources, provider delivery, keys, deployment or recurring scheduler is used.
 This checkpoint is not feature completion. Final application check:all,
 exact-head CI, all new visible-link interactions, three-font responsive browser
 coverage and normal visual review remain required before merge.
+
+## First actual CI and observer repair
+
+[Run 40145771206](https://github.com/zzz664/trot-you/actions/runs/40145771206)
+validated remote head `c192595db51619c7a1d799ada3cfae21a4041a4f` and
+checkout merge `d6f55e57` against tree `6e35532557ca2ed019f1444c8b0fe4dbcab7b05d`.
+Both actual pgTAP passes succeeded with **3,139 assertions each**, and all twelve
+non-database jobs passed, including all 414 existing browser cases. The database
+job reached the new concurrency script after all prior race scripts passed.
+
+The first new race observer failed to detect a wait because its `application_name`
+lookup used a 64-byte waiting label, which PostgreSQL truncates to 63 bytes. This
+was a test-observation defect, not proof the underlying race had passed or failed.
+The harness now captures each real `pg_backend_pid()` and observes that PID's
+`pg_blocking_pids`, independent of display-label truncation. Pure regression
+tests validate PID input/query wiring and the exact 64-byte failure case. Actual
+rerun of all thirteen scenarios remains required; no race assertion was removed.
+Types/upload/typecheck were skipped after this failure, so no genuine generated
+artifact existed yet and the application type import remains pending.

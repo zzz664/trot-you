@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { activityLockQuery } from './activity-race-observer.mjs';
 
 // This test intentionally commits fictional fixtures across independent sessions.
 // It must run only on the disposable CLI-managed LOCAL Supabase database. It has
@@ -125,6 +126,8 @@ class Session {
       set lock_timeout = '${timeoutMs}ms';
       set timezone = 'UTC';
     `);
+    this.pid = Number(await this.query('select pg_backend_pid();'));
+    assert.ok(Number.isSafeInteger(this.pid) && this.pid > 0);
     return this;
   }
 
@@ -141,15 +144,9 @@ async function session(label) {
 async function waitForBlock(observer, waiting, blocking) {
   const deadline = Date.now() + timeoutMs / 2;
   while (Date.now() < deadline) {
-    const result = await observer.query(`
-      select exists (
-        select 1 from pg_stat_activity waiting, pg_stat_activity blocking
-        where waiting.application_name = '${waiting.label}'
-          and blocking.application_name = '${blocking.label}'
-          and waiting.wait_event_type = 'Lock'
-          and blocking.pid = any(pg_blocking_pids(waiting.pid))
-      );
-    `);
+    const result = await observer.query(
+      activityLockQuery(waiting.pid, blocking.pid),
+    );
     if (result === 't') return;
     await delay(25);
   }
