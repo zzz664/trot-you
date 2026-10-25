@@ -49,6 +49,7 @@ jobs:
       - run: node scripts/test-reply-concurrency.mjs
       - run: node scripts/test-compose-concurrency.mjs
       - run: node scripts/test-dispatch-concurrency.mjs
+      - run: node scripts/test-artist-reply-activity-concurrency.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
