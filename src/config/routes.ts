@@ -1,5 +1,9 @@
 export const routes = {
   home: '/',
+  schedules: '/schedules',
+  schedulesApi: '/api/schedules',
+  adminSchedules: '/admin/schedules',
+  adminSchedulesApi: '/api/admin/schedules',
   start: '/start',
   onboarding: '/onboarding',
   onboardingFont: '/onboarding/font',
@@ -219,4 +223,31 @@ export function adminSubscriptionPath(
   if (query.artist_id) params.set('artist_id', query.artist_id);
   if (query.page > 1) params.set('page', String(query.page));
   return `${api ? routes.adminSubscriptionsApi : routes.adminSubscriptions}?${params.toString()}`;
+}
+
+export function scheduleListPath(
+  month: string,
+  cursor?: string | null,
+  api = false,
+) {
+  const params = new URLSearchParams({ month });
+  if (cursor) params.set('cursor', cursor);
+  return `${api ? routes.schedulesApi : routes.schedules}?${params.toString()}`;
+}
+export function scheduleDetailPath(id: string, month?: string) {
+  const base = `${routes.schedules}/${encodeURIComponent(id)}`;
+  return month ? `${base}?${new URLSearchParams({ month }).toString()}` : base;
+}
+export function adminScheduleListPath(month: string, page = 1, api = false) {
+  const params = new URLSearchParams({ month });
+  if (page > 1) params.set('page', String(page));
+  return `${api ? routes.adminSchedulesApi : routes.adminSchedules}?${params.toString()}`;
+}
+export function adminSchedulePath(id: string) {
+  return `${routes.adminSchedules}/${encodeURIComponent(id)}`;
+}
+export function adminScheduleApiPath(action?: 'save' | 'delete') {
+  return action
+    ? `${routes.adminSchedulesApi}/${action}`
+    : routes.adminSchedulesApi;
 }

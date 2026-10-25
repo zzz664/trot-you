@@ -28,6 +28,9 @@ vi.mock('@/components/admin/reconciliation/ReconciliationEntry', () => ({
 vi.mock('@/components/artists/ArtistCatalogEntry', () => ({
   ArtistCatalogEntry: () => null,
 }));
+vi.mock('@/components/schedules/ScheduleEntry', () => ({
+  ScheduleEntry: () => null,
+}));
 vi.mock('@/components/auth/AuthForm', () => ({ AuthForm: () => null }));
 afterEach(cleanup);
 beforeEach(() => {

@@ -81,7 +81,10 @@
     "test:e2e:admin-settings": "playwright test --config playwright.admin-settings.config.ts",
     "test:db:admin-subscriptions-concurrency": "node scripts/test-admin-subscriptions-concurrency.mjs",
     "test:admin-subscriptions-fixture": "node --test scripts/admin-subscriptions-local-config.test.mjs",
-    "test:e2e:admin-subscriptions": "playwright test --config playwright.admin-subscriptions.config.ts"
+    "test:e2e:admin-subscriptions": "playwright test --config playwright.admin-subscriptions.config.ts",
+    "test:db:schedule-management-concurrency": "node scripts/test-schedule-management-concurrency.mjs",
+    "test:schedules-fixture": "node --test scripts/schedules-local-config.test.mjs",
+    "test:e2e:schedules": "playwright test --config playwright.schedules.config.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",
