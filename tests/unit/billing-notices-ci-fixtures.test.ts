@@ -104,3 +104,35 @@ describe('billing notice real capture scale guard', () => {
     expect(spec).toContain("await screenshot(page, info, 'notice-initial');");
   });
 });
+
+describe('billing notice authenticated browser HTTP binding', () => {
+  it('uses the signed-in BrowserContext cookie jar for every owner-only list and mutation', () => {
+    const spec = readFileSync(
+      new URL(
+        '../e2e/billing-notices/billing-notices.spec.ts',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    expect(spec).not.toMatch(/await list\(request\b/);
+    expect(spec).not.toMatch(/await post\(request,\s*routes\.billingNotice/);
+    expect(spec).not.toMatch(
+      /await request\.(?:get|post)\((?:routes\.billingNotice|`\$\{routes\.billingNotice)/,
+    );
+    expect(spec).toContain('await list(context.request)');
+    expect(spec).toContain(
+      'await post(context.request, routes.billingNoticeRead',
+    );
+    expect(spec).toContain(
+      'await post(context.request, routes.billingNoticePreference',
+    );
+    // The unauthenticated worker request and post-logout 401 assertion remain;
+    // correcting the harness must not relax the application's auth behavior.
+    expect(spec).toContain('await request.post(routes.createBillingNotices)');
+    expect(spec).toContain('await context.clearCookies();');
+    expect(spec).toContain(
+      'await context.request.get(routes.billingNoticeStatus)',
+    );
+    expect(spec).toContain("'UNAUTHENTICATED'");
+  });
+});

@@ -41,6 +41,8 @@ const messages: typeof import('../../../src/messages/ko.json') = JSON.parse(
 const copy = messages.billingNotices;
 const main = (page: Page) => page.getByRole('main');
 const rows = (page: Page) => main(page).locator('[data-billing-notice-id]');
+// Callers pass context.request after sign-in; Playwright's standalone request
+// fixture has a separate cookie jar and is reserved below for anonymous cron.
 async function list(
   request: APIRequestContext,
   cursor?: string,
@@ -124,7 +126,7 @@ test('protected local worker creates a real deduplicated inbox without delivery 
   expect(after.attempts).toBe(0);
   expect(after.pushJobs).toBe(0);
   await world.fan.signIn(context);
-  const inbox = await list(request);
+  const inbox = await list(context.request);
   expect(inbox.notices).toHaveLength(2);
   expect(
     inbox.notices.every(
@@ -136,11 +138,10 @@ test('protected local worker creates a real deduplicated inbox without delivery 
 test('owner-only list/read and same-origin writes expose no provider or another account details', async ({
   world,
   context,
-  request,
 }) => {
   const sources = await seed(world);
   await world.fan.signIn(context);
-  const owner = await list(request);
+  const owner = await list(context.request);
   const notice = owner.notices[0]!;
   expect(Object.keys(notice).sort()).toEqual(
     [
@@ -155,21 +156,23 @@ test('owner-only list/read and same-origin writes expose no provider or another 
       'mandatory',
     ].sort(),
   );
-  const read = await post(request, routes.billingNoticeRead, {
+  const read = await post(context.request, routes.billingNoticeRead, {
     noticeId: notice.id,
   });
   expect(await read.json()).toEqual({ ok: true, data: null });
-  const marked = (await list(request)).notices[0]!;
+  const marked = (await list(context.request)).notices[0]!;
   expect(marked.readAt).not.toBeNull();
   expect(
     (
-      await post(request, routes.billingNoticeRead, { noticeId: notice.id })
+      await post(context.request, routes.billingNoticeRead, {
+        noticeId: notice.id,
+      })
     ).status(),
   ).toBe(200);
-  expect((await list(request)).notices[0]!.readAt).toBe(marked.readAt);
+  expect((await list(context.request)).notices[0]!.readAt).toBe(marked.readAt);
   expect(noticeSnapshot(sources).receipts).toBe(0);
   await expectFailure(
-    await request.post(routes.billingNoticeRead, {
+    await context.request.post(routes.billingNoticeRead, {
       headers: { Origin: 'https://outside.invalid' },
       data: { noticeId: notice.id },
     }),
@@ -178,15 +181,17 @@ test('owner-only list/read and same-origin writes expose no provider or another 
   );
   await completeProfile(world.other, world.artist);
   await world.other.signIn(context);
-  expect((await list(request)).notices).toEqual([]);
+  expect((await list(context.request)).notices).toEqual([]);
   await expectFailure(
-    await post(request, routes.billingNoticeRead, { noticeId: notice.id }),
+    await post(context.request, routes.billingNoticeRead, {
+      noticeId: notice.id,
+    }),
     404,
     'NOT_FOUND',
   );
   await context.clearCookies();
   await expectFailure(
-    await request.get(routes.billingNoticeStatus),
+    await context.request.get(routes.billingNoticeStatus),
     401,
     'UNAUTHENTICATED',
   );
@@ -196,7 +201,6 @@ test('optional billing preference preserves unrelated choices, suppresses opt-ou
   world,
   context,
   page,
-  request,
 }) => {
   await completeProfile(world.fan, world.artist);
   const sources = seedSources(world, 1, false);
@@ -244,7 +248,7 @@ test('optional billing preference preserves unrelated choices, suppresses opt-ou
     .click();
   await expect(main(page).getByText(copy.preferenceOff)).toBeVisible();
   await expect(rows(page)).toHaveCount(0);
-  expect((await list(request)).notices).toEqual([]);
+  expect((await list(context.request)).notices).toEqual([]);
   expect(noticeSnapshot(sources).receipts).toBe(0);
 });
 
@@ -418,19 +422,18 @@ for (const [name, mutate] of [
     world,
     context,
     page,
-    request,
   }) => {
     const sources = await seed(world);
     await world.fan.signIn(context);
     await open(page);
     await expect(rows(page)).toHaveCount(1);
-    const id = (await list(request)).notices[0]!.id;
+    const id = (await list(context.request)).notices[0]!.id;
     mutate(sources[0]!);
     await main(page).getByRole('button', { name: copy.refresh }).click();
     await expect(rows(page)).toHaveCount(0);
     await expect(main(page).getByText(copy.emptyTitle)).toBeVisible();
     await expectFailure(
-      await post(request, routes.billingNoticeRead, { noticeId: id }),
+      await post(context.request, routes.billingNoticeRead, { noticeId: id }),
       404,
       'NOT_FOUND',
     );
@@ -457,16 +460,15 @@ test('xlarge 360: deterministic bounded pagination, first link and Back/Forward 
   world,
   context,
   page,
-  request,
 }, info) => {
   await seed(world, BILLING_NOTICE.pageSize + 1);
   setFont(world.fan, 'xlarge');
   await world.fan.signIn(context);
   await page.setViewportSize({ width: 360, height: 900 });
-  const first = await list(request);
+  const first = await list(context.request);
   expect(first.notices).toHaveLength(BILLING_NOTICE.pageSize);
   expect(first.hasMore).toBe(true);
-  const second = await list(request, first.nextCursor!);
+  const second = await list(context.request, first.nextCursor!);
   expect(second.notices).toHaveLength(1);
   expect(second.hasMore).toBe(false);
   expect(
@@ -498,7 +500,6 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
     world,
     context,
     page,
-    request,
   }, info) => {
     await seed(world);
     setFont(world.fan, scale);
@@ -525,17 +526,19 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       .click();
     await expect(page).toHaveURL(`${appOrigin}${routes.subscriptions}`);
     await expectFailure(
-      await request.get(`${routes.billingNoticeStatus}?cursor=invalid`),
+      await context.request.get(`${routes.billingNoticeStatus}?cursor=invalid`),
       400,
       'INVALID_INPUT',
     );
     await expectFailure(
-      await request.get(`${routes.billingNoticeStatus}?cursor=a&cursor=b`),
+      await context.request.get(
+        `${routes.billingNoticeStatus}?cursor=a&cursor=b`,
+      ),
       400,
       'INVALID_INPUT',
     );
     await expectFailure(
-      await post(request, routes.billingNoticePreference, {
+      await post(context.request, routes.billingNoticePreference, {
         enabled: true,
         userId: world.other.id,
       }),

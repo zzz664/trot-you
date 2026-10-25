@@ -110,3 +110,26 @@ cover that boundary. Full `npm run check:all` passed again with **5,950 tests
 across 192 files**, strict types, lint/format, contrast and production/PWA build.
 The immutable earlier application commit is preserved; this correction changes
 no database contract, authenticated owner projection or provider behavior.
+
+## Exact-head browser harness correction
+
+Application run `40157151807` on remote
+`aaf02e3bfb8a444ee0e0b1060f085698e83e750c` passed the quality job, including
+the repaired keyless Back assertion. The new configured billing-notice browser
+job reported 13 passed and 10 failed: signed-in API checks incorrectly used
+Playwright's separate anonymous `request` fixture instead of the browser
+context's cookie jar. The server correctly returned 401. Those checks now use
+`context.request`; owner isolation, cross-origin rejection, malformed-input and
+post-logout 401 expectations remain unchanged. A focused fixture regression
+prevents the same cookie-jar mismatch. No production authorization was weakened.
+
+The same run's Web Push browser job failed before migrations/build/tests because
+the CI database port was already in use. This is not reported as a feature pass,
+and no local Docker or browser retry was attempted. A fresh exact-head CI run
+must still close all browser, database and ordinary visual gates.
+
+After the narrow harness correction, full `npm run check:all` passed with
+**5,951 unit tests across 192 files**, lint/format, strict types, all ten contrast
+pairs and optimized production/PWA build. The new browser execution and final
+65-capture visual verification remain pending; prior failure captures are not
+substitutes for successful final-head evidence.
