@@ -117,3 +117,36 @@ The checkpoint's existing browser suites had 550 passing cases and the one
 known enrollment test-evidence failure described above. Those runs did not
 contain this application. A new exact application commit still needs all CI
 jobs and actual screenshot/visual review before merge readiness.
+
+## Application CI and visual evidence
+
+Application candidate `290872cc4714868b6125016297baa71c9c9978e5` passed all
+**18 jobs** in CI run `40170506459`: 6,567 unit tests, 265 fixture checks,
+3,722 pgTAP assertions twice, 338 independent-session race scenarios, the
+populated upgrade-preservation check, and **575 browser cases**. Database type
+generation, post-generation typecheck and the committed-type drift gate all
+passed. The corrected enrollment suite passed all 21 cases; the dedicated
+settings suite passed all 17 cases. These results belong to this exact candidate,
+not automatically to later commits.
+
+Official screenshot artifacts were checked against the run/head and archive
+digests before normal visual QA. All 992 baseline images were accounted for:
+441 identical and 551 changed, including nine dimension changes, with no missing
+images. Changed-region review found no material defect. All **94 new settings
+PNGs** were covered: 30 editor/validation/review/saved images, 27 policy/runbook
+images, and 37 initial/error/keyless images. Six keyless images were byte-identical
+to separately viewed counterparts and are explicitly recorded that way, rather
+than claimed as separate image views. Full-height component captures include
+the complete tall forms and their bottom actions; viewport captures establish
+only their captured area. No material clipping, overlap or readability defect
+was found across the three text scales and narrow/desktop widths.
+
+The final test-only evidence addition captures the newest sanitized audit entry
+after the already-tested save at all six font/width combinations and verifies
+the current synthetic administrator UUID before capture. This closes a visual
+coverage gap without changing application behavior, database policies, or test
+case counts. A fresh local `npm run check:all` again passed (6,567 unit tests,
+lint/format, type generation/typecheck, contrast and production/PWA build), as
+did all 28 settings fixture checks. The final audit-capture commit still requires
+its own exact-head full CI and review of the six newly produced audit images
+before merge. No local browser or Docker operation was attempted.

@@ -383,6 +383,17 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
         `settings-saved-${scale}-${width}`,
         scale,
       );
+      const audit = main(page)
+        .locator('[data-admin-settings-audit] [data-admin-settings-audit-id]')
+        .first();
+      await expect(audit).toContainText(world.admin.id);
+      await captureElement(
+        page,
+        audit,
+        info,
+        `settings-audit-initial-${scale}-${width}`,
+        scale,
+      );
       await main(page)
         .getByRole('link', { name: copy.policiesOpen, exact: true })
         .click();
