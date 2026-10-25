@@ -24,17 +24,31 @@ import {
 import { chatDate } from '@/components/fan/chat/format';
 import { useArtistCompose } from './useArtistCompose';
 import { ComposeMedia } from './ComposeMedia';
+import { ArtistDispatch } from '@/components/artist-dispatch/ArtistDispatch';
 import styles from './artist-compose.module.css';
 
-export function ArtistComposer({ initial }: { initial: ComposePageData }) {
+export function ArtistComposer({
+  initial,
+  initialDispatchedId,
+}: {
+  initial: ComposePageData;
+  initialDispatchedId?: string;
+}) {
   return (
     <ComposeScreen
       key={`${initial.artist.id}:${initial.selectedDraft?.id ?? ''}`}
       initial={initial}
+      {...(initialDispatchedId ? { initialDispatchedId } : {})}
     />
   );
 }
-function ComposeScreen({ initial }: { initial: ComposePageData }) {
+function ComposeScreen({
+  initial,
+  initialDispatchedId,
+}: {
+  initial: ComposePageData;
+  initialDispatchedId?: string;
+}) {
   const t = useTranslations('artistCompose');
   const router = useRouter();
   const { showDialog } = useDialog();
@@ -44,7 +58,9 @@ function ComposeScreen({ initial }: { initial: ComposePageData }) {
   const caret = useRef<{ value: string; cursor: number } | null>(null);
   const speechActive = useRef(false);
   const [speaking, setSpeaking] = useState(false);
-  const busy = state.busy !== null || state.mediaBusy || speaking;
+  const [dispatchLocked, setDispatchLocked] = useState(false);
+  const composeBusy = state.busy !== null || state.mediaBusy || speaking;
+  const busy = composeBusy || dispatchLocked;
   const blocked = busy || state.uncertain;
   const policy = state.data?.policy;
   useLayoutEffect(() => {
@@ -160,7 +176,9 @@ function ComposeScreen({ initial }: { initial: ComposePageData }) {
               label={t('body')}
               value={state.body}
               onChange={(event) => state.edit(event.target.value)}
-              disabled={state.busy !== null || state.mediaBusy}
+              disabled={
+                state.busy !== null || state.mediaBusy || dispatchLocked
+              }
               readOnly={state.uncertain || speaking}
               hint={t('bodyHint', {
                 count: Array.from(state.body).length,
@@ -184,7 +202,10 @@ function ComposeScreen({ initial }: { initial: ComposePageData }) {
               <MicButton
                 maxLength={policy.maxTextLength}
                 disabled={
-                  state.busy !== null || state.mediaBusy || state.uncertain
+                  state.busy !== null ||
+                  state.mediaBusy ||
+                  state.uncertain ||
+                  dispatchLocked
                 }
                 onPrepare={() => {
                   const field = editor.current;
@@ -212,7 +233,8 @@ function ComposeScreen({ initial }: { initial: ComposePageData }) {
                     field.value !== snapshot.value ||
                     state.busy !== null ||
                     state.mediaBusy ||
-                    state.uncertain
+                    state.uncertain ||
+                    dispatchLocked
                   )
                     return false;
                   const next = insertSpeechDraft(
@@ -242,7 +264,7 @@ function ComposeScreen({ initial }: { initial: ComposePageData }) {
             )}
             <div className={styles.actions}>
               <Button
-                disabled={state.busy !== null || state.mediaBusy || speaking}
+                disabled={busy}
                 isLoading={state.busy === 'save' || state.busy === 'remove'}
                 onClick={() => {
                   if (!speechActive.current) void state.save();
@@ -290,7 +312,8 @@ function ComposeScreen({ initial }: { initial: ComposePageData }) {
                   state.busy !== null ||
                   state.dirty ||
                   state.uncertain ||
-                  speaking
+                  speaking ||
+                  dispatchLocked
                 }
                 onBusy={state.setMediaBusy}
                 onChanged={state.mediaChanged}
@@ -346,6 +369,20 @@ function ComposeScreen({ initial }: { initial: ComposePageData }) {
               </section>
             )}
           </section>
+          <ArtistDispatch
+            slug={initial.artist.slug}
+            draft={state.selected}
+            disabled={composeBusy || state.dirty || state.uncertain}
+            {...(state.recoveredDispatchedId || initialDispatchedId
+              ? {
+                  initialDispatchedId:
+                    state.recoveredDispatchedId ?? initialDispatchedId!,
+                }
+              : {})}
+            onLock={setDispatchLocked}
+            onPublished={() => state.load(null, false, true)}
+            onAccessLost={state.mediaAccessLost}
+          />
           <section className={styles.drafts} aria-label={t('drafts')}>
             <h2>{t('drafts')}</h2>
             <div className={styles.actions}>

@@ -1,5 +1,10 @@
 # Artist-owned draft authoring
 
+> Follow-on message publication is implemented separately in
+> [message dispatch](../configuration/message-dispatch.md). Saving or uploading
+> a draft alone still never publishes it; the current composer has a separate
+> explicit-confirm publication flow.
+
 This feature implements **drafts only**. It does not schedule, send, dispatch,
 create a notification outbox job, or expose a cancellation window. Those remain
 a separate delivery feature. No operational policy or real artist content is

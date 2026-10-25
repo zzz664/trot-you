@@ -26,6 +26,7 @@ import {
 } from './compose-ui-fixtures';
 const mock = vi.hoisted(() => ({
   read: vi.fn(),
+  dispatch: vi.fn(),
   save: vi.fn(),
   preview: vi.fn(),
   remove: vi.fn(),
@@ -35,6 +36,10 @@ const mock = vi.hoisted(() => ({
   complete: vi.fn(),
   revoke: vi.fn(),
   resize: vi.fn(),
+}));
+vi.mock('@/client/dispatch', () => ({ readDispatchPage: mock.dispatch }));
+vi.mock('@/components/artist-dispatch/ArtistDispatch', () => ({
+  ArtistDispatch: () => null,
 }));
 vi.mock('@/client/compose', () => ({
   readComposePage: mock.read,
@@ -103,6 +108,10 @@ beforeEach(() => {
   );
   mock.save.mockImplementation(async (input: ComposeSaveInput) => saved(input));
   mock.read.mockResolvedValue({ ok: true, data: composeUiPage() });
+  mock.dispatch.mockResolvedValue({
+    ok: true,
+    data: { selectedMessage: null },
+  });
   mock.preview.mockResolvedValue({
     ok: true,
     data: { sampleName: '순자', text: '서버가 만든 미리 보기' },

@@ -60,7 +60,10 @@
     "test:speech-fixture": "node --test scripts/speech-local-config.test.mjs",
     "test:e2e:speech": "playwright test --config playwright.speech.config.ts",
     "test:compose-fixture": "node --test scripts/compose-local-config.test.mjs",
-    "test:e2e:compose": "playwright test --config playwright.compose.config.ts"
+    "test:e2e:compose": "playwright test --config playwright.compose.config.ts",
+    "test:db:dispatch-concurrency": "node scripts/test-dispatch-concurrency.mjs",
+    "test:dispatch-fixture": "node --test scripts/dispatch-local-config.test.mjs",
+    "test:e2e:dispatch": "playwright test --config playwright.dispatch.config.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",

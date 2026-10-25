@@ -10,7 +10,8 @@ type InputProps = {
   value?: string;
   defaultValue?: string;
   onChange?: ChangeEventHandler<HTMLInputElement>;
-  type?: 'text' | 'email' | 'password' | 'search' | 'tel' | 'url';
+  type?:
+    'text' | 'email' | 'password' | 'search' | 'tel' | 'url' | 'date' | 'time';
   autoComplete?: string;
   hint?: string;
   error?: string;

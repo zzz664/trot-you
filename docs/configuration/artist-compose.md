@@ -1,5 +1,10 @@
 # Artist message draft authoring
 
+> Follow-on message publication is implemented separately in
+> [message dispatch](../configuration/message-dispatch.md). Saving or uploading
+> a draft alone still never publishes it; the current composer has a separate
+> explicit-confirm publication flow.
+
 This feature provides `/artist` assigned-artist navigation and
 `/artist/[slug]/compose` for text, photo, voice and video drafts. Saving is **not
 sending**: immediate/scheduled dispatch, outbox production, delivery and the
