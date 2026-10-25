@@ -32,6 +32,20 @@ const relations = [
 }));
 
 describe('community posts populated-upgrade harness contract', () => {
+  it('groups CASE inside PL/pgSQL IF so its THEN is not the IF delimiter', () => {
+    const migration = readFileSync(
+      'supabase/migrations/20261025000033_community_posts.sql',
+      'utf8',
+    );
+    const actor = migration.slice(
+      migration.indexOf('create function private.board_actor('),
+      migration.indexOf('create function private.board_artist('),
+    );
+    expect(actor).not.toMatch(/is distinct from case when/i);
+    expect(actor).toContain(
+      "is distinct from (case when p_service then 'service_role' else 'authenticated' end)",
+    );
+  });
   it('preserves all board, image, interaction, reward and operational sources', () => {
     expect(relations.map(({ table }) => table)).toEqual([
       'public.posts',

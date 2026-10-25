@@ -78,7 +78,7 @@ returns public.profiles language plpgsql security definer set search_path='' as 
 declare actor public.profiles%rowtype;
 begin
   if current_setting('transaction_isolation')<>'read committed' then raise exception 'BOARD_ISOLATION_UNSUPPORTED' using errcode='25001'; end if;
-  if current_setting('role',true) is distinct from case when p_service then 'service_role' else 'authenticated' end
+  if current_setting('role',true) is distinct from (case when p_service then 'service_role' else 'authenticated' end)
     or (not p_service and p_actor_id is distinct from auth.uid()) then
     raise exception 'COMMUNITY_FORBIDDEN' using errcode='42501'; end if;
   if p_write then select * into actor from public.profiles where id=p_actor_id for update;
