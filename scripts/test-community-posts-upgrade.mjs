@@ -35,7 +35,7 @@ const snapshot = () =>
   JSON.parse(
     psql(`select jsonb_build_object(
     'posts',(select jsonb_agg(to_jsonb(p)-'revision' order by p.id) from public.posts p),
-    'comments',(select jsonb_agg(to_jsonb(c) order by c.id) from public.comments c),
+    'comments',(select jsonb_agg(to_jsonb(c)-'revision' order by c.id) from public.comments c),
     'images',(select jsonb_agg(to_jsonb(i)-'position' order by i.id) from public.post_images i),
     'objects',(select jsonb_agg(to_jsonb(o) order by o.id) from storage.objects o),
     'likes',(select jsonb_agg(to_jsonb(l) order by l.post_id,l.user_id) from public.post_likes l),
@@ -194,6 +194,11 @@ try {
     psql('select count(*) from public.posts where revision=1;'),
     '4',
     'Legacy rows initialize CAS without fabricated edits.',
+  );
+  assert.equal(
+    psql('select count(*) from public.comments where revision=1;'),
+    '1',
+    'The later additive interaction revision initializes the preserved legacy comment without rewriting its source bytes.',
   );
   assert.equal(
     psql('select count(*) from public.post_images where position=0;'),

@@ -9,7 +9,7 @@ lint/format, typecheck, all unit tests, contrast, production build, all local fi
 checks, and the keyless browser suite still run.
 
 For a code PR targeting `develop`, the complete database job still runs: DB lint,
-both consecutive pgTAP passes, all 30 concurrency scripts, all six populated
+both consecutive pgTAP passes, all 31 concurrency scripts, all seven populated
 upgrades, real generated schema types, typecheck, and committed-type drift checks.
 Only a nonempty change set containing `README.md` and/or Markdown files under
 `docs/` may intentionally skip the database and all 21 isolated feature browsers.
@@ -149,7 +149,7 @@ again. Do not replace populated upgrade tests with fresh-schema-only checks.
 Database selection is intentionally not optimized by SQL filenames. The schedule
 notice migration's first checkpoint passed its new tests while breaking existing
 message-dispatch tests through a shared notification wrapper. Every migration
-therefore retains all DB regressions. All 34 race/upgrade scripts perform whole
+therefore retains all DB regressions. All 38 race/upgrade scripts perform whole
 local-database resets: running them concurrently against one Supabase instance
 would be unsafe. A separate, measured improvement may shard the unchanged suites
 onto isolated runners; this PR does not do that. Browser selection reduces work
@@ -160,3 +160,7 @@ and full fallback inventory. Its synthetic Auth/board/private-storage job runs a
 existing setup, reset, build, artifact and cleanup gates. Exact added fixture,
 concurrency and populated-upgrade steps remain checked separately from immutable
 historical step hashes; no baseline hash was rewritten.
+
+Feature 35 retains those same regression gates and adds community-interaction
+concurrency and populated-upgrade verification before official type generation.
+The exact two additions are checked without changing historical step hashes.

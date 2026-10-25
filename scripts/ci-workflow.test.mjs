@@ -51,7 +51,9 @@ const reviewedAdditions = {
         '      - run: npm run test:db:content-calendar-concurrency\n' +
         '      - run: node scripts/test-content-calendar-upgrade.mjs\n' +
         '      - run: npm run test:db:community-posts-concurrency\n' +
-        '      - run: node scripts/test-community-posts-upgrade.mjs\n',
+        '      - run: node scripts/test-community-posts-upgrade.mjs\n' +
+        '      - run: npm run test:db:community-interactions-concurrency\n' +
+        '      - run: node scripts/test-community-interactions-upgrade.mjs\n',
     },
   ],
 };
@@ -197,6 +199,14 @@ describe('CI workflow safety and unchanged regression coverage', () => {
       original.replace(
         'node scripts/test-community-posts-upgrade.mjs',
         'echo skipped board upgrade',
+      ),
+      original.replace(
+        'npm run test:db:community-interactions-concurrency',
+        'echo skipped interaction races',
+      ),
+      original.replace(
+        'node scripts/test-community-interactions-upgrade.mjs',
+        'echo skipped interaction upgrade',
       ),
     ])
       assert.throws(() => verifyLegacySteps('database', changed));
@@ -346,12 +356,12 @@ describe('CI workflow safety and unchanged regression coverage', () => {
           /run: (?:npm run test:db:[^\n]*concurrency|node scripts\/test-[^\n]*concurrency\.mjs)\n/g,
         ) || []
       ).length,
-      30,
+      31,
     );
     assert.equal(
       (database.match(/run: node scripts\/test-[^\n]*upgrade\.mjs\n/g) || [])
         .length,
-      6,
+      7,
     );
     assert.match(database, /git diff --exit-code -- src\/types\/database\.ts/);
     assert.match(database, /npm run db:lint/);

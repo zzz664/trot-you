@@ -77,11 +77,14 @@ describe('community posts populated-upgrade harness contract', () => {
     ]);
     expect(snapshot).toContain('from storage.objects o');
     expect(snapshot).not.toContain('app_settings');
-    expect([...snapshot.matchAll(/-'revision'/g)]).toHaveLength(1);
+    expect([...snapshot.matchAll(/-'revision'/g)]).toHaveLength(2);
     expect([...snapshot.matchAll(/-'position'/g)]).toHaveLength(1);
     expect(
       [...snapshot.matchAll(/-'[a-z_]+'/g)].map((match) => match[0]),
-    ).toEqual(["-'revision'", "-'position'"]);
+    ).toEqual(["-'revision'", "-'revision'", "-'position'"]);
+    expect(snapshot).toContain(
+      "to_jsonb(c)-'revision' order by c.id) from public.comments c",
+    );
     expect(snapshot).toContain(
       "to_jsonb(i)-'position' order by i.id) from public.post_images i",
     );
@@ -119,6 +122,9 @@ describe('community posts populated-upgrade harness contract', () => {
     expect(source).toContain('detail.post.revision, 1');
     expect(source).toContain(
       'select count(*) from public.post_images where position=0;',
+    );
+    expect(source).toContain(
+      'select count(*) from public.comments where revision=1;',
     );
     expect(source).toContain('updated.revision, 3');
     expect(source).toContain(

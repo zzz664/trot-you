@@ -1,0 +1,13 @@
+begin isolation level serializable;
+create extension if not exists pgtap with schema extensions;
+set local search_path=public,extensions;
+select no_plan();
+set local role authenticated;
+select throws_ok($$select public.community_ui_interactions('interaction-test',gen_random_uuid())$$,'25001','BOARD_ISOLATION_UNSUPPORTED','interaction read rejects stale serializable authority');
+select throws_ok($$select public.community_ui_create_comment('interaction-test',gen_random_uuid(),gen_random_uuid(),gen_random_uuid(),'Comment')$$,'25001','BOARD_ISOLATION_UNSUPPORTED','comment create rejects stale authority');
+select throws_ok($$select public.community_ui_update_comment('interaction-test',gen_random_uuid(),gen_random_uuid(),gen_random_uuid(),1,'Comment')$$,'25001','BOARD_ISOLATION_UNSUPPORTED','comment edit rejects stale authority');
+select throws_ok($$select public.community_ui_delete_comment('interaction-test',gen_random_uuid(),gen_random_uuid(),gen_random_uuid(),1,true)$$,'25001','BOARD_ISOLATION_UNSUPPORTED','comment delete rejects stale authority');
+select throws_ok($$select public.community_ui_set_like('interaction-test',gen_random_uuid(),gen_random_uuid(),true)$$,'25001','BOARD_ISOLATION_UNSUPPORTED','like rejects stale authority');
+reset role;
+select * from finish();
+rollback;
