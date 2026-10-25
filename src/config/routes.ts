@@ -11,6 +11,11 @@ export const routes = {
   artistMessages: '/api/artists',
   analytics: '/api/analytics',
   notifications: '/settings/notifications',
+  billingNotices: '/me/billing-notices',
+  billingNoticeStatus: '/api/billing-notices',
+  billingNoticeRead: '/api/billing-notices/read',
+  billingNoticePreference: '/api/billing-notices/preference',
+  createBillingNotices: '/api/cron/billing-notices',
   notificationInstallGuide:
     '/settings/notifications#notification-install-guide',
   pushSubscription: '/api/push/subscribe',
@@ -167,4 +172,10 @@ export function artistReplyActivityPath(
 export function artistReplyActivityApiPath(slug: string, action?: 'messages') {
   const path = `${routes.artistComposeApi}/${encodeURIComponent(slug)}/replies`;
   return action ? `${path}/${action}` : path;
+}
+
+export function billingNoticePath(cursor?: string | null) {
+  return cursor
+    ? `${routes.billingNotices}?cursor=${encodeURIComponent(cursor)}`
+    : routes.billingNotices;
 }

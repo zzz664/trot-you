@@ -14,6 +14,7 @@ export type WebPushOutcome =
   | 'permanent_failure';
 export type WebPushLease = { jobId: string; token: string; expiresAt: string };
 export type WebPushDelivery = WebPushLease & {
+  sourceKind: 'message' | 'billing_notice';
   endpoint: string;
   p256dh: string;
   auth: string;
@@ -170,7 +171,9 @@ export async function sendWebPushQueue(
               payload: JSON.stringify({
                 version: 1,
                 notificationId: jobId,
-                url: routes.subscriptions,
+                ...(delivery.sourceKind === 'billing_notice'
+                  ? { kind: 'billing_notice', url: routes.billingNotices }
+                  : { url: routes.subscriptions }),
               }),
               // Stable per-job topic coalesces pending duplicates at compatible
               // push services; it is NOT an exactly-once guarantee or read receipt.

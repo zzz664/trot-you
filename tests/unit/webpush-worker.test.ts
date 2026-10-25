@@ -115,3 +115,65 @@ describe('click destination', () => {
     expect(openWindow).toHaveBeenCalledWith(destination);
   });
 });
+
+it('billing notice uses generic copy and only the fixed authenticated inbox destination', async () => {
+  const options = notificationOptions(
+    JSON.stringify({
+      version: 1,
+      notificationId: id,
+      kind: 'billing_notice',
+      url: routes.billingNotices,
+      amount: 9900,
+      billingAt: 'private-date',
+      artist: 'private-artist',
+    }),
+  );
+  expect(options).toMatchObject({
+    body: messages.billingNotices.pushBody,
+    data: { url: routes.billingNotices },
+  });
+  expect(JSON.stringify(options)).not.toMatch(
+    /9900|private-date|private-artist/,
+  );
+  const openWindow = vi.fn();
+  await openWebPush(
+    {
+      matchAll: vi.fn().mockResolvedValue([]),
+      openWindow,
+    } as unknown as Clients,
+    'https://app.example',
+    options.data,
+  );
+  expect(openWindow).toHaveBeenCalledWith(
+    `https://app.example${routes.billingNotices}`,
+  );
+});
+it('an arbitrary click destination cannot escape the fixed authenticated routes', async () => {
+  const openWindow = vi.fn();
+  await openWebPush(
+    {
+      matchAll: vi.fn().mockResolvedValue([]),
+      openWindow,
+    } as unknown as Clients,
+    'https://app.example',
+    { url: 'https://evil.example' },
+  );
+  expect(openWindow).toHaveBeenCalledWith(
+    `https://app.example${routes.subscriptions}`,
+  );
+});
+it('a billing URL without its supported source discriminator is not trusted', () => {
+  expect(
+    notificationOptions(
+      JSON.stringify({
+        version: 1,
+        notificationId: id,
+        url: routes.billingNotices,
+      }),
+    ),
+  ).toMatchObject({
+    body: messages.notifications.pushBody,
+    data: { url: routes.subscriptions },
+    tag: WEBPUSH_CLIENT.fallbackNotificationTag,
+  });
+});

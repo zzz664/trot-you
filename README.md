@@ -72,7 +72,11 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 
 ## 브라우저 메시지 알림
 
-[Web Push 설정·작동 경계](docs/configuration/webpush-delivery.md), [암호화·공급자 주소 검증](docs/configuration/webpush-protocol.md), [DB 세션·재시도 계약](docs/database/webpush-delivery.md), [격리 CI 검증](docs/configuration/webpush-ci.md)을 참고하세요. 팬 홈의 알림 설정에서 명시적으로 이 기기의 수신을 켜거나 끄며, 권한 거절·미지원·아이폰 홈 화면 앱·계정 변경·로그아웃을 구분합니다. 기존 메시지 outbox의 제한된 worker는 최종 수신 자격·동의 확인, lease, 재시도, dead endpoint 처리를 수행합니다. 잠금 화면에는 원문이나 개인정보 없이 일반 안내만 표시합니다. **공급자 접수는 기기 표시·읽음이 아니며 중복 가능성이 있는 at-least-once 처리입니다.** 실제 VAPID 키·승인 정책·worker·Cron·배포는 활성화하지 않았고 실제 iOS/Android 수신 검증은 남아 있습니다. 결제 전 안내·일정 알림·알림톡은 후속 범위입니다.
+[Web Push 설정·작동 경계](docs/configuration/webpush-delivery.md), [암호화·공급자 주소 검증](docs/configuration/webpush-protocol.md), [DB 세션·재시도 계약](docs/database/webpush-delivery.md), [격리 CI 검증](docs/configuration/webpush-ci.md)을 참고하세요. 팬 홈의 알림 설정에서 명시적으로 이 기기의 수신을 켜거나 끄며, 권한 거절·미지원·아이폰 홈 화면 앱·계정 변경·로그아웃을 구분합니다. 기존 메시지 outbox의 제한된 worker는 최종 수신 자격·동의 확인, lease, 재시도, dead endpoint 처리를 수행합니다. 잠금 화면에는 원문이나 개인정보 없이 일반 안내만 표시합니다. **공급자 접수는 기기 표시·읽음이 아니며 중복 가능성이 있는 at-least-once 처리입니다.** 실제 VAPID 키·승인 정책·worker·Cron·배포는 활성화하지 않았고 실제 iOS/Android 수신 검증은 남아 있습니다. 결제 전 안내는 아래 기능으로 연결하며 일정 알림·알림톡은 후속 범위입니다.
+
+## 결제 예정 사전 안내
+
+[작동·정책·수신 경계](docs/configuration/billing-notices.md)를 참고하세요. 승인된 불변 정책의 KST 일정에 맞춰 현재 구독의 정확한 예정 금액·결제일을 본인 전용 앱 내 안내와 선택 푸시 outbox에 원자적으로 기록합니다. `/me/billing-notices`에서 읽음 표시, 선택 결제 안내 설정, 본인 구독 관리로 이동할 수 있습니다. 취소·예약 변경·정책/금액 변경·불명 결제 결과는 현재 조건을 다시 검사하여 오래된 안내를 숨깁니다. **앱 내 등록·읽음 표시·푸시 공급자 접수는 갱신에 필요한 검증된 전달 증거가 아닙니다.** 기존 사전 전달 필수 조건은 그대로 닫혀 있으며 정책·worker·실제 푸시·Cron을 자동 활성화하지 않습니다.
 
 ## 연동 설정 기반
 

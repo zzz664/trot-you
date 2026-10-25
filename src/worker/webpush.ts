@@ -10,6 +10,7 @@ const notificationIdPattern =
 /** Neither remote copy nor an arbitrary destination enters the system UI. */
 export function notificationOptions(raw: string | null): NotificationOptions {
   let id: string | null = null;
+  let billing = false;
   if (raw && raw.length <= WEBPUSH_CLIENT.payloadLimit) {
     try {
       const payload: unknown = JSON.parse(raw);
@@ -22,22 +23,29 @@ export function notificationOptions(raw: string | null): NotificationOptions {
         typeof payload.notificationId === 'string' &&
         notificationIdPattern.test(payload.notificationId) &&
         'url' in payload &&
-        payload.url === routes.subscriptions
-      )
+        (payload.url === routes.subscriptions ||
+          (payload.url === routes.billingNotices &&
+            'kind' in payload &&
+            payload.kind === 'billing_notice'))
+      ) {
         id = payload.notificationId;
+        billing = payload.url === routes.billingNotices;
+      }
     } catch {
       // A malformed or empty push still gets a generic, user-visible notice.
     }
   }
   return {
-    body: messages.notifications.pushBody,
+    body: billing
+      ? messages.billingNotices.pushBody
+      : messages.notifications.pushBody,
     icon: PWA.icon192,
     badge: PWA.icon192,
     tag: id
       ? `${WEBPUSH_CLIENT.notificationTagPrefix}${id}`
       : WEBPUSH_CLIENT.fallbackNotificationTag,
     // No endpoint, account, artist, content or authorization data is persisted.
-    data: { url: routes.subscriptions },
+    data: { url: billing ? routes.billingNotices : routes.subscriptions },
   };
 }
 
@@ -51,10 +59,21 @@ export async function showWebPush(
   );
 }
 
-export async function openWebPush(clients: Clients, origin: string) {
+export async function openWebPush(
+  clients: Clients,
+  origin: string,
+  data?: unknown,
+) {
   // Do not navigate an already-open authoring/payment page or trust notification
   // data. The authenticated destination resolves only the current account.
-  const destination = new URL(routes.subscriptions, origin).href;
+  const path =
+    data !== null &&
+    typeof data === 'object' &&
+    'url' in data &&
+    data.url === routes.billingNotices
+      ? routes.billingNotices
+      : routes.subscriptions;
+  const destination = new URL(path, origin).href;
   const windows = await clients.matchAll({
     type: 'window',
     includeUncontrolled: false,

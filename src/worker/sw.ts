@@ -84,7 +84,7 @@ self.addEventListener('push', (event) => {
 });
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  event.waitUntil(openWebPush(self.clients, origin));
+  event.waitUntil(openWebPush(self.clients, origin, event.notification.data));
 });
 self.addEventListener('message', respondWebPushCapability);
 // No CACHE_URLS or pushsubscriptionchange auto-enrollment, credential storage,

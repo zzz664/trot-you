@@ -1436,6 +1436,54 @@ export type Database = {
         };
         Returns: string;
       };
+      billing_notice_candidates: {
+        Args: { p_limit?: number };
+        Returns: {
+          subscription_id: string;
+        }[];
+      };
+      billing_notice_create: {
+        Args: { p_subscription_id: string };
+        Returns: {
+          created: boolean;
+          notice_id: string;
+          push_jobs: number;
+        }[];
+      };
+      billing_notice_list: {
+        Args: {
+          p_before_created_at?: string;
+          p_before_id?: string;
+          p_limit?: number;
+        };
+        Returns: {
+          amount_krw: number;
+          artist_name: string;
+          billing_at: string;
+          created_at: string;
+          currency: string;
+          id: string;
+          mandatory: boolean;
+          read_at: string;
+          subscription_id: string;
+        }[];
+      };
+      billing_notice_mark_read: {
+        Args: { p_notice_id: string };
+        Returns: undefined;
+      };
+      billing_notice_preferences: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          billing_enabled: boolean;
+        }[];
+      };
+      billing_notice_set_preference: {
+        Args: { p_enabled: boolean };
+        Returns: {
+          billing_enabled: boolean;
+        }[];
+      };
       billing_open_subscription: {
         Args: {
           p_artist_id: string;
@@ -2543,6 +2591,7 @@ export type Database = {
           lease_expires_at: string;
           lease_token: string;
           p256dh: string;
+          source_kind: string;
         }[];
       };
       webpush_recover_expired: {

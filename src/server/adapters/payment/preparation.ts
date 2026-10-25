@@ -36,6 +36,8 @@ export function parsePreparationEnvironment(env: ServerEnv) {
     PAYMENTS_REFUNDS_ENABLED: 'false',
     PAYMENTS_RECONCILIATION_ENABLED: 'false',
     MESSAGE_DISPATCH_ENABLED: 'false',
+    BILLING_NOTICES_ENABLED: 'false',
+    BILLING_NOTICES_CRON_SECRET: undefined,
     WEBPUSH_ENABLED: 'false',
     WEBPUSH_WORKER_ENABLED: 'false',
     WEBPUSH_CRON_SECRET: undefined,

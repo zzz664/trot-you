@@ -176,6 +176,7 @@ function queue(
         ok: true as const,
         data: {
           ...lease,
+          sourceKind: 'message' as const,
           endpoint: subscription.endpoint,
           p256dh: key,
           auth: subscription.keys.auth,
@@ -251,6 +252,7 @@ describe('bounded leased webpush worker', () => {
       ok: true as const,
       data: {
         ...lease,
+        sourceKind: 'message' as const,
         endpoint: subscription.endpoint,
         p256dh: key,
         auth: subscription.keys.auth,
@@ -310,6 +312,7 @@ describe('bounded leased webpush worker', () => {
       ok: true as const,
       data: {
         ...claimed,
+        sourceKind: 'message' as const,
         endpoint: subscription.endpoint,
         p256dh: key,
         auth: subscription.keys.auth,
@@ -392,6 +395,7 @@ describe('bounded leased webpush worker', () => {
       ok: true,
       data: {
         ...handle,
+        sourceKind: 'message' as const,
         endpoint: subscription.endpoint,
         p256dh: key,
         auth: subscription.keys.auth,
@@ -439,4 +443,28 @@ describe('bounded leased webpush worker', () => {
     expect(deps.port.claim).toHaveBeenCalledTimes(WEBPUSH.batchSize);
     expect(deps.channel.send).not.toHaveBeenCalled();
   });
+});
+
+it('billing push keeps amount/date/artist out of transport and targets only the authenticated notice inbox', async () => {
+  const deps = queue();
+  const old = await deps.port.prepare(lease);
+  if (!old.ok || !old.data) throw new Error('fixture');
+  vi.mocked(deps.port.prepare).mockResolvedValue({
+    ok: true,
+    data: { ...old.data, sourceKind: 'billing_notice' },
+  });
+  await sendWebPushQueue(deps);
+  const call = vi.mocked(deps.channel.send).mock.calls[0]![0];
+  expect(JSON.parse(call.payload)).toEqual({
+    version: 1,
+    notificationId: id,
+    kind: 'billing_notice',
+    url: '/me/billing-notices',
+  });
+  expect(Object.keys(JSON.parse(call.payload))).toEqual([
+    'version',
+    'notificationId',
+    'kind',
+    'url',
+  ]);
 });

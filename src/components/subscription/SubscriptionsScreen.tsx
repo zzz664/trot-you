@@ -20,6 +20,7 @@ export function SubscriptionsScreen({ data }: { data: SubscriptionList }) {
   const router = useRouter();
   const t = useTranslations('subscriptions');
   const chat = useTranslations('chat');
+  const billing = useTranslations('billingNotices');
   return (
     <main className="app-shell onboarding-shell">
       <nav aria-label={t('navigation')}>
@@ -30,6 +31,13 @@ export function SubscriptionsScreen({ data }: { data: SubscriptionList }) {
         <p>{t('description')}</p>
         <p className="ui-hint">{t('timeZone')}</p>
       </header>
+      <Link
+        href={routes.billingNotices}
+        prefetch={false}
+        className="ui-button ui-button--secondary"
+      >
+        {billing('entryOpen')}
+      </Link>
       {data.subscriptions.length === 0 ? (
         <Card title={t('emptyTitle')}>
           <p>{t('emptyDescription')}</p>

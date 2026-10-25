@@ -245,7 +245,9 @@ describe('leased webpush queue RPC mapping', () => {
   });
   it('claim deliberately strips endpoints until prepare authorization', async () => {
     rpc.mockResolvedValue({
-      data: [{ ...rawLease, endpoint, ...subscription.keys }],
+      data: [
+        { ...rawLease, source_kind: 'message', endpoint, ...subscription.keys },
+      ],
       error: null,
     });
     expect(await createWebPushQueuePort(client).claim(jobId)).toEqual({
@@ -256,12 +258,20 @@ describe('leased webpush queue RPC mapping', () => {
   });
   it('prepare returns only current lease and validated key material shape', async () => {
     rpc.mockResolvedValue({
-      data: [{ ...rawLease, endpoint, ...subscription.keys, email: 'private' }],
+      data: [
+        {
+          ...rawLease,
+          source_kind: 'message',
+          endpoint,
+          ...subscription.keys,
+          email: 'private',
+        },
+      ],
       error: null,
     });
     expect(await createWebPushQueuePort(client).prepare(lease)).toEqual({
       ok: true,
-      data: { ...lease, endpoint, ...subscription.keys },
+      data: { ...lease, sourceKind: 'message', endpoint, ...subscription.keys },
     });
     expect(rpc).toHaveBeenCalledWith('webpush_prepare_delivery', {
       p_job_id: jobId,
@@ -310,8 +320,18 @@ describe('leased webpush queue RPC mapping', () => {
     async (method) => {
       rpc.mockResolvedValue({
         data: [
-          { ...rawLease, endpoint, ...subscription.keys },
-          { ...rawLease, endpoint, ...subscription.keys },
+          {
+            ...rawLease,
+            source_kind: 'message',
+            endpoint,
+            ...subscription.keys,
+          },
+          {
+            ...rawLease,
+            source_kind: 'message',
+            endpoint,
+            ...subscription.keys,
+          },
         ],
         error: null,
       });
@@ -386,5 +406,50 @@ describe('logout revokes current authenticated push session', () => {
     expect(await revokeWebPushSession(actorClient)).toBe(false);
     actorRpc.mockRejectedValueOnce(new Error('private'));
     expect(await revokeWebPushSession(actorClient)).toBe(false);
+  });
+});
+
+it.each([undefined, 'payment', 'schedule', 'unknown'])(
+  'new delivery discriminator rejects unsupported source %# before transport',
+  async (source_kind) => {
+    rpc.mockResolvedValue({
+      data: [
+        {
+          ...rawLease,
+          endpoint,
+          ...subscription.keys,
+          ...(source_kind === undefined ? {} : { source_kind }),
+        },
+      ],
+      error: null,
+    });
+    expect(await createWebPushQueuePort(client).prepare(lease)).toEqual({
+      ok: false,
+      code: 'UNAVAILABLE',
+    });
+  },
+);
+it('billing notice discriminator is the only added delivery field; source price and identity remain private', async () => {
+  rpc.mockResolvedValue({
+    data: [
+      {
+        ...rawLease,
+        endpoint,
+        ...subscription.keys,
+        source_kind: 'billing_notice',
+        amount_krw: 7200,
+        subscription_id: 'private',
+      },
+    ],
+    error: null,
+  });
+  expect(await createWebPushQueuePort(client).prepare(lease)).toEqual({
+    ok: true,
+    data: {
+      ...lease,
+      endpoint,
+      ...subscription.keys,
+      sourceKind: 'billing_notice',
+    },
   });
 });

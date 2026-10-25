@@ -70,7 +70,9 @@
     "test:webpush-fixture": "node --test scripts/webpush-local-config.test.mjs",
     "test:e2e:webpush": "playwright test --config playwright.webpush.config.ts",
     "test:db:webpush-concurrency": "node scripts/test-webpush-concurrency.mjs",
-    "test:db:billing-notice-concurrency": "node scripts/test-billing-notice-concurrency.mjs"
+    "test:db:billing-notice-concurrency": "node scripts/test-billing-notice-concurrency.mjs",
+    "test:billing-notices-fixture": "node --test scripts/billing-notices-local-config.test.mjs",
+    "test:e2e:billing-notices": "playwright test --config playwright.billing-notices.config.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",

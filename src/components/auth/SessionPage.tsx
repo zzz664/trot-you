@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { InstallStatusCard } from '@/components/onboarding/InstallStatusCard';
+import { BillingNoticeEntry } from '@/components/billing-notices/BillingNoticeEntry';
 import { WebPushEntry } from '@/components/webpush/WebPushEntry';
 import { SubscriptionEntry } from '@/components/subscription/SubscriptionEntry';
 import { RefundEntry } from '@/components/admin/refunds/RefundEntry';
@@ -38,6 +39,7 @@ export async function SessionPage({ path }: { path: string }) {
         <>
           <InstallStatusCard />
           <WebPushEntry />
+          <BillingNoticeEntry />
           <ArtistCatalogEntry />
         </>
       )}
