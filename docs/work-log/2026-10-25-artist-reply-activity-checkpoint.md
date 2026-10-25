@@ -78,3 +78,25 @@ tests validate PID input/query wiring and the exact 64-byte failure case. Actual
 rerun of all thirteen scenarios remains required; no race assertion was removed.
 Types/upload/typecheck were skipped after this failure, so no genuine generated
 artifact existed yet and the application type import remains pending.
+
+## Corrected actual CI and genuine schema artifact
+
+[Run 40146777750](https://github.com/zzz664/trot-you/actions/runs/40146777750)
+checked remote head `295c590b7951f62b0323484a822b4adc2512974b`, tree
+`e59f5fda32a05304d1f291b8dda87b36e0306d1a`; checkout merge
+`1e9a1ad50a1f1dcf7b5aff067fd6996e193d0c5c` has the identical tree.
+Actual local Supabase migration/lint and **3,139 pgTAP assertions twice** passed.
+All prior races plus **13 new independent-session races** passed (273 total).
+All twelve non-DB jobs passed, including 5,014 checkpoint unit tests and the
+414 existing browser cases. `db:types` and post-generation typecheck passed;
+only the expected committed-schema drift gate failed pending artifact import.
+
+Official artifact `12580389126` supplied the unmodified 80,664-byte database
+schema file, SHA-256
+`dec7dd0803ce2cb23134aaba2ed9b047abcf154a7e70b8761396efc7f4e0b4c6`.
+The official ZIP digest and integrity were verified; the local import matches
+that checksum exactly. Its only schema difference is 21 generated lines for the
+three new RPC declarations. No database type was manually authored or patched.
+The full application commit still requires its own exact-head final CI and
+normal browser visual review; the checkpoint's existing-browser passes do not
+establish the new UI's runtime correctness.

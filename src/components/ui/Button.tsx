@@ -10,6 +10,8 @@ export type ButtonProps = {
   disabled?: boolean | undefined;
   isLoading?: boolean | undefined;
   describedBy?: string | undefined;
+  ariaExpanded?: boolean | undefined;
+  ariaControls?: string | undefined;
   ref?: Ref<HTMLButtonElement> | undefined;
 };
 
@@ -21,6 +23,8 @@ export function Button({
   disabled = false,
   isLoading = false,
   describedBy,
+  ariaExpanded,
+  ariaControls,
   ref,
 }: ButtonProps) {
   return (
@@ -31,6 +35,8 @@ export function Button({
       disabled={disabled || isLoading}
       aria-busy={isLoading || undefined}
       aria-describedby={describedBy}
+      aria-expanded={ariaExpanded}
+      aria-controls={ariaControls}
       onClick={onClick}
     >
       {isLoading && <span className="ui-spinner" aria-hidden="true" />}

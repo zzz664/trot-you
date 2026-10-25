@@ -54,6 +54,38 @@ describe('accessible primitives', () => {
     expect(click).not.toHaveBeenCalled();
   });
 
+  it('exposes optional disclosure state without changing button activation semantics', async () => {
+    const click = vi.fn();
+    const { rerender } = render(
+      <Button
+        ariaExpanded={false}
+        ariaControls="controlled-panel"
+        onClick={click}
+      >
+        Choices
+      </Button>,
+    );
+    const button = screen.getByRole('button', { name: 'Choices' });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(button).toHaveAttribute('aria-controls', 'controlled-panel');
+    expect(button).toHaveAttribute('type', 'button');
+    await userEvent.click(button);
+    expect(click).toHaveBeenCalledOnce();
+    rerender(
+      <Button ariaExpanded ariaControls="controlled-panel">
+        Choices
+      </Button>,
+    );
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('omits disclosure attributes from ordinary action buttons', () => {
+    render(<Button>Ordinary action</Button>);
+    const button = screen.getByRole('button', { name: 'Ordinary action' });
+    expect(button).not.toHaveAttribute('aria-expanded');
+    expect(button).not.toHaveAttribute('aria-controls');
+  });
+
   it('requires a visible icon label and hides the decorative icon from its name', () => {
     render(<IconButton label="Back" icon="←" />);
     expect(screen.getByRole('button', { name: 'Back' })).toBeVisible();

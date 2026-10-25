@@ -63,7 +63,10 @@
     "test:e2e:compose": "playwright test --config playwright.compose.config.ts",
     "test:db:dispatch-concurrency": "node scripts/test-dispatch-concurrency.mjs",
     "test:dispatch-fixture": "node --test scripts/dispatch-local-config.test.mjs",
-    "test:e2e:dispatch": "playwright test --config playwright.dispatch.config.ts"
+    "test:e2e:dispatch": "playwright test --config playwright.dispatch.config.ts",
+    "test:activity-fixture": "node --test scripts/activity-local-config.test.mjs",
+    "test:e2e:activity": "playwright test --config playwright.activity.config.ts",
+    "test:db:activity-concurrency": "node scripts/test-artist-reply-activity-concurrency.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",
