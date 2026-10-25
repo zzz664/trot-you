@@ -51,6 +51,7 @@ jobs:
       - run: node scripts/test-dispatch-concurrency.mjs
       - run: node scripts/test-artist-reply-activity-concurrency.mjs
       - run: npm run test:db:webpush-concurrency
+      - run: npm run test:db:billing-notice-concurrency
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
