@@ -102,6 +102,21 @@ describe('billing notice real capture scale guard', () => {
     expect(fixture).toContain("xlarge: '25px'");
     expect(spec).toContain('setFont(world.other, scale);');
     expect(spec).toContain("await screenshot(page, info, 'notice-initial');");
+    const emptyDestinationCapture = spec.indexOf(
+      "await screenshot(page, info, 'empty-subscriptions-destination');",
+    );
+    const settledTitle = spec.indexOf(
+      'name: messages.subscriptions.emptyTitle',
+    );
+    const settledDescription = spec.indexOf(
+      'main(page).getByText(messages.subscriptions.emptyDescription',
+    );
+    expect(settledTitle).toBeGreaterThan(0);
+    expect(settledDescription).toBeGreaterThan(settledTitle);
+    expect(emptyDestinationCapture).toBeGreaterThan(settledDescription);
+    expect(spec.slice(settledTitle, emptyDestinationCapture)).toMatch(
+      /emptyDescription[\s\S]*\.toBeVisible\(\)/,
+    );
   });
 });
 

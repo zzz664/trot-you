@@ -133,3 +133,28 @@ After the narrow harness correction, full `npm run check:all` passed with
 pairs and optimized production/PWA build. The new browser execution and final
 65-capture visual verification remain pending; prior failure captures are not
 substitutes for successful final-head evidence.
+
+## Settled destination capture gate
+
+The next actual run on remote
+`942027599a62160f8f807f16cab73a48ddee8dbe` passed all 23 configured notice
+browser cases, all 50 Web Push browser cases and all 45 quality browser cases
+without retries or flaky results. Thus both the cookie-jar test issue and the
+previous unrelated Web Push startup gap are resolved on that exact head.
+
+Ordinary visual inspection covered all 65 new captures individually. Of these,
+62 showed their intended states cleanly; the three empty-subscriptions link
+destination captures showed a loading screen because the test awaited only the
+URL. This was not an application defect, but it did not establish the settled
+new-link destination visual. The test now awaits the exact main-scoped empty
+heading and description before capturing at each font scale. A focused source
+regression preserves that ordering and the existing actual-font checks. There
+is no production-code change and no arbitrary sleep or weakened assertion.
+
+The corrected captures and all final checks still require a fresh exact-head
+CI run. The three incomplete screenshots are not accepted as additional visual
+caveats or represented as settled-destination passes.
+
+After this test-only correction, full `npm run check:all` passed again:
+5,951 unit tests across 192 files, lint/format, strict typecheck, all ten contrast
+pairs and production/PWA build. Local Docker/browser restrictions remain intact.

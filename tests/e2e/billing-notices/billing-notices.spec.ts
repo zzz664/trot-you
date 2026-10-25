@@ -350,6 +350,17 @@ for (const scale of ['normal', 'large', 'xlarge'] as const) {
       .getByRole('link', { name: copy.manageSubscriptions })
       .click();
     await expect(page).toHaveURL(`${appOrigin}${routes.subscriptions}`);
+    await expect(
+      main(page).getByRole('heading', {
+        name: messages.subscriptions.emptyTitle,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      main(page).getByText(messages.subscriptions.emptyDescription, {
+        exact: true,
+      }),
+    ).toBeVisible();
     await screenshot(page, info, 'empty-subscriptions-destination');
   });
 
