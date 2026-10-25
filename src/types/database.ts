@@ -1396,6 +1396,27 @@ export type Database = {
         };
         Returns: Json;
       };
+      artist_reply_activity_artists: {
+        Args: { p_after_slug?: string };
+        Returns: Json;
+      };
+      artist_reply_activity_context: {
+        Args: {
+          p_artist_slug: string;
+          p_before_created_at?: string;
+          p_before_id?: string;
+          p_message_id?: string;
+        };
+        Returns: Json;
+      };
+      artist_reply_activity_messages: {
+        Args: {
+          p_artist_slug: string;
+          p_before_id?: string;
+          p_before_sent_at?: string;
+        };
+        Returns: Json;
+      };
       billing_claim_attempt: {
         Args: { p_attempt_id: string; p_lease_seconds: number };
         Returns: Json;

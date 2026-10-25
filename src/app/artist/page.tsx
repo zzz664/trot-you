@@ -21,6 +21,7 @@ export default async function ArtistPage({
   const t = await getTranslations('artistComposeMenu');
   const auth = await getTranslations('auth');
   const dispatch = await getTranslations('artistDispatch');
+  const activity = await getTranslations('artistReplyActivity');
   return (
     <main className="app-shell">
       <h1>{auth('artistTitle')}</h1>
@@ -31,6 +32,13 @@ export default async function ArtistPage({
         className="ui-button ui-button--secondary"
       >
         {dispatch('menuTitle')}
+      </Link>
+      <Link
+        href={routes.artistReplyActivityMenu}
+        prefetch={false}
+        className="ui-button ui-button--secondary"
+      >
+        {activity('menuTitle')}
       </Link>
       <Card title={t('title')}>
         {result.data.artists.length === 0 ? (

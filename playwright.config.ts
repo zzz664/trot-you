@@ -14,6 +14,7 @@ export default defineConfig({
     '**/speech/**',
     '**/compose/**',
     '**/dispatch/**',
+    '**/activity/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

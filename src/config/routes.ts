@@ -45,6 +45,7 @@ export const routes = {
   restricted: '/restricted',
   artist: '/artist',
   artistDispatchHistory: '/artist/messages',
+  artistReplyActivityMenu: '/artist/replies',
   artistComposeApi: '/api/artist',
   admin: '/admin',
   authLogin: '/api/auth/login',
@@ -140,4 +141,25 @@ export function artistDispatchMenuPath(afterSlug?: string) {
   return afterSlug
     ? `${routes.artistDispatchHistory}?after=${encodeURIComponent(afterSlug)}`
     : routes.artistDispatchHistory;
+}
+
+export function artistReplyActivityMenuPath(afterSlug?: string) {
+  return afterSlug
+    ? `${routes.artistReplyActivityMenu}?after=${encodeURIComponent(afterSlug)}`
+    : routes.artistReplyActivityMenu;
+}
+export function artistReplyActivityPath(
+  slug: string,
+  messageId?: string | null,
+  cursor?: string | null,
+) {
+  const path = `${routes.artist}/${encodeURIComponent(slug)}/replies`;
+  const query = new URLSearchParams();
+  if (messageId) query.set('message', messageId);
+  if (cursor) query.set('cursor', cursor);
+  return query.size ? `${path}?${query.toString()}` : path;
+}
+export function artistReplyActivityApiPath(slug: string, action?: 'messages') {
+  const path = `${routes.artistComposeApi}/${encodeURIComponent(slug)}/replies`;
+  return action ? `${path}/${action}` : path;
 }
