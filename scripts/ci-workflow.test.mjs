@@ -39,7 +39,9 @@ const reviewedAdditions = {
   quality: [
     {
       before: '      - run: npx playwright install --with-deps chromium\n',
-      text: '      - run: npm run test:content-calendar-fixture\n',
+      text:
+        '      - run: npm run test:content-calendar-fixture\n' +
+        '      - run: npm run test:community-posts-fixture\n',
     },
   ],
   database: [
@@ -214,6 +216,10 @@ describe('CI workflow safety and unchanged regression coverage', () => {
         'echo skipped calendar fixtures',
       ),
       original.replace('npm run check:all', 'echo skipped original quality'),
+      original.replace(
+        'npm run test:community-posts-fixture',
+        'echo skipped board fixtures',
+      ),
     ])
       assert.throws(() => verifyLegacySteps('quality', changed));
   });
@@ -270,6 +276,61 @@ describe('CI workflow safety and unchanged regression coverage', () => {
     assert.equal(
       scripts['test:db:content-calendar-concurrency'],
       'node scripts/test-content-calendar-concurrency.mjs',
+    );
+  });
+
+  it('runs the registered community board suite in its isolated Auth/database fixture job', () => {
+    const calendar = jobs['community-posts-browser'];
+    const required = [
+      'run: node scripts/auth-local-ci.mjs configure',
+      'run: npm run db:start',
+      'run: npm run db:reset',
+      'run: node scripts/auth-local-ci.mjs environment',
+      'run: node scripts/community-posts-local-ci.mjs environment',
+      'run: npm run build',
+      'run: npx playwright install --with-deps chromium',
+      'run: npm run test:e2e:community-posts',
+      'uses: actions/upload-artifact@v4',
+      'name: community-posts-browser-results',
+      'run: npm run db:stop -- --no-backup',
+    ];
+    let previous = -1;
+    for (const gate of required) {
+      const index = calendar.indexOf(gate);
+      assert.ok(
+        index > previous,
+        `Community board gate missing or out of order: ${gate}`,
+      );
+      previous = index;
+    }
+    assert.match(
+      calendar,
+      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
+    );
+    assert.match(
+      calendar,
+      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
+    );
+    assert.match(calendar, /timeout-minutes: 25/);
+    const config = readFileSync(
+      new URL('../playwright.config.ts', import.meta.url),
+      'utf8',
+    );
+    assert.ok(config.includes("'**/community-posts/**'"));
+    const scripts = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    ).scripts;
+    assert.equal(
+      scripts['test:e2e:community-posts'],
+      'playwright test --config playwright.community-posts.config.ts',
+    );
+    assert.equal(
+      scripts['test:community-posts-fixture'],
+      'node --test scripts/community-posts-local-config.test.mjs',
+    );
+    assert.equal(
+      scripts['test:db:community-posts-concurrency'],
+      'node scripts/test-community-posts-concurrency.mjs',
     );
   });
 

@@ -18,7 +18,7 @@ const has = (paths, ...jobs) => {
 
 describe('conservative dependency registry', () => {
   it('has one stable job inventory and unique, valid dependency groups', () => {
-    assert.equal(BROWSER_JOBS.length, 20);
+    assert.equal(BROWSER_JOBS.length, 21);
     assert.equal(new Set(CONDITIONAL_JOBS).size, CONDITIONAL_JOBS.length);
     const rules = [...FULL_RULES, ...FEATURE_RULES];
     assert.equal(new Set(rules.map(({ id }) => id)).size, rules.length);
@@ -103,6 +103,11 @@ describe('conservative dependency registry', () => {
     'tests/e2e/content-calendar/content-calendar.spec.ts',
     'scripts/content-calendar-local-ci.mjs',
     'playwright.content-calendar.config.ts',
+    'src/components/community-posts/CommunityBoard.tsx',
+    'src/server/community-posts/http.ts',
+    'src/client/community-media.ts',
+    'tests/e2e/community-posts/community-posts.spec.ts',
+    'playwright.community-posts.config.ts',
     'new-unknown-feature.ts',
     'docs/executable.mjs',
   ]) {
@@ -125,17 +130,17 @@ describe('conservative dependency registry', () => {
       'schedule-notices',
     );
     assert.equal(plan.mode, 'selective');
-    assert.equal(selected(plan).length, 4);
+    assert.equal(selected(plan).length, 5);
     assert.equal(plan.jobs.database, true);
   });
 
-  it('selects two browsers for leaf admin settings instead of all twenty', () => {
+  it('selects three browsers for leaf admin settings instead of all twenty-one', () => {
     const plan = has(
       ['src/components/admin-settings/AdminSettingsScreen.tsx'],
       'auth',
       'admin-settings',
     );
-    assert.equal(selected(plan).length, 2);
+    assert.equal(selected(plan).length, 3);
   });
 
   it('keeps schedule formatting, controls, and view fixtures connected', () => {
@@ -247,7 +252,7 @@ describe('conservative dependency registry', () => {
       'schedule-notices',
       'admin-settings',
     );
-    assert.equal(selected(plan).length, 5);
+    assert.equal(selected(plan).length, 6);
     assert.deepEqual(plan, selectImpact([...paths].reverse()));
   });
 
@@ -255,7 +260,7 @@ describe('conservative dependency registry', () => {
     for (const known of ['docs/readme.md', 'src/client/schedules.ts']) {
       const plan = selectImpact([known, 'src/server/new-feature/index.ts']);
       assert.equal(plan.mode, 'full');
-      assert.equal(selected(plan).length, 20);
+      assert.equal(selected(plan).length, 21);
     }
   });
 
@@ -278,7 +283,7 @@ describe('conservative dependency registry', () => {
     assert.equal(plan.mode, 'full');
     assert.equal(plan.paths, null);
     assert.equal(plan.pathCount, 1500);
-    assert.equal(selected(plan).length, 20);
+    assert.equal(selected(plan).length, 21);
   });
 });
 
@@ -324,4 +329,14 @@ describe('NUL-delimited git diff parsing', () => {
   it('rejects invalid UTF-8 instead of silently replacing path bytes', () => {
     assert.throws(() => parseNameStatus(Buffer.from([77, 0, 255, 0])));
   });
+});
+
+it('keeps community board consumers linked to shared media, navigation and policy changes', () => {
+  for (const path of [
+    'src/client/media.ts',
+    'src/lib/schedule-navigation.ts',
+    'src/server/admin-settings/http.ts',
+    'src/components/admin-artists/AdminArtistsScreen.tsx',
+  ])
+    has([path], 'community-posts');
 });

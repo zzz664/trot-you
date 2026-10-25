@@ -523,6 +523,7 @@ export type Database = {
           id: string;
           mime_type: string;
           object_path: string;
+          position: number;
           post_id: string;
           storage_object_id: string;
           width: number;
@@ -536,6 +537,7 @@ export type Database = {
           id: string;
           mime_type: string;
           object_path: string;
+          position?: number;
           post_id: string;
           storage_object_id: string;
           width: number;
@@ -548,6 +550,7 @@ export type Database = {
           id?: string;
           mime_type?: string;
           object_path?: string;
+          position?: number;
           post_id?: string;
           storage_object_id?: string;
           width?: number;
@@ -610,6 +613,7 @@ export type Database = {
           like_count: number;
           report_count: number;
           request_id: string;
+          revision: number;
           title: string;
           updated_at: string;
           user_id: string;
@@ -628,6 +632,7 @@ export type Database = {
           like_count?: number;
           report_count?: number;
           request_id: string;
+          revision?: number;
           title: string;
           updated_at?: string;
           user_id: string;
@@ -645,6 +650,7 @@ export type Database = {
           like_count?: number;
           report_count?: number;
           request_id?: string;
+          revision?: number;
           title?: string;
           updated_at?: string;
           user_id?: string;
@@ -1648,6 +1654,88 @@ export type Database = {
           p_subscription_id: string;
         };
         Returns: string;
+      };
+      board_media_begin_upload: {
+        Args: {
+          p_actor_id: string;
+          p_artist_id: string;
+          p_byte_size: number;
+          p_mime_type: string;
+          p_post_id: string;
+          p_request_id: string;
+        };
+        Returns: Json;
+      };
+      board_media_finalize_upload: {
+        Args: {
+          p_actor_id: string;
+          p_height: number;
+          p_storage_object_id: string;
+          p_upload_id: string;
+          p_width: number;
+        };
+        Returns: string;
+      };
+      board_media_resolve_read: {
+        Args: { p_actor_id: string; p_image_id: string };
+        Returns: Json;
+      };
+      board_media_resolve_upload: {
+        Args: { p_actor_id: string; p_upload_id: string };
+        Returns: Json;
+      };
+      board_media_revoke_upload: {
+        Args: { p_actor_id: string; p_upload_id: string };
+        Returns: boolean;
+      };
+      board_ui_create: {
+        Args: {
+          p_artist_id: string;
+          p_artist_slug: string;
+          p_body: string;
+          p_is_notice: boolean;
+          p_is_pinned: boolean;
+          p_operation_id: string;
+          p_post_id: string;
+          p_title: string;
+          p_upload_ids: string[];
+        };
+        Returns: Json;
+      };
+      board_ui_delete: {
+        Args: {
+          p_artist_slug: string;
+          p_confirmed: boolean;
+          p_expected_revision: number;
+          p_operation_id: string;
+          p_post_id: string;
+        };
+        Returns: Json;
+      };
+      board_ui_detail: {
+        Args: { p_artist_slug: string; p_post_id: string };
+        Returns: Json;
+      };
+      board_ui_list: {
+        Args: {
+          p_artist_slug: string;
+          p_before_created_at?: string;
+          p_before_id?: string;
+          p_before_pinned?: boolean;
+          p_limit?: number;
+        };
+        Returns: Json;
+      };
+      board_ui_notice: {
+        Args: {
+          p_artist_slug: string;
+          p_expected_revision: number;
+          p_is_notice: boolean;
+          p_is_pinned: boolean;
+          p_operation_id: string;
+          p_post_id: string;
+        };
+        Returns: Json;
       };
       cancel_subscription: {
         Args: { p_subscription_id: string };

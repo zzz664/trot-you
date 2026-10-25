@@ -5,6 +5,12 @@ import { z } from 'zod';
 import { originSchema } from '@/config/env';
 import { mediaMimeSchema, type MediaMime } from '@/config/media';
 import {
+  STORAGE_BOARD_MEDIA_BUCKET,
+  STORAGE_BOARD_QUARANTINE_BUCKET,
+  STORAGE_BOARD_UPLOAD_URL_PREFIX,
+  STORAGE_BOARD_READ_URL_PREFIX,
+  STORAGE_BOARD_MAX_BYTES,
+  STORAGE_BOARD_PATH_PATTERN,
   STORAGE_JWT_PARTS,
   STORAGE_JWT_PAYLOAD_INDEX,
   STORAGE_MILLISECONDS_PER_SECOND,
@@ -53,7 +59,12 @@ function signedUrl(
 // This is not JWT authorization or signature verification. Only the trusted
 // provider response is decoded to cap the capability's actual expiry/path;
 // Supabase verifies the signature when the browser uses the URL.
-function readExpiry(url: string, path: string, requestedSeconds: number) {
+function readExpiry(
+  url: string,
+  path: string,
+  requestedSeconds: number,
+  bucket: string,
+) {
   try {
     const token = new URL(url).searchParams.get('token')!;
     const parts = token.split('.');
@@ -70,7 +81,7 @@ function readExpiry(url: string, path: string, requestedSeconds: number) {
     const parsed = z
       .object({
         exp: z.number().int().positive(),
-        url: z.literal(`${STORAGE_MEDIA_BUCKET}/${path}`),
+        url: z.literal(`${bucket}/${path}`),
         scope: z.literal('download').optional(),
       })
       .safeParse(payload);
@@ -137,7 +148,26 @@ export function createSupabaseStorageAdapter(input: {
   url: string;
   serviceRoleKey: string;
   transport?: typeof fetch;
+  area?: 'message' | 'board';
 }): StoragePort {
+  const board = input.area === 'board';
+  const mediaBucket = board ? STORAGE_BOARD_MEDIA_BUCKET : STORAGE_MEDIA_BUCKET;
+  const quarantineBucket = board
+    ? STORAGE_BOARD_QUARANTINE_BUCKET
+    : STORAGE_QUARANTINE_BUCKET;
+  const uploadPrefix = board
+    ? STORAGE_BOARD_UPLOAD_URL_PREFIX
+    : STORAGE_UPLOAD_URL_PREFIX;
+  const readPrefix = board
+    ? STORAGE_BOARD_READ_URL_PREFIX
+    : STORAGE_READ_URL_PREFIX;
+  const pathPattern = board
+    ? STORAGE_BOARD_PATH_PATTERN
+    : STORAGE_OBJECT_PATH_PATTERN;
+  const quarantinePattern = board
+    ? STORAGE_BOARD_PATH_PATTERN
+    : STORAGE_QUARANTINE_PATH_PATTERN;
+  const maximumBytes = board ? STORAGE_BOARD_MAX_BYTES : STORAGE_MAX_BYTES;
   const parsedOrigin = originSchema.safeParse(input.url);
   if (!parsedOrigin.success || !input.serviceRoleKey)
     throw new Error('INVALID_STORAGE_CONFIGURATION');
@@ -178,8 +208,8 @@ export function createSupabaseStorageAdapter(input: {
       },
     },
   });
-  const quarantine = client.storage.from(STORAGE_QUARANTINE_BUCKET);
-  const media = client.storage.from(STORAGE_MEDIA_BUCKET);
+  const quarantine = client.storage.from(quarantineBucket);
+  const media = client.storage.from(mediaBucket);
   async function download(
     bucket: typeof media,
     path: string,
@@ -188,7 +218,7 @@ export function createSupabaseStorageAdapter(input: {
     if (
       !Number.isSafeInteger(maxBytes) ||
       maxBytes <= 0 ||
-      maxBytes > STORAGE_MAX_BYTES
+      maxBytes > maximumBytes
     )
       return invalid;
     try {
@@ -208,7 +238,7 @@ export function createSupabaseStorageAdapter(input: {
   }
   return {
     async signUpload(path) {
-      if (!STORAGE_QUARANTINE_PATH_PATTERN.test(path)) return invalid;
+      if (!quarantinePattern.test(path)) return invalid;
       try {
         const result = await quarantine.createSignedUploadUrl(path, {
           upsert: false,
@@ -218,7 +248,7 @@ export function createSupabaseStorageAdapter(input: {
         const url = signedUrl(
           result.data.signedUrl,
           origin,
-          STORAGE_UPLOAD_URL_PREFIX,
+          uploadPrefix,
           path,
         );
         return url ? { ok: true, data: { signedUrl: url } } : unavailable;
@@ -227,16 +257,16 @@ export function createSupabaseStorageAdapter(input: {
       }
     },
     async downloadQuarantine(path, maxBytes) {
-      if (!STORAGE_QUARANTINE_PATH_PATTERN.test(path)) return invalid;
+      if (!quarantinePattern.test(path)) return invalid;
       return download(quarantine, path, maxBytes);
     },
     async publish(path, bytes, mimeType: MediaMime) {
       if (
-        !STORAGE_OBJECT_PATH_PATTERN.test(path) ||
+        !pathPattern.test(path) ||
         !mediaMimeSchema.safeParse(mimeType).success ||
         !path.endsWith(`.${STORAGE_MIME_EXTENSIONS[mimeType]}`) ||
         !bytes.byteLength ||
-        bytes.byteLength > STORAGE_MAX_BYTES
+        bytes.byteLength > maximumBytes
       )
         return invalid;
       try {
@@ -259,7 +289,7 @@ export function createSupabaseStorageAdapter(input: {
           info.error ||
           !info.data ||
           info.data.name !== path ||
-          info.data.bucketId !== STORAGE_MEDIA_BUCKET ||
+          info.data.bucketId !== mediaBucket ||
           info.data.contentType !== mimeType ||
           info.data.size !== bytes.byteLength ||
           !z.uuid().safeParse(info.data.id).success
@@ -278,7 +308,7 @@ export function createSupabaseStorageAdapter(input: {
       }
     },
     async removeQuarantine(path) {
-      if (!STORAGE_QUARANTINE_PATH_PATTERN.test(path)) return invalid;
+      if (!quarantinePattern.test(path)) return invalid;
       try {
         const result = await quarantine.remove([path]);
         return result.error ? unavailable : { ok: true, data: null };
@@ -288,7 +318,7 @@ export function createSupabaseStorageAdapter(input: {
     },
     async signRead(path, expiresInSeconds) {
       if (
-        !STORAGE_OBJECT_PATH_PATTERN.test(path) ||
+        !pathPattern.test(path) ||
         !Number.isSafeInteger(expiresInSeconds) ||
         expiresInSeconds <= 0 ||
         expiresInSeconds > STORAGE_MAX_READ_TTL_SECONDS
@@ -297,13 +327,10 @@ export function createSupabaseStorageAdapter(input: {
       try {
         const result = await media.createSignedUrl(path, expiresInSeconds);
         if (result.error || !result.data) return unavailable;
-        const url = signedUrl(
-          result.data.signedUrl,
-          origin,
-          STORAGE_READ_URL_PREFIX,
-          path,
-        );
-        const expiresAt = url ? readExpiry(url, path, expiresInSeconds) : null;
+        const url = signedUrl(result.data.signedUrl, origin, readPrefix, path);
+        const expiresAt = url
+          ? readExpiry(url, path, expiresInSeconds, mediaBucket)
+          : null;
         return url && expiresAt
           ? { ok: true, data: { signedUrl: url, expiresAt } }
           : unavailable;

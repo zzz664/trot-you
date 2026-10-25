@@ -1,5 +1,11 @@
 export const routes = {
   home: '/',
+  board: '/board',
+  boardApi: '/api/board',
+  communityImageBegin: '/api/board/media/begin',
+  communityImageComplete: '/api/board/media/complete',
+  communityImageRevoke: '/api/board/media/revoke',
+  communityImageRead: '/api/board/media/read',
   schedules: '/schedules',
   schedulesApi: '/api/schedules',
   scheduleNoticeStatus: '/api/schedule-notices',
@@ -281,4 +287,31 @@ export function artistContentCalendarPath(
 ) {
   const base = `${api ? routes.artistComposeApi : routes.artist}/${encodeURIComponent(slug)}/calendar`;
   return month ? `${base}?${new URLSearchParams({ month })}` : base;
+}
+
+export function communityBoardPath(
+  slug: string,
+  cursor?: string | null,
+  api = false,
+) {
+  const base = `${api ? routes.boardApi : routes.board}/${encodeURIComponent(slug)}`;
+  return cursor ? `${base}?${new URLSearchParams({ cursor })}` : base;
+}
+export function communityPostPath(slug: string, postId: string, api = false) {
+  return `${communityBoardPath(slug, null, api)}/${encodeURIComponent(postId)}`;
+}
+export function communityCreatePath(slug: string) {
+  return `${communityBoardPath(slug)}/new`;
+}
+export function communityPostActionPath(
+  slug: string,
+  postId: string,
+  action: 'delete' | 'notice',
+) {
+  return `${communityPostPath(slug, postId, true)}/${action}`;
+}
+export function communityMediaPath(
+  action: 'begin' | 'complete' | 'revoke' | 'read',
+) {
+  return `${routes.boardApi}/media/${action}`;
 }

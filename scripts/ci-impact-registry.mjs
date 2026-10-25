@@ -21,6 +21,7 @@ export const BROWSER_JOBS = Object.freeze([
   'schedules-browser',
   'schedule-notices-browser',
   'content-calendar-browser',
+  'community-posts-browser',
 ]);
 
 export const CONDITIONAL_JOBS = Object.freeze(['database', ...BROWSER_JOBS]);
@@ -41,6 +42,7 @@ const communication = browsers(
   'dispatch',
   'activity',
   'admin-artists',
+  'community-posts',
 );
 const payment = browsers(
   'auth',
@@ -58,6 +60,7 @@ const schedules = browsers(
   'schedules',
   'schedule-notices',
   'content-calendar',
+  'community-posts',
 );
 const notification = browsers(
   'auth',
@@ -213,7 +216,11 @@ export const FEATURE_RULES = Object.freeze([
   },
   ...['admin-settings', 'admin-subscriptions'].map((feature) => ({
     id: feature,
-    jobs: browsers('auth', feature),
+    jobs: browsers(
+      'auth',
+      feature,
+      ...(feature === 'admin-settings' ? ['community-posts'] : []),
+    ),
     patterns: [
       new RegExp(`^src/(?:components|server(?:/services)?)/${feature}/`),
       new RegExp(`^src/(?:client|config)/${feature}\\.ts$`),

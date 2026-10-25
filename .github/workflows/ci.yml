@@ -142,6 +142,7 @@ jobs:
       - run: npm run test:schedules-fixture
       - run: npm run test:schedule-notices-fixture
       - run: npm run test:content-calendar-fixture
+      - run: npm run test:community-posts-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
@@ -854,6 +855,40 @@ jobs:
           retention-days: 7
       - run: npm run db:stop -- --no-backup
         if: always()
+  community-posts-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['community-posts-browser'] }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/community-posts-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Fictional local Auth/board fixtures and real private storage/RPCs only.
+      # No real user posts, private assets, provider traffic or scheduler.
+      - run: npm run test:e2e:community-posts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: community-posts-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
   # Require this stable check in branch rules before relying on selective CI.
   # always() is essential: upstream failure/cancellation/skips must be inspected.
   ci-required:
@@ -882,6 +917,7 @@ jobs:
       - schedules-browser
       - schedule-notices-browser
       - content-calendar-browser
+      - community-posts-browser
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

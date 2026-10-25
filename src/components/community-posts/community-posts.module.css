@@ -1,0 +1,64 @@
+.screen {
+  overflow-wrap: anywhere;
+}
+.stack,
+.list,
+.editor,
+.fields,
+.images {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+}
+.list,
+.images {
+  list-style: none;
+  padding: 0;
+}
+.list > li,
+.images > li {
+  min-width: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-unit);
+}
+.actions > * {
+  max-width: 100%;
+}
+.body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.editor,
+.notice {
+  border: var(--border-width) solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  padding: calc(var(--space-unit) * 2);
+}
+.badges {
+  display: flex;
+  gap: var(--space-unit);
+  flex-wrap: wrap;
+  font-weight: bold;
+}
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius-control);
+}
+.imageFrame {
+  margin: 0;
+  display: grid;
+  gap: var(--space-unit);
+  min-width: 0;
+}
