@@ -117,7 +117,7 @@ update public.profiles set call_name='다른가상팬',onboarding_completed_at=n
 select set_config('request.jwt.claim.sub','c1000000-0000-4000-8000-000000000002',true);
 set local role authenticated;
 select is((select count(*) from public.billing_notice_list()),0::bigint,'other actor sees no amount/date');
-select throws_ok($$select public.billing_notice_mark_read((select id from public.billing_notices limit 1))$$,'42501',null,'raw private reads denied');
+select throws_ok($$select public.billing_notice_mark_read((select id from private.billing_notices limit 1))$$,'42501',null,'raw private reads denied');
 reset role;
 -- Snapshot currentness excludes reschedules and will not revive an old notice
 -- when an operator later restores the former time.

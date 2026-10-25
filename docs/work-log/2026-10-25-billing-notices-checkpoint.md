@@ -38,3 +38,23 @@ need explicit approval. The original private specifications remain unpublished.
 The previously blocked unrelated independent media review remains blocked and
 was not replicated, retried or delegated; this checkpoint's normal new-feature
 functional review is separate.
+
+## First isolated CI checkpoint and corrections
+
+CI run `40155360396` at checkpoint `5e80b6b` applied the migration and passed
+actual database function lint. Its first pgTAP pass executed 3,371 assertions:
+3 failed, all fixture-contract mistakes (not a runtime migration failure).
+
+- The new raw-access assertion accidentally named nonexistent
+  `public.billing_notices`; corrected it to the actual private table so it tests
+  privilege denial rather than relation absence.
+- Existing billing security tests treated all `billing_*` functions as
+  service-only. They now distinguish four exact owner-safe notice signatures,
+  with four independent positive authenticated / negative anonymous and service
+  grant assertions. Every other billing RPC and future overload retains the
+  original service-only protections; no broad prefix exclusion was introduced.
+
+The corrected suite adds four compatibility assertions. Subsequent pgTAP repeat,
+races and genuine type generation remain pending a new exact-head CI run.
+No local database invocation or provider request was made to diagnose these
+reported CI failures.
