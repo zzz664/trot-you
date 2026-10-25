@@ -413,10 +413,52 @@ for (const scenario of [
       await authorize(page, provider);
       await approve(page);
     } else {
+      // Reproduce a real early status click deterministically: the first row
+      // does not exist while start is held. Recovery must be a read-only user
+      // refresh after the exact start completes, never another provider start.
+      let releaseStart!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        releaseStart = resolve;
+      });
+      const startPath = `${appOrigin}${routes.enrollmentStart}`;
+      await page.route(startPath, async (route) => {
+        await gate;
+        await route.continue();
+      });
+      const started = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === routes.enrollmentStart &&
+          response.request().method() === 'POST' &&
+          response.request().postDataJSON().sessionId === sessionId,
+      );
       await page.getByRole('button', { name: copy.start, exact: true }).click();
+      try {
+        await page
+          .getByRole('button', { name: copy.viewStatus, exact: true })
+          .click();
+        await expect(page).toHaveURL(
+          `${appOrigin}${enrollmentCompletePath(sessionId)}`,
+        );
+        await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+          copy.errors.NOT_FOUND,
+        );
+        await expect(
+          page.getByRole('button', { name: copy.refresh, exact: true }),
+        ).toBeEnabled();
+      } finally {
+        releaseStart();
+      }
+      const response = await started;
+      expect(response.status()).toBe(200);
+      expect(await response.json()).toMatchObject({
+        ok: true,
+        data: { status: { sessionId, status: 'manual_review' } },
+      });
+      await page.unroute(startPath);
       await page
-        .getByRole('button', { name: copy.viewStatus, exact: true })
+        .getByRole('button', { name: copy.refresh, exact: true })
         .click();
+      await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0);
     }
     await expect(
       page.getByText(copy.statuses.manual_review, { exact: true }),

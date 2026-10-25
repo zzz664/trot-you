@@ -1,0 +1,5 @@
+# 2026-10-25 — Reachable artist management history
+
+The bounded artist detail and recipient inbox now have explicit page RPCs. Existing first-page signatures remain compatible wrappers. Each shared detail page exposes up to 50 message candidates, memberships and invitations; selected previews remain complete on every page. Recipient invitations prioritize actionable pending intent before historical responses. Pages are bounded to 1–1000 and never change current authorization or mutation confirmation checks.
+
+The original database checkpoint is unchanged. This additional read-only migration creates no account, policy or content. New pgTAP assertions cover wrapper compatibility, deterministic continuation, selected-preview persistence, all three detail sublists, recipient ownership and bounded inputs. Static inspection only locally; real PostgreSQL validation and regenerated types remain CI requirements. Offset pages represent current state, not a frozen snapshot across concurrent edits.

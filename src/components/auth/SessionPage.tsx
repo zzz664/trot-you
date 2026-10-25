@@ -6,6 +6,10 @@ import { SubscriptionEntry } from '@/components/subscription/SubscriptionEntry';
 import { RefundEntry } from '@/components/admin/refunds/RefundEntry';
 import { ReconciliationEntry } from '@/components/admin/reconciliation/ReconciliationEntry';
 import { ArtistCatalogEntry } from '@/components/artists/ArtistCatalogEntry';
+import {
+  AdminArtistsEntry,
+  ArtistAccessEntry,
+} from '@/components/admin-artists/AdminArtistsEntry';
 import { AuthForm } from './AuthForm';
 import { Card } from '@/components/ui/Card';
 import { routes } from '@/config/routes';
@@ -15,6 +19,7 @@ export async function SessionPage({ path }: { path: string }) {
   const state = await guardPage(path);
   if (state.status !== 'authenticated') return null;
   const t = await getTranslations('auth');
+  const artistCopy = await getTranslations('adminArtists');
   const title =
     path === routes.restricted
       ? 'restrictedTitle'
@@ -44,8 +49,16 @@ export async function SessionPage({ path }: { path: string }) {
         </>
       )}
       <SubscriptionEntry />
+      {path === routes.home && state.profile.role !== 'admin' && (
+        <ArtistAccessEntry label={artistCopy('accessEntry')} />
+      )}
       {path === routes.admin && state.profile.role === 'admin' && (
         <>
+          <AdminArtistsEntry
+            title={artistCopy('entryTitle')}
+            description={artistCopy('entryDescription')}
+            label={artistCopy('entryOpen')}
+          />
           <RefundEntry />
           <ReconciliationEntry />
         </>

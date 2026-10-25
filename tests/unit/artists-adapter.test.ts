@@ -85,7 +85,10 @@ describe('minimal catalog database projection', () => {
     });
     expect(fake.from).toHaveBeenCalledExactlyOnceWith('artist_catalog');
     expect(fake.select).toHaveBeenCalledExactlyOnceWith('slug,name,intro');
-    expect(fake.order).toHaveBeenCalledExactlyOnceWith('slug', {
+    expect(fake.order).toHaveBeenNthCalledWith(1, 'display_order', {
+      ascending: true,
+    });
+    expect(fake.order).toHaveBeenNthCalledWith(2, 'slug', {
       ascending: true,
     });
     expect(fake.range).toHaveBeenCalledExactlyOnceWith(12, 24);

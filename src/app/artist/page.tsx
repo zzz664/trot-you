@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
+import { ArtistAccessEntry } from '@/components/admin-artists/AdminArtistsEntry';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { Card } from '@/components/ui/Card';
 import { ComposeErrorScreen } from '@/components/artist-compose-menu/ComposeErrorScreen';
@@ -22,10 +23,12 @@ export default async function ArtistPage({
   const auth = await getTranslations('auth');
   const dispatch = await getTranslations('artistDispatch');
   const activity = await getTranslations('artistReplyActivity');
+  const account = await getTranslations('adminArtists');
   return (
     <main className="app-shell">
       <h1>{auth('artistTitle')}</h1>
       <p>{t('description')}</p>
+      <ArtistAccessEntry label={account('accessEntry')} />
       <Link
         href={routes.artistDispatchHistory}
         prefetch={false}
