@@ -32,7 +32,9 @@ export function subscriptionSourceSql(artistId: string, emptyId: string) {
     for i in 1..8 loop
       fan:=gen_random_uuid();sid:=gen_random_uuid();mid:=gen_random_uuid();
       insert into auth.users(id,email,raw_user_meta_data) values(fan,'admin-subscriptions-data-'||fan||'@example.invalid','{}');
-      update public.profiles set call_name='fictional-private-fan',onboarding_completed_at=anchor where id=fan;
+      -- The KST anchor belongs to synthetic billing history, not account creation.
+      -- Complete the newly created profile now so onboarding cannot predate it.
+      update public.profiles set call_name='fictional-private-fan',onboarding_completed_at=clock_timestamp() where id=fan;
       starts:=anchor-case when i in(1,6) then interval '5 days' when i in(5,8) then interval '70 days' else interval '32 days' end;
       ends:=starts+interval '30 days';
       insert into public.subscriptions(id,user_id,artist_id,provider,status,first_started_at,episode_started_at,current_period_start,current_period_end,next_billing_at)

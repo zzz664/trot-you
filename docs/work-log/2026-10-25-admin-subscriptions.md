@@ -95,3 +95,23 @@ review added targeted captures so below-fold errors, loading, filters, entry and
 pagination links cannot be omitted from narrow/large-text visual evidence.
 Actual app-head authenticated browser, final DB hardening and screenshot review
 remain pending remote CI; no runtime result is inferred from static discovery.
+
+### First app-head fixture correction
+
+Run `40175288587` at remote head `94726114417af895fd302b5ef662a7fdd387182b`
+reached the new browser suite, but all 20 cases stopped during shared fixture
+setup before UI/API assertions or screenshots. The historical KST billing anchor
+was mistakenly reused as a new profile's onboarding time, violating the existing
+`profiles_onboarding_time` constraint because the profile was created later.
+The synthetic fixture now completes onboarding at database `clock_timestamp()`;
+its historical billing anchor is unchanged. No production schema constraint,
+authorization rule or application behavior was relaxed. Actual browser proof
+and ordinary visual QA still require the corrected exact-head CI execution.
+
+The fixture correction passed the full local `npm run check:all` again
+(6,720 unit tests, lint/types/contrast/build/PWA); it still requires actual CI.
+The first app head's 18 keyless screenshots were visually reviewed across all
+three font scales and both widths: 12 distinct PNGs viewed directly, with six
+initial/reset duplicate pairs verified byte-identical. No clipping, overlap or
+incorrect settled Back destination was observed. This does not substitute for
+the missing authenticated dashboard screenshots.
