@@ -49,7 +49,11 @@ const page = {
 function client(result: unknown) {
   const rpc = vi
     .fn()
-    .mockReturnValue({ single: vi.fn().mockResolvedValue(result) });
+    .mockImplementation((name: string) =>
+      name === 'chat_settings'
+        ? Promise.resolve({ data: { page_size: 30 }, error: null })
+        : { single: vi.fn().mockResolvedValue(result) },
+    );
   return {
     actor: { rpc } as unknown as ActorClient,
     service: { rpc } as unknown as ChatServiceClient,
@@ -67,7 +71,7 @@ describe('fan chat safe database projection', () => {
       30,
       before,
     );
-    expect(fake.rpc).toHaveBeenCalledExactlyOnceWith('fan_chat_page', {
+    expect(fake.rpc).toHaveBeenCalledWith('fan_chat_page', {
       p_actor_id: actor,
       p_artist_slug: slug,
       p_limit: 30,
@@ -301,4 +305,34 @@ describe('private chat read client configuration', () => {
     );
     expect((fetch.mock.calls[1]![1] as RequestInit).signal?.aborted).toBe(true);
   });
+});
+
+it('uses current database page size only when no explicit limit is requested', async () => {
+  const fake = client({ data: page, error: null });
+  fake.rpc.mockImplementation((name: string) =>
+    name === 'chat_settings'
+      ? Promise.resolve({ data: { page_size: 7 }, error: null })
+      : { single: vi.fn().mockResolvedValue({ data: page, error: null }) },
+  );
+  await createChatPagePort(fake.service).page(actor, slug, undefined, null);
+  expect(fake.rpc).toHaveBeenCalledWith('fan_chat_page', {
+    p_actor_id: actor,
+    p_artist_slug: slug,
+    p_limit: 7,
+  });
+});
+it.each([
+  null,
+  {},
+  { page_size: 0 },
+  { page_size: 101 },
+  { page_size: '30' },
+  { page_size: 30, secret: 'private' },
+])('fails closed on malformed operational setting %#', async (data) => {
+  const fake = client(null);
+  fake.rpc.mockResolvedValue({ data, error: null });
+  expect(
+    await createChatPagePort(fake.service).page(actor, slug, undefined, null),
+  ).toEqual({ ok: false, code: 'UNAVAILABLE' });
+  expect(fake.rpc).toHaveBeenCalledExactlyOnceWith('chat_settings');
 });

@@ -1,0 +1,72 @@
+.screen {
+  overflow-wrap: anywhere;
+}
+.stack,
+.editor,
+.list,
+.fields,
+.audit {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+}
+.list,
+.audit {
+  padding: 0;
+  list-style: none;
+}
+.list > li,
+.audit > li {
+  min-width: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-unit);
+  align-items: start;
+}
+.actions > * {
+  max-width: 100%;
+}
+.details,
+.changes {
+  display: grid;
+  gap: var(--space-unit);
+  margin: 0;
+}
+.details > div,
+.changes > div {
+  min-width: 0;
+}
+.details dt,
+.changes dt {
+  color: var(--color-muted);
+}
+.details dd,
+.changes dd {
+  margin: 0;
+}
+.notice,
+.review {
+  padding: calc(var(--space-unit) * 2);
+  border: var(--border-width) solid var(--color-control-border);
+  border-radius: var(--radius-control);
+}
+.review {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+}
+.policy {
+  scroll-margin-top: calc(var(--space-unit) * 3);
+}
+.policy ol,
+.policy ul {
+  padding-inline-start: calc(var(--space-unit) * 3);
+}
+.policy li + li {
+  margin-block-start: var(--space-unit);
+}
+.key {
+  font: inherit;
+  overflow-wrap: anywhere;
+}

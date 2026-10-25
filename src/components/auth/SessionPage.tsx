@@ -1,3 +1,4 @@
+import { AdminSettingsEntry } from '@/components/admin-settings/AdminSettingsEntry';
 import { getTranslations } from 'next-intl/server';
 import { InstallStatusCard } from '@/components/onboarding/InstallStatusCard';
 import { BillingNoticeEntry } from '@/components/billing-notices/BillingNoticeEntry';
@@ -20,6 +21,7 @@ export async function SessionPage({ path }: { path: string }) {
   if (state.status !== 'authenticated') return null;
   const t = await getTranslations('auth');
   const artistCopy = await getTranslations('adminArtists');
+  const settingsCopy = await getTranslations('adminSettings');
   const title =
     path === routes.restricted
       ? 'restrictedTitle'
@@ -58,6 +60,11 @@ export async function SessionPage({ path }: { path: string }) {
             title={artistCopy('entryTitle')}
             description={artistCopy('entryDescription')}
             label={artistCopy('entryOpen')}
+          />
+          <AdminSettingsEntry
+            title={settingsCopy('entryTitle')}
+            description={settingsCopy('entryDescription')}
+            label={settingsCopy('entryOpen')}
           />
           <RefundEntry />
           <ReconciliationEntry />

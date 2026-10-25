@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { ARTIST_SLUG_MAX_LENGTH } from '@/config/artists';
-import { CHAT_MAX_PAGE_SIZE, CHAT_PAGE_SIZE } from '@/config/chat';
+import { CHAT_MAX_PAGE_SIZE } from '@/config/chat';
 import {
   decodeChatCursor,
   encodeChatCursor,
@@ -83,17 +83,16 @@ describe('chat timestamp cursor codec', () => {
       cursor: first.data.nextCursor,
     });
     expect(next.ok).toBe(true);
-    expect(port.page).toHaveBeenLastCalledWith(
-      actor,
-      longSlug,
-      CHAT_PAGE_SIZE,
-      { slug: longSlug, sentAt, id: messageId },
-    );
+    expect(port.page).toHaveBeenLastCalledWith(actor, longSlug, undefined, {
+      slug: longSlug,
+      sentAt,
+      id: messageId,
+    });
   });
 });
 
 describe('trusted fan-chat page service', () => {
-  it('uses documented bounded first-page default and one server personalization routine', async () => {
+  it('leaves the omitted limit to the runtime settings adapter and personalizes only on the server', async () => {
     const port = pagePort();
     expect(await readChatPage(port, actor, { slug })).toEqual({
       ok: true,
@@ -117,7 +116,7 @@ describe('trusted fan-chat page service', () => {
     expect(port.page).toHaveBeenCalledExactlyOnceWith(
       actor,
       slug,
-      CHAT_PAGE_SIZE,
+      undefined,
       null,
     );
   });

@@ -2,7 +2,6 @@ import 'server-only';
 import { z } from 'zod';
 import {
   CHAT_MAX_PAGE_SIZE,
-  CHAT_PAGE_SIZE,
   chatPageInputSchema,
   chatReadInputSchema,
   type ChatPage,
@@ -32,7 +31,7 @@ export type ChatPagePort = {
   page(
     actorId: string,
     slug: string,
-    limit: number,
+    limit: number | undefined,
     before: ChatCursor | null,
   ): Promise<ChatResult<RawChatPage>>;
 };
@@ -77,7 +76,7 @@ export async function readChatPage(
   if (!parsed.success) return { ok: false, code: 'INVALID_INPUT' };
   if (!z.uuid().safeParse(actorId).success)
     return { ok: false, code: 'FORBIDDEN' };
-  const { slug, cursor, limit = CHAT_PAGE_SIZE } = parsed.data;
+  const { slug, cursor, limit } = parsed.data;
   const before = cursor ? decodeChatCursor(cursor, slug) : null;
   if (cursor && !before) return { ok: false, code: 'INVALID_INPUT' };
   try {
@@ -86,7 +85,8 @@ export async function readChatPage(
     const page = result.data;
     if (
       page.artist.slug !== slug ||
-      page.messages.length > Math.min(limit, CHAT_MAX_PAGE_SIZE) ||
+      page.messages.length >
+        Math.min(limit ?? CHAT_MAX_PAGE_SIZE, CHAT_MAX_PAGE_SIZE) ||
       new Set(page.messages.map((m) => m.id)).size !== page.messages.length ||
       (page.hasMore && page.messages.length === 0)
     )

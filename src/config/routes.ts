@@ -59,6 +59,9 @@ export const routes = {
   artistComposeApi: '/api/artist',
   admin: '/admin',
   adminArtists: '/admin/artists',
+  adminSettings: '/admin/settings',
+  adminSettingsPolicies: '/admin/settings/policies',
+  adminSettingsApi: '/api/admin/settings',
   adminArtistsApi: '/api/admin/artists',
   artistAccess: '/me/artist-access',
   artistAccessApi: '/api/artist-access',
@@ -200,4 +203,8 @@ export function adminArtistApiPath(
   return action
     ? `${routes.adminArtistsApi}/${action}`
     : routes.adminArtistsApi;
+}
+
+export function adminSettingsPolicyPath(section: string) {
+  return `${routes.adminSettingsPolicies}#${encodeURIComponent(section)}`;
 }

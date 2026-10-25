@@ -1,0 +1,23 @@
+# 2026-10-25 — Operational settings database checkpoint
+
+## Scope and decisions
+
+- Added current-admin `admin_settings_list` and `admin_settings_save` RPCs for existing message/community numeric policy fields, plus separately persisted technical chat page size. The narrow service-only `chat_settings` getter preserves the existing page size of 30 only until an explicit display choice exists.
+- All 23 editable numeric fields have strict full-object integer validation matching existing database ceilings. Unknown fields, arbitrary strings, moderation arrays, legal text, business prices, credentials and activation switches are excluded. Existing source-policy table shapes and trusted provisioning privileges remain compatible.
+- No message/community policy is created or approved by the editor. Missing policies remain unavailable and require the explicit operator initialization runbook. Message history and cancellation changes require an explicit confirmation and opaque decision-reference UUID, just like every other accepted edit. No actual approval or setting change is performed by this migration.
+- Successful edits use actor-scoped idempotency, optimistic revisions and immutable sanitized before/after audit. Actor UUID, decision UUID, operation UUID and database timestamp provide attribution without names, emails, secret values or free-form operator input. Authenticated callers must still be current, unrestricted administrators after the profile lock. Unsupported snapshot isolation fails closed.
+- Triggers observe insert/update/delete on the two existing policy tables and the new display table. Privileged provisioning invalidates stale forms, including hidden-field-only changes, while being labeled `operator` with no guessed human identity. Existing populated policies are copied only into numeric metadata at upgrade; source values, version labels, moderation arrays and commercial approvals remain untouched. Source truncation is blocked because it would bypass row audit.
+- Every accepted policy edit produces a new UUID-derived version and an immutable numeric snapshot. No historical financial data, subscriptions, legal acceptances, moderation dataset, provider state, scheduler or account permissions are rewritten.
+- Preview-cap reduction locks artists before message policy, matching preview management order, and refuses a cap below any already selected preview count. It does not silently hide or remove curated previews. Initial display insertion uses a table fence so simultaneous admin inserts and privileged operator updates have a consistent lock order.
+
+## Verification authored
+
+- pgTAP covers ACLs/RLS, pinned function paths, fan/artist/restricted-admin rejection, missing configuration, strict values, all 23 numeric boundaries, explicit confirmation, decision reference, CAS, replay, audit immutability and sanitation, safe decimal normalization, current-role replay rejection, preview preservation and existing positional fixture compatibility.
+- The independent-session concurrency script proves actual PostgreSQL blocking before committing the winner: initial display creation, duplicate/reused operations, role/restriction loss, read-after-role-loss, message CAS, privileged changes, hidden moderation changes, display lock ordering, preview-cap changes in both orders and policy withdrawal. Tests use fictional local identities and reset the disposable database afterward.
+- The upgrade compatibility script resets the disposable local stack to migration 00027, provisions a fictional existing message/community policy plus approved checkout/renewal/notice snapshots, applies pending migrations, and compares the exact source rows and approval timestamps. It verifies numeric-only metadata import and restores the latest empty stack on completion or failure. It has no hosted URL or credential input.
+- JavaScript syntax checks and focused Prettier checks pass for the concurrency and upgrade scripts. Database lint, pgTAP, races, upgrade execution and genuine generated schema types remain CI-only and are not claimed passed at this checkpoint. No local Docker or browser execution was attempted.
+- A local Supabase CLI `--help` attempt failed before producing help because CLI startup attempted to create `/home/agent/.supabase` on the read-only filesystem. It was not retried or worked around; no database command reached execution. The static upgrade command still requires its first CI execution.
+
+## Completion boundary
+
+Configuration-ready implementation only. No actual operator setting, policy approval, credential, role, payment, provider, deployment or recurring job was changed. Database types must be imported from real CI generation, never handwritten.
