@@ -782,12 +782,24 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
         { exact: true },
       );
       await expect(fanCard).toContainText(`허구 ${callName} 님, 함께해요.`);
-      // A DOM text match alone can precede hydration/read-ack layout changes.
-      // Bring the actual body into view and settle the real read operation
-      // before recording both the page and an independently bounded full card.
+      // Replies load above the message list after hydration. Wait for that
+      // actual read to settle before scrolling, otherwise the inserted panel
+      // can move this body out of the viewport after a successful scroll.
+      const replies = page.getByRole('region', {
+        name: messages.replies.section,
+        exact: true,
+      });
+      await expect(
+        replies.getByText(messages.replies.empty, { exact: true }),
+      ).toBeVisible();
+      await expect(
+        replies.getByRole('button', {
+          name: messages.replies.refresh,
+          exact: true,
+        }),
+      ).toBeEnabled();
       await personalizedBody.scrollIntoViewIfNeeded();
       await expect(personalizedBody).toBeVisible();
-      await expect(personalizedBody).toBeInViewport();
       await expect(fanCard.locator('.chat-read-status')).toHaveText(
         messages.chat.read,
       );
@@ -806,6 +818,11 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
         });
       });
+      // Read acknowledgement removes its action and can also change layout.
+      // Keep the final viewport assertion after every awaited layout change.
+      await personalizedBody.scrollIntoViewIfNeeded();
+      await expect(personalizedBody).toBeVisible();
+      await expect(personalizedBody).toBeInViewport();
       await screenshot(page, info, `fan-published-${scale}-${width}`);
       await fanCard.screenshot({
         path: info.outputPath(`fan-published-card-${scale}-${width}.png`),

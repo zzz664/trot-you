@@ -654,7 +654,10 @@ test('UI preview reorder and cancel, invitation cancellation and unlink use expl
   const photo = main(page).locator(`[data-admin-preview-id="${sent[1]!.id}"]`);
   await photo
     .getByRole('button', {
-      name: messages.media.open.replace('{kind}', copy.messageKinds.photo),
+      name: messages.media.open.replace(
+        '{kind}',
+        messages.artists.messageKinds.photo,
+      ),
       exact: true,
     })
     .click();
