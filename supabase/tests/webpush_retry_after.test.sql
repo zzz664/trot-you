@@ -30,11 +30,11 @@ insert into webpush_context values('device',public.webpush_register_device('fe10
 reset role;
 -- This rollback-only fixture helper owns no production grant and never sends.
 create function pg_temp.claim_webpush(p_key text) returns void language plpgsql security definer set search_path='' as $$
-declare message_id uuid:=gen_random_uuid(); j uuid; t uuid;
+declare v_message_id uuid:=gen_random_uuid(); j uuid; t uuid;
 begin
   insert into public.messages(id,artist_id,author_id,type,body,status,scheduled_at,sent_at)
-  values(message_id,'fe200000-0000-4000-8000-000000000001','fe100000-0000-4000-8000-000000000003','text','가상 비공개 알림','sent',now(),now());
-  select id into j from private.notification_jobs where source_id=message_id and device_id=(select id from pg_temp.webpush_context where key='device');
+  values(v_message_id,'fe200000-0000-4000-8000-000000000001','fe100000-0000-4000-8000-000000000003','text','가상 비공개 알림','sent',now(),now());
+  select jobs.id into j from private.notification_jobs jobs where jobs.source_id=v_message_id and jobs.device_id=(select id from pg_temp.webpush_context where key='device');
   select lease_token into t from public.notification_claim(j);
   insert into pg_temp.webpush_context(key,id,token) values(p_key,j,t);
 end;
