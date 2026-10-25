@@ -50,6 +50,7 @@ jobs:
       - run: node scripts/test-compose-concurrency.mjs
       - run: node scripts/test-dispatch-concurrency.mjs
       - run: node scripts/test-artist-reply-activity-concurrency.mjs
+      - run: npm run test:db:webpush-concurrency
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
@@ -91,6 +92,7 @@ jobs:
       - run: npm run test:compose-fixture
       - run: npm run test:dispatch-fixture
       - run: npm run test:activity-fixture
+      - run: npm run test:webpush-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
@@ -491,6 +493,39 @@ jobs:
         if: always()
         with:
           name: activity-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
+
+  webpush-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/webpush-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Real local Auth/RPC; PushManager and permission are simulated contracts.
+      # Public RFC synthetic keys only; worker remains disabled, no pushes.
+      - run: npm run test:e2e:webpush
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: webpush-browser-results
           path: |
             playwright-report/
             test-results/

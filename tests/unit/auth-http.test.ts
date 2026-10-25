@@ -6,8 +6,12 @@ import { failure, success } from '@/lib/result';
 import type { AuthPort } from '@/server/services/auth/session';
 import { callbackGet, loginPost, logoutPost } from '@/server/auth/http';
 
-const { createContext } = vi.hoisted(() => ({ createContext: vi.fn() }));
+const { createContext, revokePush } = vi.hoisted(() => ({
+  createContext: vi.fn(),
+  revokePush: vi.fn(),
+}));
 vi.mock('@/server/auth/context', () => ({ createAuthContext: createContext }));
+vi.mock('@/server/db/webpush', () => ({ revokeWebPushSession: revokePush }));
 
 const origin = 'https://app.example';
 const profile = {
@@ -38,6 +42,7 @@ function request(
 }
 
 beforeEach(() => {
+  revokePush.mockReset().mockResolvedValue(true);
   port = {
     verifySubject: vi.fn().mockResolvedValue(success(null)),
     readProfile: vi.fn().mockResolvedValue(success(profile)),
@@ -59,6 +64,7 @@ beforeEach(() => {
       publicKey: 'sb_publishable_fixture',
     },
     port,
+    client: { actor: true },
     clearCookies,
     apply: (response: NextResponse) => {
       for (const [key, value] of Object.entries(AUTH_PRIVATE_HEADERS))
@@ -196,6 +202,7 @@ describe('logout POST controller', () => {
       expect(response.status).toBe(403);
       expect(port.signOut).not.toHaveBeenCalled();
       expect(clearCookies).not.toHaveBeenCalled();
+      expect(revokePush).not.toHaveBeenCalled();
     },
   );
   it('supports repeated logout and always clears stale local cookies', async () => {
@@ -209,10 +216,27 @@ describe('logout POST controller', () => {
     }
     expect(port.signOut).toHaveBeenCalledTimes(2);
     expect(clearCookies).toHaveBeenCalledTimes(2);
+    expect(revokePush).toHaveBeenCalledTimes(2);
   });
   it('clears local cookies but does not claim remote revocation on SDK failure', async () => {
     vi.mocked(port.signOut).mockResolvedValue(failure('INTERNAL'));
     const response = await logoutPost(request('/api/auth/logout', 'POST'));
+    expect(clearCookies).toHaveBeenCalledOnce();
+    expect(response.headers.get('location')).toBe(
+      `${origin}/start?reason=logout_incomplete`,
+    );
+  });
+  it('revokes this current push session before removing auth credentials', async () => {
+    await logoutPost(request('/api/auth/logout', 'POST'));
+    expect(revokePush).toHaveBeenCalledWith({ actor: true });
+    expect(revokePush.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(port.signOut).mock.invocationCallOrder[0]!,
+    );
+  });
+  it('still signs out and clears cookies but reports incomplete push revocation', async () => {
+    revokePush.mockResolvedValue(false);
+    const response = await logoutPost(request('/api/auth/logout', 'POST'));
+    expect(port.signOut).toHaveBeenCalledOnce();
     expect(clearCookies).toHaveBeenCalledOnce();
     expect(response.headers.get('location')).toBe(
       `${origin}/start?reason=logout_incomplete`,

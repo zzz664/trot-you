@@ -16,6 +16,7 @@ import {
 } from '@/server/services/auth/access';
 import { completeLogin, readSession } from '@/server/services/auth/session';
 import { createAuthContext } from './context';
+import { revokeWebPushSession } from '@/server/db/webpush';
 
 const codeSchema = z
   .string()
@@ -131,12 +132,16 @@ export async function logoutPost(request: NextRequest) {
     )
   )
     return forbidden(context);
+  // Disable this browser session's registered endpoints before removing Auth
+  // credentials. Other devices/sessions are untouched. Missing Auth sessions
+  // also fail closed in the send gate; accepted in-flight pushes cannot recall.
+  const pushRevoked = await revokeWebPushSession(context.client);
   const result = await context.port.signOut();
   // Also remove stale/chunked cookies if refresh/network failure prevented the
   // SDK from clearing storage. Never claim remote revocation on such failure.
   context.clearCookies();
   return redirectResponse(
     context,
-    `${routes.start}?reason=${result.ok ? 'signed_out' : 'logout_incomplete'}`,
+    `${routes.start}?reason=${result.ok && pushRevoked ? 'signed_out' : 'logout_incomplete'}`,
   );
 }

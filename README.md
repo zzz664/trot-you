@@ -32,7 +32,7 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 - `src/lib/`: 순수 함수. `src/messages/ko.json`: 사용자 문구.
 - 서버 기능은 `server/services → adapters | db | settings` 순서를 따릅니다. `server/auth`는 Next.js 요청/쿠키와 인증 서비스를 조립하는 경계입니다.
 - 기본 글자 크기는 `large`; 로그인 전 쿠키를 첫 서버 렌더에 적용하고, 로그인 후에는 본인 프로필의 저장값을 우선합니다. 온보딩에서 세 단계 크기를 저장할 수 있습니다.
-- Supabase 스키마·RLS·로컬 검증 도구와 actor-scoped 인증 조회가 있습니다. PWA 서비스 워커는 공개 빌드 자산과 정적 오프라인 안내만 캐시합니다. 첫 구독 등록·청구는 실제 어댑터로 연결하되 기본 비활성 상태이며, Web Push 전달은 별도 기능입니다. 가짜 로그인/결제/알림 성공으로 운영을 대체하지 않습니다.
+- Supabase 스키마·RLS·로컬 검증 도구와 actor-scoped 인증 조회가 있습니다. PWA 서비스 워커는 공개 빌드 자산과 정적 오프라인 안내만 캐시합니다. 첫 구독 등록·청구와 Web Push 전달은 실제 어댑터로 연결하되 기본 비활성 상태입니다. 가짜 로그인/결제/알림 성공으로 운영을 대체하지 않습니다.
 
 ## 인증·세션 연결
 
@@ -69,6 +69,10 @@ npm run test:e2e        # production build 필요: 3개 글자 크기 × 2개 �
 ## 아티스트 메시지 초안 작성
 
 [화면·저장·업로드 계약](docs/configuration/artist-compose.md), [DB 소유권·충돌 방지](docs/database/artist-compose.md), [전용 브라우저 CI](docs/configuration/artist-compose-ci.md)를 참고하세요. `/artist`에서 현재 소속된 가수를 선택해 글·사진·음성·영상 메시지를 작성합니다. 사진 리사이즈, 명시적 동의 후 브라우저 녹음, 기존 보호 미디어 업로드, 서버 이름 치환 미리보기와 본인 초안 저장·복구를 연결했습니다. 저장과 첨부는 멱등 키·revision 검사로 중복이나 오래된 수정이 새 내용을 덮지 않게 합니다. **초안 저장은 팬에게 발송이 아닙니다.** 저장한 초안을 아래 별도 확인 절차로 앱에 공개하거나 예약할 수 있습니다. 실제 운영 정책·기기별 녹음·호스팅 검증 및 기존 독립 미디어 재검토 제한은 그대로 남아 있습니다.
+
+## 브라우저 메시지 알림
+
+[Web Push 설정·작동 경계](docs/configuration/webpush-delivery.md), [암호화·공급자 주소 검증](docs/configuration/webpush-protocol.md), [DB 세션·재시도 계약](docs/database/webpush-delivery.md), [격리 CI 검증](docs/configuration/webpush-ci.md)을 참고하세요. 팬 홈의 알림 설정에서 명시적으로 이 기기의 수신을 켜거나 끄며, 권한 거절·미지원·아이폰 홈 화면 앱·계정 변경·로그아웃을 구분합니다. 기존 메시지 outbox의 제한된 worker는 최종 수신 자격·동의 확인, lease, 재시도, dead endpoint 처리를 수행합니다. 잠금 화면에는 원문이나 개인정보 없이 일반 안내만 표시합니다. **공급자 접수는 기기 표시·읽음이 아니며 중복 가능성이 있는 at-least-once 처리입니다.** 실제 VAPID 키·승인 정책·worker·Cron·배포는 활성화하지 않았고 실제 iOS/Android 수신 검증은 남아 있습니다. 결제 전 안내·일정 알림·알림톡은 후속 범위입니다.
 
 ## 연동 설정 기반
 

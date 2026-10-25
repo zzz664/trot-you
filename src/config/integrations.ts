@@ -11,7 +11,7 @@ export const INTEGRATION_REQUIREMENTS = {
     'TOSS_BILLING_MID',
   ],
   kakaopay_subscription: ['KAKAOPAY_SECRET_KEY', 'KAKAOPAY_RECURRING_CID'],
-  webpush: ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'],
+  webpush: ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'],
   alimtalk: ['ALIMTALK_API_KEY'],
   cron: ['CRON_SECRET'],
 } as const;

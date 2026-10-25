@@ -2483,6 +2483,99 @@ export type Database = {
         Args: { p_page?: number; p_subscription_id: string };
         Returns: Json;
       };
+      webpush_complete: {
+        Args: {
+          p_evidence_ref: string;
+          p_job_id: string;
+          p_outcome: string;
+          p_retry_after_seconds?: number;
+          p_token: string;
+        };
+        Returns: string;
+      };
+      webpush_current_status: {
+        Args: { p_endpoint?: string };
+        Returns: {
+          configured: boolean;
+          consent_version: string;
+          device_active: boolean;
+          device_id: string;
+          new_message: boolean;
+          webpush_enabled: boolean;
+        }[];
+      };
+      webpush_device_status: {
+        Args: {
+          p_actor_id: string;
+          p_auth_session_id: string;
+          p_endpoint?: string;
+        };
+        Returns: {
+          configured: boolean;
+          consent_version: string;
+          device_active: boolean;
+          device_id: string;
+          new_message: boolean;
+          webpush_enabled: boolean;
+        }[];
+      };
+      webpush_list_due: {
+        Args: { p_limit?: number };
+        Returns: {
+          id: string;
+        }[];
+      };
+      webpush_list_uncertain: {
+        Args: { p_limit?: number };
+        Returns: {
+          cancellation_requested_at: string;
+          job_id: string;
+          lease_expires_at: string;
+          lease_token: string;
+        }[];
+      };
+      webpush_prepare_delivery: {
+        Args: { p_job_id: string; p_token: string };
+        Returns: {
+          auth: string;
+          endpoint: string;
+          job_id: string;
+          lease_expires_at: string;
+          lease_token: string;
+          p256dh: string;
+        }[];
+      };
+      webpush_recover_expired: {
+        Args: { p_job_id: string; p_token: string };
+        Returns: string;
+      };
+      webpush_register_device: {
+        Args: {
+          p_actor_id: string;
+          p_auth: string;
+          p_auth_session_id: string;
+          p_consent_version: string;
+          p_endpoint: string;
+          p_p256dh: string;
+        };
+        Returns: string;
+      };
+      webpush_revoke_current_device: {
+        Args: { p_endpoint: string };
+        Returns: undefined;
+      };
+      webpush_revoke_device: {
+        Args: {
+          p_actor_id: string;
+          p_auth_session_id: string;
+          p_endpoint: string;
+        };
+        Returns: undefined;
+      };
+      webpush_revoke_session: {
+        Args: Record<PropertyKey, never>;
+        Returns: number;
+      };
     };
     Enums: {
       analytics_event_name:
