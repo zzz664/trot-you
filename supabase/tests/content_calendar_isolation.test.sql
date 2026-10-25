@@ -1,0 +1,12 @@
+begin isolation level repeatable read;
+create extension if not exists pgtap with schema extensions;
+set local search_path=public,extensions;
+select no_plan();
+set local role authenticated;
+select throws_ok($$select public.content_calendar_admin_list(gen_random_uuid(),'2028-02-01')$$,'25001','SCHEDULE_ISOLATION_UNSUPPORTED','admin reads refuse stale repeatable-read authority snapshots');
+select throws_ok($$select public.content_calendar_admin_save(gen_random_uuid())$$,'25001','SCHEDULE_ISOLATION_UNSUPPORTED','save refuses stale repeatable-read authority snapshots');
+select throws_ok($$select public.content_calendar_admin_delete(gen_random_uuid(),gen_random_uuid(),1,true)$$,'25001','SCHEDULE_ISOLATION_UNSUPPORTED','delete refuses stale repeatable-read authority snapshots');
+select throws_ok($$select public.content_calendar_artist_context('content-calendar-1','2028-02-01')$$,'25001','ARTIST_REPLY_ISOLATION_UNSUPPORTED','artist read refuses stale repeatable-read authority snapshots');
+reset role;
+select * from finish();
+rollback;

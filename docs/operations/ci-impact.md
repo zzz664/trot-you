@@ -9,7 +9,7 @@ lint/format, typecheck, all unit tests, contrast, production build, all local fi
 checks, and the keyless browser suite still run.
 
 For a code PR targeting `develop`, the complete database job still runs: DB lint,
-both consecutive pgTAP passes, all 28 concurrency scripts, all four populated
+both consecutive pgTAP passes, all 29 concurrency scripts, all five populated
 upgrades, real generated schema types, typecheck, and committed-type drift checks.
 Only a nonempty change set containing `README.md` and/or Markdown files under
 `docs/` may intentionally skip the database and all 19 isolated feature browsers.
@@ -124,8 +124,12 @@ Run `node --test scripts/ci-*.test.mjs` and `npm run check:all` after changing C
 The impact job runs those dependency-free CI tests before making any skip decision.
 `scripts/ci-workflow-baseline.json` records the original 21 job step hashes at
 merged develop `4b4a9f55de1fb5c61302dcf0fc28d42eae570f65`. Those setup, test, cleanup,
-and artifact steps remain byte-for-byte unchanged in this rollout. New suites
-must be added to the registry, workflow, and aggregate; do not falsely attribute a
+and artifact steps remain byte-for-byte unchanged after removing only the exact
+reviewed feature33 additions recorded in `ci-workflow.test.mjs`. The new
+content-calendar concurrency and populated-upgrade gates run before official type
+generation; tests reject missing, duplicated, moved or weakened gates. The
+historical baseline is not rewritten to claim these additions existed earlier.
+New suites must be added to the registry, workflow, and aggregate; do not falsely attribute a
 new job to the historical baseline. Deliberate future test-step changes require
 reviewing/updating the baseline contract rather than bypassing its test.
 
@@ -136,7 +140,7 @@ again. Do not replace populated upgrade tests with fresh-schema-only checks.
 Database selection is intentionally not optimized by SQL filenames. The schedule
 notice migration's first checkpoint passed its new tests while breaking existing
 message-dispatch tests through a shared notification wrapper. Every migration
-therefore retains all DB regressions. All 32 race/upgrade scripts perform whole
+therefore retains all DB regressions. All 34 race/upgrade scripts perform whole
 local-database resets: running them concurrently against one Supabase instance
 would be unsafe. A separate, measured improvement may shard the unchanged suites
 onto isolated runners; this PR does not do that. Browser selection reduces work

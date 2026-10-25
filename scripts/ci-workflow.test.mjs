@@ -33,6 +33,41 @@ function jobBodies(source) {
 
 const jobs = jobBodies(workflow);
 
+// The historical hashes stay immutable. Feature33 adds these exact gates;
+// removing only their reviewed insertion blocks must recover every old byte.
+const reviewedAdditions = {
+  database: [
+    {
+      before: '      - run: npm run db:types\n',
+      text:
+        '      - run: npm run test:db:content-calendar-concurrency\n' +
+        '      - run: node scripts/test-content-calendar-upgrade.mjs\n',
+    },
+  ],
+};
+function originalSteps(name, steps) {
+  let original = steps;
+  for (const { before, text } of reviewedAdditions[name] ?? []) {
+    const insertion = `${text}${before}`;
+    assert.equal(
+      original.split(insertion).length,
+      2,
+      `${name}: reviewed gates missing, duplicated or moved`,
+    );
+    original = original.replace(insertion, before);
+  }
+  return original;
+}
+function verifyLegacySteps(name, body) {
+  const steps = body.split('    steps:\n')[1];
+  assert.ok(steps, `${name}: missing legacy steps`);
+  assert.equal(
+    createHash('sha256').update(originalSteps(name, steps)).digest('hex'),
+    baseline.stepHashes[name],
+    `${name}: original setup/test/cleanup/artifact steps changed`,
+  );
+}
+
 describe('CI workflow safety and unchanged regression coverage', () => {
   it('registers every workflow job in the stable aggregate and registry', () => {
     assert.deepEqual(
@@ -109,21 +144,44 @@ describe('CI workflow safety and unchanged regression coverage', () => {
     assert.match(trigger, /^  merge_group:$/m);
   });
 
-  it('preserves every step of all 21 existing jobs byte-for-byte', () => {
+  it('preserves all 21 original job steps with only exact reviewed additions', () => {
     assert.equal(baseline.commit, '4b4a9f55de1fb5c61302dcf0fc28d42eae570f65');
     // This historical snapshot is fixed at 21 jobs. A future additional suite
     // belongs in the registry/aggregate, not falsely in this old commit's data.
     assert.equal(Object.keys(baseline.stepHashes).length, 21);
     assert.ok(Object.keys(baseline.stepHashes).every((name) => name in jobs));
-    for (const [name, expected] of Object.entries(baseline.stepHashes)) {
-      const steps = jobs[name].split('    steps:\n')[1];
-      assert.ok(steps, `${name}: missing legacy steps`);
-      assert.equal(
-        createHash('sha256').update(steps).digest('hex'),
-        expected,
-        `${name}: original setup/test/cleanup/artifact steps changed`,
-      );
+    for (const name of Object.keys(baseline.stepHashes)) {
+      verifyLegacySteps(name, jobs[name]);
     }
+  });
+
+  it('rejects missing, duplicated, relocated or weakened reviewed DB gates', () => {
+    const original = jobs.database;
+    const added = reviewedAdditions.database[0].text;
+    for (const changed of [
+      original.replace(added, ''),
+      original.replace(added, added + added),
+      original
+        .replace(added, '')
+        .replace(
+          '      - run: npm run db:reset\n',
+          `      - run: npm run db:reset\n${added}`,
+        ),
+      original.replace(
+        'npm run test:db:content-calendar-concurrency',
+        'echo skipped calendar races',
+      ),
+      original.replace(
+        'node scripts/test-content-calendar-upgrade.mjs',
+        'echo skipped calendar upgrade',
+      ),
+      original.replace(
+        'npm run test:integration',
+        'echo skipped original integration',
+      ),
+      original.replace('npm run db:lint', 'echo skipped original lint'),
+    ])
+      assert.throws(() => verifyLegacySteps('database', changed));
   });
 
   it('retains both pgTAP passes, all concurrency suites, and populated upgrades', () => {
@@ -138,12 +196,12 @@ describe('CI workflow safety and unchanged regression coverage', () => {
           /run: (?:npm run test:db:[^\n]*concurrency|node scripts\/test-[^\n]*concurrency\.mjs)\n/g,
         ) || []
       ).length,
-      28,
+      29,
     );
     assert.equal(
       (database.match(/run: node scripts\/test-[^\n]*upgrade\.mjs\n/g) || [])
         .length,
-      4,
+      5,
     );
     assert.match(database, /git diff --exit-code -- src\/types\/database\.ts/);
     assert.match(database, /npm run db:lint/);

@@ -87,7 +87,8 @@
     "test:e2e:schedules": "playwright test --config playwright.schedules.config.ts",
     "test:db:schedule-notice-concurrency": "node scripts/test-schedule-notice-concurrency.mjs",
     "test:schedule-notices-fixture": "node --test scripts/schedule-notices-local-config.test.mjs",
-    "test:e2e:schedule-notices": "playwright test --config playwright.schedule-notices.config.ts"
+    "test:e2e:schedule-notices": "playwright test --config playwright.schedule-notices.config.ts",
+    "test:db:content-calendar-concurrency": "node scripts/test-content-calendar-concurrency.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",

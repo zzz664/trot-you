@@ -89,6 +89,8 @@ jobs:
       - run: node scripts/test-schedule-management-upgrade.mjs
       - run: node scripts/test-schedule-notice-concurrency.mjs
       - run: node scripts/test-schedule-notice-upgrade.mjs
+      - run: npm run test:db:content-calendar-concurrency
+      - run: node scripts/test-content-calendar-upgrade.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
