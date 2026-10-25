@@ -12,7 +12,7 @@ select ('d1000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
  'notification-security-'||n||'@example.invalid',
  '{"role":"admin","webpush_enabled":true,"consent_version":"forged","endpoint":"https://push.example.invalid/forged"}'::jsonb
  from generate_series(1,7) n;
-update public.profiles set call_name='가상 보안 사용자',onboarding_completed_at=now()
+update public.profiles set call_name='가상 보안 사용자',onboarding_completed_at=clock_timestamp()
  where id::text like 'd1000000-%' and id<>'d1000000-0000-4000-8000-000000000005';
 update public.profiles set role='artist' where id='d1000000-0000-4000-8000-000000000003';
 update public.profiles set role='admin' where id='d1000000-0000-4000-8000-000000000004';
@@ -262,7 +262,7 @@ set local role service_role;
 select is((select count(*) from public.notification_claim((select id from notification_security_context where key='gate-8'))),0::bigint,
  'onboarding revocation is rechecked before releasing sensitive endpoint credentials');
 reset role;
-update public.profiles set onboarding_completed_at=now() where id='d1000000-0000-4000-8000-000000000001';
+update public.profiles set onboarding_completed_at=clock_timestamp() where id='d1000000-0000-4000-8000-000000000001';
 select is((select count(*) from private.notification_attempts),0::bigint,'failed eligibility gates create no provider-attempt authorization');
 select is((select count(*) from private.notification_jobs where state='canceled'),8::bigint,'all invalidated source jobs retain terminal dedupe identities');
 set local role service_role;
@@ -276,9 +276,27 @@ insert into public.messages(id,artist_id,author_id,type,body) values
 set local role service_role;
 select is(public.notification_enqueue('message','d3000000-0000-4000-8000-000000000009'),0,'draft source cannot be enqueued through recovery RPC');
 reset role;
+-- Explicit rollback-only next-day policy and session-bound recipient. Legacy
+-- rolling-hour enqueue is no longer an authorization path for schedule pushes.
+insert into private.schedule_notice_policies(version,hour_kst,approved_at,published_at)
+ values('d7000000-0000-4000-8000-000000000001',0,now(),now());
+insert into private.schedule_notice_policy_current(policy_version)
+ values('d7000000-0000-4000-8000-000000000001');
+insert into auth.sessions(id,user_id,created_at,updated_at)
+ values('d1100000-0000-4000-8000-000000000001','d1000000-0000-4000-8000-000000000001',now(),now());
+set local role service_role;
+select is(public.webpush_register_device('d1000000-0000-4000-8000-000000000001',
+ 'd1100000-0000-4000-8000-000000000001','https://push.example.invalid/security-one',repeat('B',87),repeat('A',22),'fictional-consent-v1'),
+ (select id from notification_security_context where key='device'),'explicit session-bound opt-in retains canonical owned endpoint');
+reset role;
 insert into public.schedules(id,artist_id,type,status,title,starts_at,created_by) values
  ('d5000000-0000-4000-8000-000000000001','d2000000-0000-4000-8000-000000000001','event','published','가상 알림 끄기',
- now()+interval '12 hours','d1000000-0000-4000-8000-000000000004');
+ (((clock_timestamp() at time zone 'Asia/Seoul')::date+1)::timestamp+interval '12 hours') at time zone 'Asia/Seoul',
+ 'd1000000-0000-4000-8000-000000000004');
+set local role service_role;
+select is((select push_jobs from public.schedule_notice_create('d5000000-0000-4000-8000-000000000001')),1,
+ 'approved next-day worker creates the opt-out race subject');
+reset role;
 insert into notification_security_context(key,id) select 'schedule-job',id from private.notification_jobs
  where source_id='d5000000-0000-4000-8000-000000000001';
 select set_config('request.jwt.claim.sub','d1000000-0000-4000-8000-000000000001',true);

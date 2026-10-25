@@ -31,10 +31,10 @@ beforeEach(() => {
     throw new Error('redirect');
   });
 });
-it('RSC carries only mount key, never private subscription/draft snapshots', async () =>
+it('RSC carries mount key and safe fan hint, never private subscription/draft snapshots', async () =>
   expect(await getSchedulePage()).toEqual({
     ok: true,
-    data: { key: scheduleId },
+    data: { key: scheduleId, canConfigureNotices: true },
   }));
 it('signed-out user is redirected without exposing a cached event', async () => {
   mocks.session.mockResolvedValue({ status: 'anonymous' });
@@ -69,7 +69,7 @@ it('current admin can mount schedule management only after live session read', a
   });
   expect(await getSchedulePage(true)).toEqual({
     ok: true,
-    data: { key: scheduleId },
+    data: { key: scheduleId, canConfigureNotices: false },
   });
   expect(mocks.session).toHaveBeenCalledOnce();
 });
@@ -95,6 +95,20 @@ it.each(['unavailable', 'unconfigured'])(
     expect(await getSchedulePage()).toEqual({
       ok: false,
       code: status === 'unconfigured' ? 'SETUP_NOT_READY' : 'UNAVAILABLE',
+    });
+  },
+);
+
+it.each(['artist', 'admin'])(
+  'valid %s can view public schedules without fan-only controls',
+  async (role) => {
+    mocks.session.mockResolvedValue({
+      status: 'authenticated',
+      profile: { id: scheduleId, role },
+    });
+    expect(await getSchedulePage()).toEqual({
+      ok: true,
+      data: { key: scheduleId, canConfigureNotices: false },
     });
   },
 );

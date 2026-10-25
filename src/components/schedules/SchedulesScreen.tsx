@@ -16,6 +16,7 @@ import { Checkbox, RadioGroup } from '@/components/ui/Checkbox';
 import { Loading } from '@/components/ui/Loading';
 import { InlineError } from '@/components/ui/InlineError';
 import { MonthNavigation } from './MonthNavigation';
+import { ScheduleNoticeControls } from '@/components/schedule-notices/ScheduleNoticeControls';
 import { ScheduleCard } from './ScheduleCard';
 import { useScheduleResource } from './useScheduleResource';
 import styles from './schedules.module.css';
@@ -23,10 +24,12 @@ export function SchedulesScreen({
   query,
   path,
   actorKey,
+  canConfigureNotices = false,
 }: {
   query: ScheduleQuery;
   path: string;
   actorKey?: string;
+  canConfigureNotices?: boolean;
 }) {
   const t = useTranslations('schedules');
   const format = useFormatter();
@@ -88,6 +91,9 @@ export function SchedulesScreen({
         <p>{t('description')}</p>
         <p className="ui-hint">{t('timeZone')}</p>
       </header>
+      {data && canConfigureNotices && (
+        <ScheduleNoticeControls path={path} actorKey={actorKey} />
+      )}
       <MonthNavigation month={query.month} onNavigate={state.clear} />
       <RadioGroup
         label={t('viewLabel')}

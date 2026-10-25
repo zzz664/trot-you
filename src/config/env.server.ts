@@ -7,6 +7,7 @@ import {
 import { KAKAOPAY_TEST_CIDS } from './integrations';
 import { WEBPUSH } from './webpush';
 import { BILLING_NOTICE } from './billing-notices';
+import { SCHEDULE_NOTICE } from './schedule-notices';
 import { parseCancellationTestRuntime } from './cancellation-test-runtime';
 import { parseReconciliationTestRuntime } from './reconciliation-test-runtime';
 import {
@@ -66,6 +67,14 @@ const serverEnvSchema = publicEnvSchema.extend({
   VAPID_PUBLIC_KEY: optionalEnvValue(secretSchema),
   VAPID_PRIVATE_KEY: optionalEnvValue(secretSchema),
   VAPID_SUBJECT: optionalEnvValue(z.string().min(1).max(2048)),
+  SCHEDULE_NOTICES_ENABLED: flagSchema,
+  SCHEDULE_NOTICES_CRON_SECRET: optionalEnvValue(
+    z
+      .string()
+      .min(SCHEDULE_NOTICE.secretMinLength)
+      .max(SCHEDULE_NOTICE.secretMaxLength)
+      .regex(/^[A-Za-z0-9_-]+$/),
+  ),
   BILLING_NOTICES_ENABLED: flagSchema,
   BILLING_NOTICES_CRON_SECRET: optionalEnvValue(
     z
@@ -163,6 +172,16 @@ export function parseServerEnv(
   )
     return failure('CONFIGURATION_INVALID');
   if (
+    (env.SCHEDULE_NOTICES_ENABLED && !env.SCHEDULE_NOTICES_CRON_SECRET) ||
+    (env.SCHEDULE_NOTICES_CRON_SECRET &&
+      [
+        env.CRON_SECRET,
+        env.RENEWAL_CRON_SECRET,
+        env.RECONCILIATION_CRON_SECRET,
+        env.MESSAGE_DISPATCH_CRON_SECRET,
+        env.WEBPUSH_CRON_SECRET,
+        env.BILLING_NOTICES_CRON_SECRET,
+      ].includes(env.SCHEDULE_NOTICES_CRON_SECRET)) ||
     (env.BILLING_NOTICES_ENABLED && !env.BILLING_NOTICES_CRON_SECRET) ||
     (env.BILLING_NOTICES_CRON_SECRET &&
       [

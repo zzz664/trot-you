@@ -11,9 +11,9 @@ concurrency:
 jobs:
   database:
     runs-on: ubuntu-latest
-    # Baseline exact-head database run took 16m34s; preserve full repeat/race
-    # checks while adding another populated upgrade and disposable resets.
-    timeout-minutes: 25
+    # Verified feature31 database run approached 20min. Preserve every repeat,
+    # race and populated upgrade while adding schedule notice migration gates.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,6 +61,8 @@ jobs:
       - run: node scripts/test-admin-subscriptions-upgrade.mjs
       - run: node scripts/test-schedule-management-concurrency.mjs
       - run: node scripts/test-schedule-management-upgrade.mjs
+      - run: node scripts/test-schedule-notice-concurrency.mjs
+      - run: node scripts/test-schedule-notice-upgrade.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
@@ -108,6 +110,7 @@ jobs:
       - run: npm run test:admin-settings-fixture
       - run: npm run test:admin-subscriptions-fixture
       - run: npm run test:schedules-fixture
+      - run: npm run test:schedule-notices-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
@@ -709,6 +712,39 @@ jobs:
         if: always()
         with:
           name: schedules-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
+
+  schedule-notices-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/schedule-notices-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Fictional local Auth/event/policy fixtures and real queue RPCs only.
+      # Device transport, payments, external providers and scheduler stay disabled.
+      - run: npm run test:e2e:schedule-notices
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: schedule-notices-browser-results
           path: |
             playwright-report/
             test-results/

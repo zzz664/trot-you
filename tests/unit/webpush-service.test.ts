@@ -468,3 +468,23 @@ it('billing push keeps amount/date/artist out of transport and targets only the 
     'url',
   ]);
 });
+
+it('schedule push keeps title/location/time/artist out of transport and uses only fixed calendar route', async () => {
+  const deps = queue();
+  const old = await deps.port.prepare(lease);
+  if (!old.ok || !old.data) throw new Error('fixture');
+  vi.mocked(deps.port.prepare).mockResolvedValue({
+    ok: true,
+    data: { ...old.data, sourceKind: 'schedule' },
+  });
+  const result = await sendWebPushQueue(deps);
+  expect(result.ok && result.data.acceptedByPushService).toBe(1);
+  expect(
+    JSON.parse(vi.mocked(deps.channel.send).mock.calls[0]![0].payload),
+  ).toEqual({
+    version: 1,
+    notificationId: id,
+    kind: 'schedule_notice',
+    url: '/schedules',
+  });
+});

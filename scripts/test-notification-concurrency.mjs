@@ -228,8 +228,8 @@ async function identity(db, role = 'fan') {
   await db.query(`
     insert into auth.users(id,email,raw_user_meta_data)
       values ('${id}','notification-${id}@example.invalid','{}');
-    update public.profiles set call_name='Fictional notification user',
-      onboarding_completed_at=statement_timestamp(),role='${role}' where id='${id}';
+    update public.profiles set call_name='가상알림팬',
+      onboarding_completed_at=clock_timestamp(),role='${role}' where id='${id}';
   `);
   return id;
 }
@@ -298,15 +298,40 @@ async function messageJob(db, f) {
   return { sourceId, jobId };
 }
 
+// Upgrade only this fixture's legacy endpoint through the real session-bound
+// registration path. Message/payment legacy ABI cases above remain unchanged.
+async function bindScheduleDevice(db, f) {
+  const sessionId = uuid();
+  await db.query(`insert into auth.sessions(id,user_id,created_at,updated_at)
+    values('${sessionId}','${f.fanId}',clock_timestamp(),clock_timestamp());`);
+  assert.equal(
+    await execute(
+      db,
+      service(`select public.webpush_register_device('${f.fanId}','${sessionId}',
+        '${f.endpoint}',repeat('A',87),repeat('B',22),'fictional-consent-v1');`),
+    ),
+    f.deviceId,
+  );
+}
+
+const nextDaySchedule = `(((clock_timestamp() at time zone 'Asia/Seoul')::date+1)::timestamp
+  +interval '12 hours') at time zone 'Asia/Seoul'`;
+const queueSchedule = (sourceId) =>
+  service(
+    `select push_jobs from public.schedule_notice_create('${sourceId}');`,
+  );
+
 async function scheduleJob(db, f) {
+  await bindScheduleDevice(db, f);
   const sourceId = await execute(
     db,
     authenticated(
       f.adminId,
       `select public.schedule_create('${f.artistId}','event','Fictional reminder',
-      statement_timestamp()+interval '1 hour',p_status=>'published');`,
+      ${nextDaySchedule},p_status=>'published');`,
     ),
   );
+  assert.equal(await execute(db, queueSchedule(sourceId)), '1');
   const jobId = await db.query(`select id from private.notification_jobs
     where source_kind='schedule' and source_id='${sourceId}' and user_id='${f.fanId}' and device_id='${f.deviceId}';`);
   assert.match(jobId, /^[0-9a-f-]{36}$/);
@@ -328,7 +353,11 @@ async function testConcurrency(db) {
         10485760,20971520,104857600);
     insert into private.notification_policy(version,consent_version,webpush_enabled,
       max_attempts,retry_seconds,lease_seconds,schedule_lead_seconds)
-      values ('fictional-notification-v1','fictional-consent-v1',true,3,1,5,86400);
+      values ('fictional-notification-v1','fictional-consent-v1',true,3,1,30,86400);
+    insert into private.schedule_notice_policies(version,hour_kst,approved_at,published_at)
+      values ('c7100000-0000-4000-8000-000000000001',0,clock_timestamp(),clock_timestamp());
+    insert into private.schedule_notice_policy_current(policy_version)
+      values ('c7100000-0000-4000-8000-000000000001');
   `);
 
   // 1. A repeated registration is one device identity, even before first commit.
@@ -695,16 +724,17 @@ async function testConcurrency(db) {
   // 18. This exact interleave catches an implicit FK lock inversion that a pair
   // of completed RPC replays cannot find. Publication owns the schedule row;
   // opt-out then owns the recipient profile FOR UPDATE and waits on that row.
-  // The publication hook must not take a redundant recipient-profile KEY SHARE
-  // FK lock while inserting the outbox. Owner integrity remains guaranteed by
+  // Explicit approved next-day enqueue must not take a redundant profile KEY
+  // SHARE FK lock while inserting the outbox. Owner integrity remains guaranteed by
   // the composite (device_id,user_id) FK to the private device owner.
   const publicationFixture = await fixture(db);
+  await bindScheduleDevice(db, publicationFixture);
   const publicationSource = await execute(
     db,
     authenticated(
       publicationFixture.adminId,
       `select public.schedule_create('${publicationFixture.artistId}','event','Fictional unpublished event',
-        statement_timestamp()+interval '1 hour',p_status=>'draft');`,
+        ${nextDaySchedule},p_status=>'draft');`,
     ),
   );
   assert.equal(
@@ -733,10 +763,14 @@ async function testConcurrency(db) {
       `${authenticated(
         publicationFixture.adminId,
         `select public.schedule_update('${publicationSource}','event','Fictional published event',
-          statement_timestamp()+interval '1 hour',p_status=>'published');`,
-      )} commit;`,
+          ${nextDaySchedule},p_status=>'published');`,
+      )}`,
     );
     assert.equal(published, publicationSource);
+    assert.equal(
+      await publisher.query(`${queueSchedule(publicationSource)} commit;`),
+      '1',
+    );
     const optoutResult = await pendingOptout;
     assert.equal(optoutResult.error, undefined);
     assert.equal(optoutResult.value, 'f');
@@ -752,7 +786,7 @@ async function testConcurrency(db) {
     await Promise.all([publisher.close(), optingOut.close()]);
   }
   console.info(
-    'PASS: publication and opt-out avoid implicit recipient FK deadlock and claim honors committed opt-out',
+    'PASS: approved next-day queue and opt-out avoid implicit recipient FK deadlock and honor committed opt-out',
   );
 
   // 19. Stage the old sibling-job inversion, not merely two serialized calls.
@@ -977,6 +1011,7 @@ try {
   assert.equal(
     await db.query(`select
       (select count(*) from auth.users) +
+      (select count(*) from auth.sessions) +
       (select count(*) from public.profiles) +
       (select count(*) from public.artist_members) +
       (select count(*) from public.subscriptions) +
@@ -1005,6 +1040,9 @@ try {
       (select count(*) from private.point_policy) +
       (select count(*) from private.point_ledger) +
       (select count(*) from private.notification_policy) +
+      (select count(*) from private.schedule_notice_policies) +
+      (select count(*) from private.schedule_notice_policy_current) +
+      (select count(*) from private.schedule_notice_scan_cursor) +
       (select count(*) from private.notification_preferences) +
       (select count(*) from private.push_subscriptions) +
       (select count(*) from private.notification_jobs) +
