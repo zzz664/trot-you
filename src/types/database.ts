@@ -2597,6 +2597,52 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: string[];
       };
+      schedule_notice_candidates: {
+        Args: { p_limit?: number };
+        Returns: {
+          schedule_id: string;
+        }[];
+      };
+      schedule_notice_create: {
+        Args: { p_schedule_id: string };
+        Returns: {
+          created: boolean;
+          push_jobs: number;
+        }[];
+      };
+      schedule_notice_preferences: {
+        Args: { p_schedule_id?: string };
+        Returns: {
+          configured: boolean;
+          eligible: boolean;
+          event_enabled: boolean;
+          hour_kst: number;
+          schedule_enabled: boolean;
+          webpush_enabled: boolean;
+        }[];
+      };
+      schedule_notice_set_event: {
+        Args: { p_enabled: boolean; p_schedule_id: string };
+        Returns: {
+          configured: boolean;
+          eligible: boolean;
+          event_enabled: boolean;
+          hour_kst: number;
+          schedule_enabled: boolean;
+          webpush_enabled: boolean;
+        }[];
+      };
+      schedule_notice_set_preference: {
+        Args: { p_enabled: boolean };
+        Returns: {
+          configured: boolean;
+          eligible: boolean;
+          event_enabled: boolean;
+          hour_kst: number;
+          schedule_enabled: boolean;
+          webpush_enabled: boolean;
+        }[];
+      };
       schedule_set_notification: {
         Args: { p_enabled: boolean; p_schedule_id: string };
         Returns: boolean;

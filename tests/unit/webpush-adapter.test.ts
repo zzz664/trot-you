@@ -9,6 +9,7 @@ import {
 import { createServer, request } from 'node:http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WEBPUSH_PROTOCOL as P } from '@/config/webpush-protocol';
+import { routes } from '@/config/routes';
 import {
   createWebPushChannel,
   isAllowedWebPushEndpoint,
@@ -365,6 +366,75 @@ describe('Web Push RFC protocol', () => {
     ).toEqual({ outcome: 'permanent_failure' });
     expect(transport).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['billing_notice', routes.billingNotices],
+    ['schedule_notice', routes.schedules],
+  ])(
+    'encrypts only the exact supported %s payload through the real adapter without network',
+    async (kind, url) => {
+      const transport = vi
+        .fn()
+        .mockResolvedValue({ kind: 'response', status: 201 });
+      const channel = createWebPushChannelForTests(configuration, transport)!;
+      const payload = {
+        version: 1,
+        notificationId: JSON.parse(message.payload).notificationId,
+        kind,
+        url,
+      };
+      expect(
+        await channel.send({ ...message, payload: JSON.stringify(payload) }),
+      ).toEqual({ outcome: 'provider_accepted' });
+      expect(transport).toHaveBeenCalledTimes(1);
+      const captured = transport.mock.calls[0]![0] as WebPushHttpRequest;
+      expect(
+        JSON.parse(decryptIndependently(captured.body).toString()),
+      ).toEqual(payload);
+      expect(captured.body.includes(Buffer.from(kind))).toBe(false);
+      expect(Object.keys(payload)).toEqual([
+        'version',
+        'notificationId',
+        'kind',
+        'url',
+      ]);
+    },
+  );
+
+  it.each([
+    { kind: 'schedule_notice', url: routes.billingNotices },
+    { kind: 'billing_notice', url: routes.schedules },
+    { kind: 'schedule_notice', url: '/schedules/private-event' },
+    {
+      kind: 'schedule_notice',
+      url: routes.schedules,
+      artistId: 'private-artist',
+    },
+    {
+      kind: 'schedule_notice',
+      url: routes.schedules,
+      startsAt: 'private-time',
+    },
+    { kind: 'schedule_notice', url: routes.schedules, lat: 37.5 },
+    { kind: 'billing_notice', url: routes.billingNotices, amount: 6500 },
+    { url: routes.schedules },
+    { url: routes.billingNotices },
+  ])(
+    'rejects mismatched routes and extra notice metadata %# before transport',
+    async (extra) => {
+      const transport = vi.fn();
+      const channel = createWebPushChannelForTests(configuration, transport)!;
+      const payload = JSON.stringify({
+        version: 1,
+        notificationId: JSON.parse(message.payload).notificationId,
+        ...extra,
+      });
+      expect(await channel.send({ ...message, payload })).toEqual({
+        outcome: 'permanent_failure',
+      });
+      expect(transport).not.toHaveBeenCalled();
+    },
+  );
 
   it('does not retry, retain raw error text, or turn uncertain transport errors into success', async () => {
     const transport = vi

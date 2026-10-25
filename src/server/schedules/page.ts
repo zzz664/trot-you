@@ -7,11 +7,12 @@ import { createAuthContext } from '@/server/auth/context';
 import { readSession } from '@/server/services/auth/session';
 import { isRestricted } from '@/server/services/auth/access';
 
-// Only a session mount key enters RSC. Membership and draft events are fetched
-// with no-store and current authority, including browser history restoration.
+// RSC carries a session mount key and a presentation-only role hint, never
+// membership or event snapshots. APIs and DB recheck current authority, including
+// browser history restoration; the hint does not grant notification access.
 export async function getSchedulePage(
   admin = false,
-): Promise<ScheduleResult<{ key: string }>> {
+): Promise<ScheduleResult<{ key: string; canConfigureNotices: boolean }>> {
   const context = createAuthContext((await cookies()).getAll());
   const state = await readSession(context.port);
   if (state.status === 'anonymous') redirect(routes.start);
@@ -24,5 +25,11 @@ export async function getSchedulePage(
     return { ok: false, code: 'FORBIDDEN' };
   if (state.profile.role === 'fan' && !state.profile.onboarding_completed_at)
     redirect(routes.onboarding);
-  return { ok: true, data: { key: state.profile.id } };
+  return {
+    ok: true,
+    data: {
+      key: state.profile.id,
+      canConfigureNotices: state.profile.role === 'fan',
+    },
+  };
 }

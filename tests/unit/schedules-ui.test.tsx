@@ -44,6 +44,10 @@ const mock = vi.hoisted(() => ({
   push: vi.fn(),
   refresh: vi.fn(),
   navigate: vi.fn(),
+  notices: vi.fn(),
+}));
+vi.mock('@/client/schedule-notices', () => ({
+  fetchScheduleNoticePreferences: mock.notices,
 }));
 vi.mock('@/client/schedules', () => ({
   fetchSchedules: mock.list,
@@ -111,6 +115,16 @@ beforeEach(() => {
     configurable: true,
     value: 'visible',
   });
+  mock.notices.mockImplementation(async (id: string | null) =>
+    ok({
+      scheduleEnabled: false,
+      eventEnabled: id === null ? null : true,
+      eligible: id === null ? null : true,
+      webpushEnabled: false,
+      configured: false,
+      hourKst: null,
+    }),
+  );
   mock.list.mockResolvedValue(
     ok({
       month: '2026-10',
@@ -714,6 +728,64 @@ it.each(['restore', 'actor switch'] as const)(
         screen.queryByRole('button', { name: copy.retryOperation }),
       ).not.toBeInTheDocument();
       expect(mock.save).toHaveBeenCalledTimes(1);
+    }
+  },
+);
+
+it.each([false, true])(
+  'public list renders fan-only controls iff safe hint is %s',
+  async (canConfigureNotices) => {
+    const path = routes.schedules;
+    window.history.replaceState({}, '', path);
+    render(
+      wrapper(
+        <SchedulesScreen
+          query={{ month: '2026-10', cursor: null }}
+          path={path}
+          canConfigureNotices={canConfigureNotices}
+        />,
+      ),
+    );
+    await screen.findByTestId('schedule-calendar');
+    if (canConfigureNotices) {
+      expect(
+        await screen.findByTestId('schedule-notice-controls'),
+      ).toBeVisible();
+      await waitFor(() => expect(mock.notices).toHaveBeenCalled());
+    } else {
+      expect(
+        screen.queryByTestId('schedule-notice-controls'),
+      ).not.toBeInTheDocument();
+      expect(mock.notices).not.toHaveBeenCalled();
+    }
+  },
+);
+it.each([false, true])(
+  'public detail renders fan-only controls iff safe hint is %s',
+  async (canConfigureNotices) => {
+    const path = scheduleDetailPath(scheduleEvent.id);
+    window.history.replaceState({}, '', path);
+    render(
+      wrapper(
+        <ScheduleDetailScreen
+          id={scheduleEvent.id}
+          month={null}
+          path={path}
+          canConfigureNotices={canConfigureNotices}
+        />,
+      ),
+    );
+    await screen.findByRole('heading', { name: scheduleEvent.title });
+    if (canConfigureNotices) {
+      expect(
+        await screen.findByTestId('schedule-notice-controls'),
+      ).toBeVisible();
+      await waitFor(() => expect(mock.notices).toHaveBeenCalled());
+    } else {
+      expect(
+        screen.queryByTestId('schedule-notice-controls'),
+      ).not.toBeInTheDocument();
+      expect(mock.notices).not.toHaveBeenCalled();
     }
   },
 );

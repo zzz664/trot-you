@@ -10,7 +10,7 @@ const notificationIdPattern =
 /** Neither remote copy nor an arbitrary destination enters the system UI. */
 export function notificationOptions(raw: string | null): NotificationOptions {
   let id: string | null = null;
-  let billing = false;
+  let kind: 'message' | 'billing_notice' | 'schedule_notice' = 'message';
   if (raw && raw.length <= WEBPUSH_CLIENT.payloadLimit) {
     try {
       const payload: unknown = JSON.parse(raw);
@@ -26,26 +26,44 @@ export function notificationOptions(raw: string | null): NotificationOptions {
         (payload.url === routes.subscriptions ||
           (payload.url === routes.billingNotices &&
             'kind' in payload &&
-            payload.kind === 'billing_notice'))
+            payload.kind === 'billing_notice') ||
+          (payload.url === routes.schedules &&
+            'kind' in payload &&
+            payload.kind === 'schedule_notice'))
       ) {
         id = payload.notificationId;
-        billing = payload.url === routes.billingNotices;
+        kind =
+          payload.url === routes.billingNotices
+            ? 'billing_notice'
+            : payload.url === routes.schedules
+              ? 'schedule_notice'
+              : 'message';
       }
     } catch {
       // A malformed or empty push still gets a generic, user-visible notice.
     }
   }
   return {
-    body: billing
-      ? messages.billingNotices.pushBody
-      : messages.notifications.pushBody,
+    body:
+      kind === 'billing_notice'
+        ? messages.billingNotices.pushBody
+        : kind === 'schedule_notice'
+          ? messages.scheduleNotices.pushBody
+          : messages.notifications.pushBody,
     icon: PWA.icon192,
     badge: PWA.icon192,
     tag: id
       ? `${WEBPUSH_CLIENT.notificationTagPrefix}${id}`
       : WEBPUSH_CLIENT.fallbackNotificationTag,
     // No endpoint, account, artist, content or authorization data is persisted.
-    data: { url: billing ? routes.billingNotices : routes.subscriptions },
+    data: {
+      url:
+        kind === 'billing_notice'
+          ? routes.billingNotices
+          : kind === 'schedule_notice'
+            ? routes.schedules
+            : routes.subscriptions,
+    },
   };
 }
 
@@ -70,8 +88,8 @@ export async function openWebPush(
     data !== null &&
     typeof data === 'object' &&
     'url' in data &&
-    data.url === routes.billingNotices
-      ? routes.billingNotices
+    (data.url === routes.billingNotices || data.url === routes.schedules)
+      ? data.url
       : routes.subscriptions;
   const destination = new URL(path, origin).href;
   const windows = await clients.matchAll({

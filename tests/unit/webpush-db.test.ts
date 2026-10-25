@@ -409,7 +409,7 @@ describe('logout revokes current authenticated push session', () => {
   });
 });
 
-it.each([undefined, 'payment', 'schedule', 'unknown'])(
+it.each([undefined, 'payment', 'schedule_notice', 'unknown'])(
   'new delivery discriminator rejects unsupported source %# before transport',
   async (source_kind) => {
     rpc.mockResolvedValue({
@@ -451,5 +451,27 @@ it('billing notice discriminator is the only added delivery field; source price 
       ...subscription.keys,
       sourceKind: 'billing_notice',
     },
+  });
+});
+
+it('approved schedule discriminator forwards no event identity or location into the transport layer', async () => {
+  rpc.mockResolvedValue({
+    data: [
+      {
+        ...rawLease,
+        endpoint,
+        ...subscription.keys,
+        source_kind: 'schedule',
+        schedule_id: 'private-event',
+        lat: 37.5,
+        artist_name: 'private-artist',
+        starts_at: 'private-time',
+      },
+    ],
+    error: null,
+  });
+  expect(await createWebPushQueuePort(client).prepare(lease)).toEqual({
+    ok: true,
+    data: { ...lease, endpoint, ...subscription.keys, sourceKind: 'schedule' },
   });
 });

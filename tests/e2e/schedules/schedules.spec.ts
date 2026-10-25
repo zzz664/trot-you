@@ -1,3 +1,4 @@
+import { observeScheduleSave } from './response-capture';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import type { APIResponse, Locator, Page } from '@playwright/test';
@@ -916,13 +917,15 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       await expect(publish).toHaveCount(0);
       await expect(page).toHaveURL(adminSchedulePath('new'));
       await button(form, copy.createSave).click();
-      const response = page.waitForResponse(
-        (response) =>
-          response.request().method() === 'POST' &&
-          new URL(response.url()).pathname === adminScheduleApiPath('save'),
+      const saved = await observeScheduleSave(
+        page,
+        adminScheduleApiPath('save'),
+        async (response) => adminScheduleSchema.parse(await success(response)),
       );
-      await button(publish, copy.publishConfirm).click();
-      const created = adminScheduleSchema.parse(await success(await response));
+      const [, created] = await Promise.all([
+        button(publish, copy.publishConfirm).click(),
+        saved.result,
+      ]);
       await expect(page).toHaveURL(adminSchedulePath(created.id));
       await expect(
         main(page).getByRole('heading', { name: copy.editTitle, exact: true }),

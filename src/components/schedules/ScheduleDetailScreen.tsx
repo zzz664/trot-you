@@ -13,17 +13,20 @@ import { Card } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
 import { InlineError } from '@/components/ui/InlineError';
 import { useScheduleResource } from './useScheduleResource';
+import { ScheduleNoticeControls } from '@/components/schedule-notices/ScheduleNoticeControls';
 import styles from './schedules.module.css';
 export function ScheduleDetailScreen({
   id,
   month,
   path,
   actorKey,
+  canConfigureNotices = false,
 }: {
   id: string;
   month: string | null;
   path: string;
   actorKey?: string;
+  canConfigureNotices?: boolean;
 }) {
   const t = useTranslations('schedules');
   const format = useFormatter();
@@ -127,7 +130,13 @@ export function ScheduleDetailScreen({
               <p>{t('mapUnavailable')}</p>
             )}
           </section>
-          <p className="ui-hint">{t('noticesLater')}</p>
+          {canConfigureNotices && (
+            <ScheduleNoticeControls
+              scheduleId={id}
+              path={path}
+              actorKey={actorKey}
+            />
+          )}
         </>
       )}
     </main>

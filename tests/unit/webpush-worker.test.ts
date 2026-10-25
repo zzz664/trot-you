@@ -177,3 +177,51 @@ it('a billing URL without its supported source discriminator is not trusted', ()
     tag: WEBPUSH_CLIENT.fallbackNotificationTag,
   });
 });
+
+it('schedule notice displays generic local copy and opens only the fixed current-account calendar', async () => {
+  const options = notificationOptions(
+    JSON.stringify({
+      version: 1,
+      notificationId: id,
+      kind: 'schedule_notice',
+      url: routes.schedules,
+      title: 'private-event',
+      lat: 37.5,
+      startsAt: 'private-time',
+    }),
+  );
+  expect(options).toMatchObject({
+    body: messages.scheduleNotices.pushBody,
+    data: { url: routes.schedules },
+  });
+  expect(JSON.stringify(options)).not.toMatch(
+    /private-event|37.5|private-time/,
+  );
+  const openWindow = vi.fn();
+  await openWebPush(
+    {
+      matchAll: vi.fn().mockResolvedValue([]),
+      openWindow,
+    } as unknown as Clients,
+    'https://app.example',
+    options.data,
+  );
+  expect(openWindow).toHaveBeenCalledWith(
+    `https://app.example${routes.schedules}`,
+  );
+});
+it.each([
+  { url: routes.schedules },
+  { kind: 'billing_notice', url: routes.schedules },
+  { kind: 'schedule_notice', url: '/schedules/private-id' },
+])('does not trust a mismatched schedule destination %#', (payload) => {
+  expect(
+    notificationOptions(
+      JSON.stringify({ version: 1, notificationId: id, ...payload }),
+    ),
+  ).toMatchObject({
+    body: messages.notifications.pushBody,
+    data: { url: routes.subscriptions },
+    tag: WEBPUSH_CLIENT.fallbackNotificationTag,
+  });
+});

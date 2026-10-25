@@ -21,11 +21,22 @@ import type {
   WebPushTransport,
 } from './types';
 
-const payloadSchema = z.strictObject({
-  version: z.literal(1),
-  notificationId: z.uuid(),
-  url: z.literal(routes.subscriptions),
-});
+const identity = { version: z.literal(1), notificationId: z.uuid() };
+// Exact paired discriminators and fixed local routes only. No user/artist/event
+// metadata, schedule times, coordinates, arbitrary copy or remote destinations.
+const payloadSchema = z.union([
+  z.strictObject({ ...identity, url: z.literal(routes.subscriptions) }),
+  z.strictObject({
+    ...identity,
+    kind: z.literal('billing_notice'),
+    url: z.literal(routes.billingNotices),
+  }),
+  z.strictObject({
+    ...identity,
+    kind: z.literal('schedule_notice'),
+    url: z.literal(routes.schedules),
+  }),
+]);
 
 function retryDelay(value: string | undefined, now: number) {
   if (!value) return undefined;

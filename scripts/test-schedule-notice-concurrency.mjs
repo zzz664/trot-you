@@ -341,6 +341,59 @@ async function run(db) {
       'PASS: concurrent explicit global saves are idempotent and preserve other preference fields',
     );
   }
+  // Source fanout never takes recipient profile locks (that would invert the
+  // source -> profile order against an event optout). Global disable cancels
+  // its captured committed set; a concurrent insert can retain queued state.
+  // Final current-consent checks decide that late work, not a fictional recall.
+  for (const claimWhileDisabled of [false, true]) {
+    const f = await fixture(db, false);
+    const disabling = await session('global-disable-phantom-owner');
+    const enqueuing = await session('global-disable-phantom-source');
+    try {
+      assert.equal(
+        await disabling.query(`begin; ${globalPreference(f, false)}`),
+        'f',
+      );
+      // The global disable is still uncommitted. Queueing intentionally sees
+      // the previously committed consent and must finish without a lock cycle.
+      assert.equal(await enqueuing.query(`begin; ${create(f)} commit;`), '1');
+      f.jobId = await db.query(
+        `select id from private.notification_jobs where source_id='${f.eventId}';`,
+      );
+      await disabling.query('commit;');
+      assert.equal(
+        await db.query(
+          `select state from private.notification_jobs where id='${f.jobId}';`,
+        ),
+        'queued',
+      );
+      if (claimWhileDisabled) {
+        assert.equal(await db.query(`begin; ${claim(f)} commit;`), '0');
+        assert.equal(
+          await db.query(
+            `select state from private.notification_jobs where id='${f.jobId}';`,
+          ),
+          'canceled',
+        );
+      }
+      assert.equal(
+        await db.query(`begin; ${globalPreference(f, true)} commit;`),
+        't',
+      );
+      assert.equal(
+        await db.query(`begin; ${claim(f)} commit;`),
+        claimWhileDisabled ? '0' : '1',
+      );
+      assert.equal(await db.query(`begin; ${create(f)} commit;`), '0');
+      console.info(
+        claimWhileDisabled
+          ? 'PASS: a late concurrent global-disable job is canceled by disabled claim and explicit re-enable cannot resurrect it'
+          : 'PASS: a late concurrent global-disable job remains subject to current consent and can claim only after explicit re-enable',
+      );
+    } finally {
+      await Promise.all([disabling.close(), enqueuing.close()]);
+    }
+  }
   const fences = [
     ['event-optout', (f) => eventPreference(f, false)],
     ['global-optout', (f) => globalPreference(f, false)],

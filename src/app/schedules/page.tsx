@@ -23,6 +23,7 @@ export default async function Page({
     <SchedulesScreen
       key={`${identity.data.key}:${path}`}
       actorKey={identity.data.key}
+      canConfigureNotices={identity.data.canConfigureNotices}
       query={query.data}
       path={path}
     />
