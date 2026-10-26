@@ -115,6 +115,9 @@ export async function getArtistPreviewPage(
           ...result.data,
           selectedSlug: interest.data.selectedSlug,
           onboarding: session.profile.onboarding_completed_at === null,
+          ...(session.profile.onboarding_completed_at
+            ? { observationActorId: session.profile.id }
+            : {}),
         },
       }
     : result;

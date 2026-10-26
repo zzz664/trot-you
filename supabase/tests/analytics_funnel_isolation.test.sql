@@ -1,0 +1,13 @@
+begin isolation level repeatable read;
+create extension if not exists pgtap with schema extensions;
+set local search_path=public,extensions;
+select no_plan();
+set local role authenticated;
+select throws_ok($$select public.admin_analytics_dashboard(current_date,current_date)$$,'25001','ANALYTICS_DASHBOARD_ISOLATION_UNSUPPORTED','dashboard rejects stale repeatable read authority');
+reset role;
+set local role service_role;
+select throws_ok($$select public.analytics_capture_server(gen_random_uuid(),gen_random_uuid(),'signup_complete')$$,'25001','ANALYTICS_CAPTURE_ISOLATION_UNSUPPORTED','prospective capture rejects stale repeatable read consent');
+select throws_ok($$select public.analytics_record_cancellation(gen_random_uuid(),gen_random_uuid())$$,'25001','ANALYTICS_CAPTURE_ISOLATION_UNSUPPORTED','cancellation capture rejects stale repeatable read source authority');
+reset role;
+select * from finish();
+rollback;

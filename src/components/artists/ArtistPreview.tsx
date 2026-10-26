@@ -6,6 +6,8 @@ import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SecureMedia } from '@/components/media/SecureMedia';
+import { ANALYTICS_PREVIEW_SOURCE_ATTRIBUTE } from '@/config/analytics';
+import { usePreviewObservations } from './usePreviewObservations';
 import type { ArtistPreviewData } from '@/config/artists';
 import { checkoutPath, routes } from '@/config/routes';
 import { ArtistSelectionFeedback } from './ArtistSelectionFeedback';
@@ -15,8 +17,10 @@ export function ArtistPreview({ data }: { data: ArtistPreviewData }) {
   const t = useTranslations('artists');
   const checkoutCopy = useTranslations('checkout');
   const selection = useArtistSelection();
+  const observationElement = usePreviewObservations(data);
   return (
     <main
+      ref={observationElement}
       className="app-shell artist-shell"
       aria-busy={selection.busy || undefined}
     >
@@ -45,7 +49,10 @@ export function ArtistPreview({ data }: { data: ArtistPreviewData }) {
       ) : (
         <ol className="artist-message-list">
           {data.messages.map((message) => (
-            <li key={message.id}>
+            <li
+              key={message.id}
+              {...{ [ANALYTICS_PREVIEW_SOURCE_ATTRIBUTE]: message.id }}
+            >
               <Card title={t(`messageKinds.${message.kind}`)}>
                 {message.text && <p className="artist-copy">{message.text}</p>}
                 {message.media.map((media, index) =>

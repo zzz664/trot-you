@@ -78,7 +78,7 @@ beforeEach(() => {
   mock.port.mockReturnValue({ actorAnalyticsPort: true });
   mock.track.mockResolvedValue({ ok: true, data: null });
 });
-describe('voice-only analytics POST', () => {
+describe('documented client-observation analytics POST', () => {
   it('routes parsed fields through authenticated DB capability with private response headers', async () => {
     const request = post();
     const response = await POST(request);
@@ -96,6 +96,16 @@ describe('voice-only analytics POST', () => {
       expect(response.headers.get(key)).toBe(value);
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
     expect(response.headers.get('x-cookie-applied')).toBe('yes');
+  });
+  it('accepts only the minimal message-open source and stable key', async () => {
+    const value = {
+      event_key: actor,
+      name: AnalyticsEvent.MESSAGE_OPEN,
+      properties: { source_id: actor },
+    };
+    const response = await analyticsPost(post(value));
+    expect(response.status).toBe(200);
+    expect(mock.track.mock.calls[0]?.[1]).toEqual(value);
   });
   it.each([
     null,
@@ -132,7 +142,7 @@ describe('voice-only analytics POST', () => {
     {
       ...body,
       name: AnalyticsEvent.MESSAGE_OPEN,
-      properties: { source_id: actor },
+      properties: { source_id: 'invalid' },
     },
     { ...body, name: AnalyticsEvent.SUBSCRIBE_COMPLETE },
     { ...body, user_id: actor },
@@ -142,7 +152,7 @@ describe('voice-only analytics POST', () => {
     { ...body, properties: { voice_context: 'reply', audio: 'bytes' } },
     { ...body, properties: { voice_context: 'reply', duration: 1 } },
   ])(
-    'rejects non-voice or nonminimal body without collection %j',
+    'rejects non-client or nonminimal body without collection %j',
     async (value) => {
       const response = await analyticsPost(post(value));
       expect(response.status).toBe(400);

@@ -5,6 +5,8 @@ import {
   MANAGEMENT_HTTP_OK,
   type ManagementResult,
 } from '@/config/subscription-management';
+import { captureCancellation } from '@/server/services/analytics/capture';
+import { getAnalyticsCapturePort } from '@/server/analytics/capture';
 import { createAuthContext } from '@/server/auth/context';
 import { createManagementDbPort } from '@/server/db/subscription-management';
 import { isRestricted, isSameOriginPost } from '@/server/services/auth/access';
@@ -63,7 +65,19 @@ export async function managementPost(request: NextRequest, action: Action) {
     return respond({ ok: false, code: 'INVALID_INPUT' });
   }
   const db = createManagementDbPort(context.client);
-  if (action === 'cancel') return respond(await cancelSubscription(db, body));
+  if (action === 'cancel') {
+    const result = await cancelSubscription(db, body);
+    if (result.ok && result.data.status === 'canceled')
+      await captureCancellation(
+        getAnalyticsCapturePort(),
+        {
+          actor_id: state.profile.id,
+          subscription_id: result.data.id,
+        },
+        request.signal,
+      );
+    return respond(result);
+  }
   if (action === 'request') return respond(await requestRefund(db, body));
   const enabled = refundExecutionEnabled();
   if (action === 'authorize')

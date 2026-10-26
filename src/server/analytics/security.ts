@@ -1,11 +1,13 @@
 import 'server-only';
+import type { z } from 'zod';
+import { clientAnalyticsEventSchema } from '@/config/analytics-events';
 import {
   ANALYTICS_BODY_LIMIT,
   ANALYTICS_BODY_TIMEOUT_MS,
-  voiceInputEventSchema,
+  previewAnalyticsSchema,
 } from '@/config/analytics';
 
-export async function analyticsBody(request: Request) {
+async function readBody<T>(request: Request, schema: z.ZodType<T>) {
   if (
     request.signal.aborted ||
     request.headers.get('content-type')?.split(';')[0]?.trim() !==
@@ -41,7 +43,7 @@ export async function analyticsBody(request: Request) {
       text += decoder.decode(value, { stream: true });
     }
     text += decoder.decode();
-    const parsed = voiceInputEventSchema.safeParse(JSON.parse(text));
+    const parsed = schema.safeParse(JSON.parse(text));
     return parsed.success ? parsed.data : null;
   };
   try {
@@ -53,4 +55,11 @@ export async function analyticsBody(request: Request) {
     request.signal.removeEventListener('abort', cancelled);
     reader.releaseLock();
   }
+}
+
+export function analyticsBody(request: Request) {
+  return readBody(request, clientAnalyticsEventSchema);
+}
+export function previewAnalyticsBody(request: Request) {
+  return readBody(request, previewAnalyticsSchema);
 }

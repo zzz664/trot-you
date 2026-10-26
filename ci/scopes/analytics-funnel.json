@@ -1,0 +1,252 @@
+{
+  "version": 1,
+  "id": "analytics-funnel",
+  "base": "abb259d384e9461e7cc9817d2e1af93b1c7d1ca6",
+  "covers": [
+    ".github/workflows/ci.yml",
+    "AGENTS.md",
+    "ci/scopes/analytics-funnel.json",
+    "docs/operations/analytics-funnel.md",
+    "docs/operations/ci-impact.md",
+    "docs/work-log/2026-10-26-analytics-funnel.md",
+    "eslint.config.mjs",
+    "package.json",
+    "playwright.analytics-funnel.config.ts",
+    "playwright.config.ts",
+    "scripts/analytics-funnel-local-ci.mjs",
+    "scripts/analytics-funnel-local-config.d.mts",
+    "scripts/analytics-funnel-local-config.mjs",
+    "scripts/analytics-funnel-local-config.test.mjs",
+    "scripts/ci-impact-git.test.mjs",
+    "scripts/ci-impact-registry.mjs",
+    "scripts/ci-impact.mjs",
+    "scripts/ci-impact.test.mjs",
+    "scripts/ci-required.mjs",
+    "scripts/ci-required.test.mjs",
+    "scripts/ci-run-selected.mjs",
+    "scripts/ci-run-selected.test.mjs",
+    "scripts/ci-workflow.test.mjs",
+    "scripts/test-analytics-funnel-concurrency.mjs",
+    "scripts/test-analytics-funnel-upgrade.mjs",
+    "src/app/admin/analytics/page.tsx",
+    "src/app/api/admin/analytics/route.ts",
+    "src/app/api/analytics/preview/route.ts",
+    "src/client/analytics-funnel.ts",
+    "src/client/analytics.ts",
+    "src/components/analytics-funnel/AnalyticsFunnelEntry.tsx",
+    "src/components/analytics-funnel/AnalyticsFunnelErrorScreen.tsx",
+    "src/components/analytics-funnel/AnalyticsFunnelScreen.tsx",
+    "src/components/analytics-funnel/analytics-funnel.module.css",
+    "src/components/analytics-funnel/useAnalyticsFunnel.ts",
+    "src/components/artists/ArtistPreview.tsx",
+    "src/components/artists/usePreviewObservations.ts",
+    "src/components/auth/SessionPage.tsx",
+    "src/config/analytics-funnel.ts",
+    "src/config/analytics.ts",
+    "src/config/artists.ts",
+    "src/config/routes.ts",
+    "src/messages/ko.json",
+    "src/server/analytics-funnel/http.ts",
+    "src/server/analytics-funnel/page.ts",
+    "src/server/analytics/capture.ts",
+    "src/server/analytics/preview-http.ts",
+    "src/server/analytics/security.ts",
+    "src/server/artists/page.ts",
+    "src/server/chat/http.ts",
+    "src/server/db/analytics-capture.ts",
+    "src/server/db/analytics-funnel.ts",
+    "src/server/db/analytics.ts",
+    "src/server/enrollment/dependencies.ts",
+    "src/server/install/http.ts",
+    "src/server/reconciliation/dependencies.ts",
+    "src/server/reconciliation/enrollment.ts",
+    "src/server/renewal/dependencies.ts",
+    "src/server/replies/http.ts",
+    "src/server/services/analytics-funnel/read.ts",
+    "src/server/services/analytics/capture.ts",
+    "src/server/services/analytics/payment-observations.ts",
+    "src/server/subscription-management/http.ts",
+    "src/types/database.ts",
+    "supabase/migrations/20261026000038_analytics_funnel.sql",
+    "supabase/tests/analytics_capture.test.sql",
+    "supabase/tests/analytics_funnel.test.sql",
+    "supabase/tests/analytics_funnel_isolation.test.sql",
+    "supabase/tests/analytics_funnel_serializable.test.sql",
+    "tests/e2e/analytics-funnel-unconfigured.spec.ts",
+    "tests/e2e/analytics-funnel/analytics-funnel.spec.ts",
+    "tests/e2e/analytics-funnel/external-guard.ts",
+    "tests/e2e/analytics-funnel/fixtures.ts",
+    "tests/e2e/analytics-funnel/screenshot-capture.ts",
+    "tests/e2e/analytics-funnel/source-fixture.ts",
+    "tests/unit/analytics-capture-client.test.ts",
+    "tests/unit/analytics-capture-db.test.ts",
+    "tests/unit/analytics-capture-factory.test.ts",
+    "tests/unit/analytics-capture-fixtures.ts",
+    "tests/unit/analytics-capture-payments.test.ts",
+    "tests/unit/analytics-capture-preview-http.test.ts",
+    "tests/unit/analytics-capture-preview-ui.test.tsx",
+    "tests/unit/analytics-capture-service.test.ts",
+    "tests/unit/analytics-db.test.ts",
+    "tests/unit/analytics-funnel-client.test.ts",
+    "tests/unit/analytics-funnel-db.test.ts",
+    "tests/unit/analytics-funnel-external-guard.test.ts",
+    "tests/unit/analytics-funnel-fixtures.ts",
+    "tests/unit/analytics-funnel-http.test.ts",
+    "tests/unit/analytics-funnel-page.test.ts",
+    "tests/unit/analytics-funnel-pages.test.tsx",
+    "tests/unit/analytics-funnel-routes.test.ts",
+    "tests/unit/analytics-funnel-service.test.ts",
+    "tests/unit/analytics-funnel-source-fixture.test.ts",
+    "tests/unit/analytics-funnel-ui.test.tsx",
+    "tests/unit/analytics-funnel-upgrade-contract.test.ts",
+    "tests/unit/analytics-http.test.ts",
+    "tests/unit/artists-page.test.ts",
+    "tests/unit/chat-http.test.ts",
+    "tests/unit/install-http.test.ts",
+    "tests/unit/lint-boundaries.test.ts",
+    "tests/unit/renewal-dependencies.test.ts",
+    "tests/unit/reply-http.test.ts",
+    "tests/unit/subscription-management-http.test.ts"
+  ],
+  "reason": "Feature39 analytics capture, current-consent aggregation and dashboard; strict changed-work CI policy correction. This manifest is valid only for this work baseline, not a reusable permission to run unrelated historical suites.",
+  "selection": {
+    "unit": [
+      "tests/unit/analytics-capture-client.test.ts",
+      "tests/unit/analytics-capture-db.test.ts",
+      "tests/unit/analytics-capture-factory.test.ts",
+      "tests/unit/analytics-capture-payments.test.ts",
+      "tests/unit/analytics-capture-preview-http.test.ts",
+      "tests/unit/analytics-capture-preview-ui.test.tsx",
+      "tests/unit/analytics-capture-service.test.ts",
+      "tests/unit/analytics-client.test.ts",
+      "tests/unit/analytics-db.test.ts",
+      "tests/unit/analytics-events.test.ts",
+      "tests/unit/analytics-funnel-client.test.ts",
+      "tests/unit/analytics-funnel-db.test.ts",
+      "tests/unit/analytics-funnel-external-guard.test.ts",
+      "tests/unit/analytics-funnel-http.test.ts",
+      "tests/unit/analytics-funnel-page.test.ts",
+      "tests/unit/analytics-funnel-pages.test.tsx",
+      "tests/unit/analytics-funnel-routes.test.ts",
+      "tests/unit/analytics-funnel-service.test.ts",
+      "tests/unit/analytics-funnel-source-fixture.test.ts",
+      "tests/unit/analytics-funnel-ui.test.tsx",
+      "tests/unit/analytics-funnel-upgrade-contract.test.ts",
+      "tests/unit/analytics-http.test.ts",
+      "tests/unit/analytics-security.test.ts",
+      "tests/unit/analytics-service.test.ts",
+      "tests/unit/artists-page.test.ts",
+      "tests/unit/chat-http.test.ts",
+      "tests/unit/enrollment-http.test.ts",
+      "tests/unit/install-http.test.ts",
+      "tests/unit/lint-boundaries.test.ts",
+      "tests/unit/reconciliation-dependencies.test.ts",
+      "tests/unit/reconciliation-http.test.ts",
+      "tests/unit/renewal-dependencies.test.ts",
+      "tests/unit/reply-http.test.ts",
+      "tests/unit/subscription-management-http.test.ts"
+    ],
+    "fixtures": [
+      "scripts/analytics-funnel-local-config.test.mjs",
+      "scripts/ci-impact-git.test.mjs",
+      "scripts/ci-impact.test.mjs",
+      "scripts/ci-required.test.mjs",
+      "scripts/ci-run-selected.test.mjs",
+      "scripts/ci-workflow.test.mjs"
+    ],
+    "sql": [
+      "supabase/tests/analytics_capture.test.sql",
+      "supabase/tests/analytics_funnel.test.sql",
+      "supabase/tests/analytics_funnel_isolation.test.sql",
+      "supabase/tests/analytics_funnel_serializable.test.sql",
+      "supabase/tests/analytics_lifecycle.test.sql",
+      "supabase/tests/analytics_security.test.sql"
+    ],
+    "races": [
+      "scripts/test-analytics-concurrency.mjs",
+      "scripts/test-analytics-funnel-concurrency.mjs"
+    ],
+    "upgrades": ["scripts/test-analytics-funnel-upgrade.mjs"],
+    "typecheck": true,
+    "browser": {
+      "analytics-funnel-browser": [
+        {
+          "file": "tests/e2e/analytics-funnel/analytics-funnel.spec.ts"
+        }
+      ],
+      "quality": [
+        {
+          "file": "tests/e2e/analytics-funnel-unconfigured.spec.ts",
+          "grep": "(?:^| )keyless analytics dashboard fails closed without fabricated counts or business metrics$"
+        }
+      ],
+      "enrollment-browser": [
+        {
+          "file": "tests/e2e/enrollment/enrollment.spec.ts",
+          "grep": "(?:^| )(?:(?:duplicate callbacks and concurrent confirm POSTs settle one first charge)|(?:toss_card_billing definitive decline grants no paid access and is not automatically retried)|(?:charge\\-response\\-lost stays held and reconciliation never recharges))$"
+        }
+      ],
+      "renewal-browser": [
+        {
+          "file": "tests/e2e/renewal/renewal.spec.ts",
+          "grep": "(?:^| )(?:(?:toss_card_billing renewal at normal uses regular price once and preserves paid access))$"
+        }
+      ],
+      "reconciliation-browser": [
+        {
+          "file": "tests/e2e/reconciliation/reconciliation.spec.ts",
+          "grep": "(?:^| )(?:(?:toss_card_billing lost initial response query recovery and read\\-only admin at normal))$"
+        }
+      ],
+      "cancellation-browser": [
+        {
+          "file": "tests/e2e/cancellation/cancellation.spec.ts",
+          "grep": "(?:^| )(?:(?:restricted owner can still stop charging; another fan cannot access or authorize the request))$"
+        }
+      ],
+      "chat-browser": [
+        {
+          "file": "tests/e2e/chat/chat.spec.ts",
+          "grep": "(?:^| )(?:(?:read replay is idempotent and count comes from authenticated database rows))$"
+        }
+      ],
+      "reply-browser": [
+        {
+          "file": "tests/e2e/replies/replies.spec.ts",
+          "grep": "(?:^| )(?:(?:real send and replay keep one immutable reply and reject changed operation bindings))$"
+        }
+      ],
+      "auth-browser": [
+        {
+          "file": "tests/e2e/authenticated/pwa-onboarding.spec.ts",
+          "grep": "(?:^| )(?:(?:parallel repeated completion preserves the original timestamp and cannot create paid access))$"
+        }
+      ]
+    }
+  },
+  "reasons": {
+    "unit": "All 24 analytics test files directly cover the changed schemas, capture adapters/services, actor-bound HTTP/UI, current consent, source proof and migration. Ten direct changed-entrypoint contracts cover artists preview DTO, chat/read, reply/send, install completion, enrollment/renewal/reconciliation composition and cancellation; lint-boundaries covers edited ESLint boundaries. No full unit directory is selected.",
+    "fixtures": "Only the new analytics isolated fixture/discovery guard and the edited CI planner, Git provenance, aggregate, workflow and exact-file runner contracts. Existing unrelated fixture matrices are not selected.",
+    "sql": "Six analytics files only: four new capture/dashboard/isolation files plus the existing analytics consent/lifecycle/security source contracts. New capture tests already exercise source ownership, chronology and finance proof; no historical source-feature SQL chains are selected.",
+    "races": "Two analytics scripts only: existing consent/dedupe source contract plus new current-authority/current-consent aggregate and capture lock interleavings.",
+    "upgrades": "Only populated migration37→38 verifies new analytics storage and unchanged predecessor state. Earlier unrelated upgrades are not rerun.",
+    "browser.analytics-funnel-browser": "All 19 cases are new changed-work dashboard/capture cases, including six font/width combinations and actual preview actor replacement.",
+    "browser.quality": "Only one new keyless analytics fail-closed case; not the entire default browser discovery.",
+    "browser.enrollment-browser": "Exactly three composition cases cover successful replay, persisted decline and owner-driven uncertain-result recovery after analytics decoration; no full provider matrices.",
+    "browser.renewal-browser": "One normal-font provider-independent finalize composition smoke, not renewal pricing/retry/refund matrices.",
+    "browser.reconciliation-browser": "One worker-driven initial recovery composition case, distinct from owner-driven recovery; not all reconciliation operations.",
+    "browser.cancellation-browser": "One restricted-owner cancellation case proves optional analytics rejection never blocks the authorized cancellation result.",
+    "browser.chat-browser": "One read replay case covers same-request analytics capability without changing receipts.",
+    "browser.reply-browser": "One immutable send/replay case covers post-commit reply observation without changing operation identity.",
+    "browser.auth-browser": "One repeated installation-completion case covers signup observation without changing source timestamp/access.",
+    "compile": "Whole TypeScript graph compilation is needed for generated RPC and shared entrypoint type contracts; it does not execute regression tests. Production builds are used only to serve selected browser cases."
+  },
+  "exclusions": [
+    "No cumulative check:all, whole unit directory, all pgTAP files, all race scripts, all upgrade chain, or whole default/legacy browser suite.",
+    "Unchanged calendar, scheduling, community/moderation, attendance/rewards, media/compose/dispatch, notification/webpush, settlement and admin operations are outside this change.",
+    "No legacy artist discovery/session/profile/checkout suite: new preview/current-actor tests cover the changed behavior; auth mechanics themselves did not change.",
+    "No additional payment providers/fonts, refunds, retry budgets, Cron authentication or unrelated navigation matrices. Selected legacy browser cases are composition smokes, not evidence that their fixtures granted analytics consent.",
+    "Applying all migrations constructs the current schema; it is setup, not execution of all stored historical regression tests.",
+    "Full stored suites remain dormant until one explicitly designated predeployment run; none is authorized or executed by this feature plan."
+  ]
+}

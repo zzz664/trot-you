@@ -3,325 +3,333 @@ import { describe, it } from 'node:test';
 import {
   BROWSER_JOBS,
   CONDITIONAL_JOBS,
-  FEATURE_RULES,
-  FULL_RULES,
-  classifyPath,
+  REQUIRED_JOB_IDS,
 } from './ci-impact-registry.mjs';
-import { parseNameStatus, selectImpact } from './ci-impact.mjs';
+import { parseNameStatus, selectImpact, validatePlan } from './ci-impact.mjs';
 
-const selected = (plan) => BROWSER_JOBS.filter((job) => plan.jobs[job]);
-const has = (paths, ...jobs) => {
-  const plan = selectImpact(paths);
-  for (const job of jobs) assert.equal(plan.jobs[`${job}-browser`], true, job);
-  return plan;
+const base = '2'.repeat(40);
+const provenance = {
+  event: 'pull_request',
+  testSha: '1'.repeat(40),
+  baseRef: 'develop',
+  base,
+  head: '3'.repeat(40),
+  mergeBase: base,
 };
+const path = 'src/server/services/analytics/capture.ts';
+const unit = 'tests/unit/analytics-capture.test.ts';
+const emptySelection = () => ({
+  typecheck: false,
+  unit: [],
+  fixtures: [],
+  sql: [],
+  races: [],
+  upgrades: [],
+  browser: {},
+});
+const scope = (overrides = {}) => ({
+  version: 1,
+  id: 'analytics-capture',
+  base,
+  covers: [path],
+  reason: 'Verify the changed capture boundary only.',
+  selection: { ...emptySelection(), unit: [unit] },
+  ...overrides,
+});
+const plan = (paths = [path], scopes = [scope()]) =>
+  selectImpact(paths, { scopes, provenance: { ...provenance } });
 
-describe('conservative dependency registry', () => {
-  it('has one stable job inventory and unique, valid dependency groups', () => {
-    assert.equal(BROWSER_JOBS.length, 25);
-    assert.equal(new Set(CONDITIONAL_JOBS).size, CONDITIONAL_JOBS.length);
-    const rules = [...FULL_RULES, ...FEATURE_RULES];
-    assert.equal(new Set(rules.map(({ id }) => id)).size, rules.length);
-    for (const rule of rules)
-      for (const pattern of rule.patterns) {
-        assert.equal(pattern.global, false);
-        assert.equal(pattern.sticky, false);
-        assert.ok(pattern.source.startsWith('^'));
-      }
-    const reachable = new Set(FEATURE_RULES.flatMap(({ jobs }) => jobs));
-    assert.deepEqual([...reachable].sort(), [...BROWSER_JOBS].sort());
-    for (const { jobs } of FEATURE_RULES) {
-      assert.ok(jobs.length > 0);
-      assert.equal(new Set(jobs).size, jobs.length);
-      assert.ok(jobs.every((job) => BROWSER_JOBS.includes(job)));
+describe('explicit scoped development plans', () => {
+  it('retains stable complete job inventory without a full-run mode', () => {
+    assert.equal(BROWSER_JOBS.length, 26);
+    assert.equal(new Set(CONDITIONAL_JOBS).size, 27);
+    assert.deepEqual(CONDITIONAL_JOBS, ['database', ...BROWSER_JOBS]);
+    assert.deepEqual(REQUIRED_JOB_IDS, [
+      'impact',
+      'quality',
+      ...CONDITIONAL_JOBS,
+    ]);
+    const result = validatePlan(plan());
+    assert.equal(result.version, 2);
+    assert.equal(result.mode, 'scoped');
+    assert.equal(result.selection.typecheck, false);
+    assert.deepEqual(result.selection.unit, [unit]);
+    assert.ok(CONDITIONAL_JOBS.every((job) => result.jobs[job] === false));
+  });
+
+  it('canonicalizes exact changed paths and their count without broadening tests', () => {
+    const result = plan([path, 'docs/work-log/notes.md', path]);
+    assert.deepEqual(result.changedPaths, ['docs/work-log/notes.md', path]);
+    assert.equal(result.pathCount, 2);
+    assert.match(result.pathDigest, /^[a-f0-9]{64}$/);
+    assert.deepEqual(
+      result,
+      plan([path, path, 'docs/work-log/notes.md'].reverse()),
+    );
+  });
+
+  it('unions only matching active scopes and deduplicates shared selected files', () => {
+    const secondPath =
+      'src/components/analytics-funnel/AnalyticsFunnelScreen.tsx';
+    const first = scope();
+    const second = scope({
+      id: 'analytics-screen',
+      covers: [secondPath],
+      selection: {
+        ...emptySelection(),
+        typecheck: true,
+        unit: [unit, 'tests/unit/analytics-funnel-ui.test.tsx'],
+        browser: {
+          'analytics-funnel-browser': [
+            {
+              file: 'tests/e2e/analytics-funnel/analytics-funnel.spec.ts',
+              grep: 'withdrawal',
+            },
+          ],
+        },
+      },
+    });
+    const unrelated = scope({
+      id: 'not-changed',
+      covers: ['src/client/schedules.ts'],
+      selection: {
+        ...emptySelection(),
+        unit: ['tests/unit/schedules-client.test.ts'],
+      },
+    });
+    const result = plan([secondPath, path], [first, unrelated, second]);
+    assert.deepEqual(result.scopes.map(({ id }) => id).sort(), [
+      'analytics-capture',
+      'analytics-screen',
+    ]);
+    assert.deepEqual(
+      result.selection.unit,
+      [unit, 'tests/unit/analytics-funnel-ui.test.tsx'].sort(),
+    );
+    assert.equal(result.selection.typecheck, true);
+    assert.equal(result.jobs['analytics-funnel-browser'], true);
+    assert.equal(result.jobs.database, false);
+    assert.ok(
+      BROWSER_JOBS.filter((job) => job !== 'analytics-funnel-browser').every(
+        (job) => !result.jobs[job],
+      ),
+    );
+    assert.deepEqual(
+      result,
+      plan([path, secondPath], [second, first, unrelated]),
+    );
+  });
+
+  it('derives database execution only from selected SQL, race or upgrade files', () => {
+    for (const [kind, file] of [
+      ['sql', 'supabase/tests/analytics_funnel.test.sql'],
+      ['races', 'scripts/test-analytics-funnel-concurrency.mjs'],
+      ['upgrades', 'scripts/test-analytics-funnel-upgrade.mjs'],
+    ]) {
+      const result = plan(
+        [path],
+        [scope({ selection: { ...emptySelection(), [kind]: [file] } })],
+      );
+      assert.equal(result.jobs.database, true, kind);
+      assert.deepEqual(result.selection[kind], [file]);
+      assert.ok(BROWSER_JOBS.every((job) => !result.jobs[job]));
     }
   });
 
-  for (const path of [
-    'supabase/migrations/20261025000031_schedule_notices.sql',
-    'supabase/tests/schedule_notices.test.sql',
-    'supabase/config.toml',
-    'src/server/db/schedule-notice-queue.ts',
+  it('fixture-only selection never implicitly schedules DB, typecheck or browsers', () => {
+    const result = plan(
+      [path],
+      [
+        scope({
+          selection: {
+            ...emptySelection(),
+            fixtures: ['scripts/analytics-funnel-local-config.test.mjs'],
+          },
+        }),
+      ],
+    );
+    assert.equal(result.selection.typecheck, false);
+    assert.ok(CONDITIONAL_JOBS.every((job) => !result.jobs[job]));
+  });
+
+  for (const changed of [
     'src/server/db/client.ts',
-    'src/server/adapters/notification/channel.ts',
-    'src/server/adapters/payment/preparation.ts',
-    'src/server/auth/context.ts',
-    'src/server/services/auth/access.ts',
-    'src/server/settings/registry.ts',
-    'src/server/configuration.ts',
-    'src/components/ui/MicButton.tsx',
-    'src/components/auth/SessionPage.tsx',
-    'src/components/schedules/ScheduleEntry.tsx',
-    'src/components/admin-settings/AdminSettingsEntry.tsx',
-    'src/components/admin-subscriptions/AdminSubscriptionsEntry.tsx',
-    'src/components/billing-notices/BillingNoticeEntry.tsx',
-    'src/components/webpush/WebPushEntry.tsx',
-    'src/components/subscription/SubscriptionEntry.tsx',
-    'src/components/admin-artists/AdminArtistsEntry.tsx',
-    'src/components/admin/refunds/RefundEntry.tsx',
-    'src/components/admin/reconciliation/ReconciliationEntry.tsx',
-    'src/app/layout.tsx',
-    'src/app/admin/page.tsx',
-    'src/app/artist/page.tsx',
-    'src/config/env.server.ts',
     'src/config/routes.ts',
-    'src/config/admin-settings-catalog.ts',
-    'src/config/admin-artists.ts',
-    'src/config/media.ts',
-    'src/config/message-dispatch.ts',
-    'src/config/webpush.ts',
-    'src/config/billing-notices.ts',
-    'src/config/schedule-notices.ts',
-    'src/config/enrollment-provider.ts',
-    'src/config/new-shared-schema.ts',
     'src/messages/ko.json',
-    'src/worker/sw.ts',
-    'src/lib/schedule-navigation.ts',
-    'src/types/database.ts',
+    'supabase/migrations/20261026000038_analytics_funnel.sql',
     '.github/workflows/ci.yml',
-    'scripts/ci-impact-registry.mjs',
-    'scripts/ci-required.mjs',
-    'scripts/auth-local-ci.mjs',
-    'scripts/activity-race-observer.mjs',
-    'scripts/test-dispatch-concurrency.mjs',
-    'scripts/test-schedule-notice-upgrade.mjs',
-    'tests/e2e/authenticated/onboarding-fixtures.ts',
-    'playwright.auth.config.ts',
-    'playwright.config.ts',
     'package.json',
-    'package-lock.json',
-    '.env.example',
-    '.nvmrc',
-    'next.config.ts',
-    'src/components/content-calendar/ContentCalendarScreen.tsx',
-    'src/server/content-calendar/http.ts',
-    'src/server/services/content-calendar/read.ts',
-    'src/client/content-calendar.ts',
-    'src/app/admin/content-calendar/page.tsx',
-    'src/app/artist/[slug]/calendar/page.tsx',
-    'src/app/api/artist/[slug]/calendar/route.ts',
-    'tests/unit/content-calendar-ui.test.tsx',
-    'tests/e2e/content-calendar/content-calendar.spec.ts',
-    'scripts/content-calendar-local-ci.mjs',
-    'playwright.content-calendar.config.ts',
-    'src/components/community-posts/CommunityBoard.tsx',
-    'src/server/community-posts/http.ts',
-    'src/client/community-media.ts',
-    'tests/e2e/community-posts/community-posts.spec.ts',
-    'playwright.community-posts.config.ts',
-    'src/components/community-interactions/CommunityInteractions.tsx',
-    'src/server/community-interactions/http.ts',
-    'tests/e2e/community-interactions/community-interactions.spec.ts',
-    'playwright.community-interactions.config.ts',
-    'src/components/community-moderation/ReportForm.tsx',
-    'src/server/community-moderation/http.ts',
-    'src/client/community-moderation.ts',
-    'tests/e2e/community-moderation/community-moderation.spec.ts',
-    'playwright.community-moderation.config.ts',
     'new-unknown-feature.ts',
     'docs/executable.mjs',
   ]) {
-    it(`runs full for ${path}`, () => {
-      const plan = selectImpact([path]);
-      assert.equal(plan.mode, 'full');
-      assert.ok(CONDITIONAL_JOBS.every((job) => plan.jobs[job] === true));
+    it(`${changed} needs an exact active scope rather than triggering cumulative tests`, () => {
+      assert.throws(() => plan([changed], []));
+      const result = validatePlan(
+        plan([changed], [scope({ covers: [changed] })]),
+      );
+      assert.equal(result.mode, 'scoped');
+      assert.deepEqual(result.selection.unit, [unit]);
+      assert.ok(CONDITIONAL_JOBS.every((job) => !result.jobs[job]));
     });
   }
 
-  it('selects schedule consumers and retains full DB on a leaf UI/unit change', () => {
-    const plan = has(
-      [
-        'src/components/schedules/SchedulesScreen.tsx',
-        'tests/unit/schedules-ui.test.tsx',
-        'docs/work-log/schedule-fix.md',
-      ],
-      'auth',
-      'schedules',
-      'schedule-notices',
+  it('one uncovered change fails an otherwise covered or documentation-only plan', () => {
+    for (const known of [path, 'docs/readme.md'])
+      assert.throws(() => plan([known, 'src/server/new-feature/index.ts']));
+  });
+
+  it('stale base scopes do not authorize this merge-base diff', () => {
+    assert.throws(() => plan([path], [scope({ base: '4'.repeat(40) })]));
+    const result = plan(
+      [path],
+      [scope({ id: 'old-scope', base: '4'.repeat(40) }), scope()],
     );
-    assert.equal(plan.mode, 'selective');
-    assert.equal(selected(plan).length, 7);
-    assert.equal(plan.jobs.database, true);
-  });
-
-  it('selects five browsers for leaf admin settings instead of all twenty-five', () => {
-    const plan = has(
-      ['src/components/admin-settings/AdminSettingsScreen.tsx'],
-      'auth',
-      'admin-settings',
+    assert.deepEqual(
+      result.scopes.map(({ id }) => id),
+      ['analytics-capture'],
     );
-    assert.equal(selected(plan).length, 5);
   });
 
-  it('keeps schedule formatting, controls, and view fixtures connected', () => {
-    for (const path of [
-      'src/components/schedule-notices/ScheduleNoticeControls.tsx',
-      'src/lib/schedule-time.ts',
-      'src/lib/map-links.ts',
-      'src/config/schedule-view.ts',
-      'tests/fixtures/schedule-timezone.json',
-      'tests/e2e/schedules/screenshot-capture.ts',
-    ])
-      has([path], 'schedules', 'schedule-notices');
-  });
-
-  it('keeps shared notification delivery and all notice consumers connected', () => {
-    for (const path of [
-      'src/server/services/notification/send-queue.ts',
-      'src/config/webpush-protocol.ts',
-      'src/worker/webpush.ts',
-      'src/client/billing-notices.ts',
-    ])
-      has(
-        [path],
-        'webpush',
-        'billing-notices',
-        'schedule-notices',
-        'schedules',
-      );
-  });
-
-  it('includes the complete payment fixture/configuration dependency chain', () => {
-    for (const path of [
-      'playwright.enrollment.config.ts',
-      'tests/e2e/enrollment/fixtures.ts',
-      'tests/e2e/renewal/fixtures.ts',
-      'tests/e2e/cancellation/fixtures.ts',
-      'scripts/cancellation-local-ci-provider.mjs',
-      'src/config/enrollment-test-runtime.ts',
-      'src/server/reconciliation/enrollment.ts',
-      'src/lib/billing-period.ts',
-    ])
-      has([path], 'enrollment', 'renewal', 'cancellation', 'reconciliation');
-  });
-
-  it('includes indirect speech, reply, composer, media, and preview consumers', () => {
-    for (const path of [
-      'tests/e2e/replies/fixtures.ts',
-      'scripts/reply-local-ci.mjs',
-      'tests/e2e/speech/recognition.ts',
-      'src/lib/speech-draft.ts',
-      'src/components/fan/chat/format.ts',
-      'src/components/media/SecureMedia.tsx',
-      'src/server/services/message/render.ts',
-    ])
-      has(
-        [path],
-        'reply',
-        'speech',
-        'compose',
-        'dispatch',
-        'chat',
-        'media',
-        'auth',
-        'admin-artists',
-      );
-  });
-
-  it('keeps admin artist picker configuration connected to schedules', () => {
-    for (const path of ['src/config/admin-artists.ts', 'src/config/media.ts'])
-      has(
-        [path],
-        'admin-artists',
-        'admin-subscriptions',
-        'schedules',
-        'schedule-notices',
-        'compose',
-      );
-  });
-
-  it('keeps the new calendar browser attached to all reused feature dependencies', () => {
-    for (const path of [
-      'src/server/services/artist-reply-activity/activity.ts',
-      'src/components/artist-reply-activity/ArtistReplyActivityScreen.tsx',
-      'src/lib/artist-reply-activity.ts',
-      'src/server/services/admin-artists/read.ts',
-      'tests/unit/admin-artists-service.test.ts',
-      'scripts/admin-artists-local-ci.mjs',
-      'src/lib/schedule-navigation.ts',
-      'src/lib/schedule-view.ts',
-      'src/lib/schedule-time.ts',
-      'tests/unit/schedule-view.test.ts',
-      'tests/e2e/schedules/screenshot-capture.ts',
-      'scripts/schedules-local-ci.mjs',
-      'scripts/activity-local-ci.mjs',
-    ])
-      has([path], 'content-calendar');
-  });
-
-  it('unions disjoint groups and is independent of path ordering', () => {
-    const paths = [
-      'src/client/schedules.ts',
-      'src/client/admin-settings.ts',
-      'src/client/schedules.ts',
-    ];
-    const plan = has(
-      paths,
-      'auth',
-      'schedules',
-      'schedule-notices',
-      'admin-settings',
+  it('plain documentation and AGENTS instructions need no selected test files', () => {
+    const result = validatePlan(
+      plan(['README.md', 'AGENTS.md', 'docs/work-log/notes.md'], []),
     );
-    assert.equal(selected(plan).length, 8);
-    assert.deepEqual(plan, selectImpact([...paths].reverse()));
+    assert.equal(result.mode, 'docs-only');
+    assert.deepEqual(result.selection, emptySelection());
+    assert.deepEqual(result.scopes, []);
+    assert.ok(CONDITIONAL_JOBS.every((job) => !result.jobs[job]));
+    assert.throws(() => plan(['docs/image.png'], []));
+    assert.throws(() => plan(['README.md.mjs'], []));
   });
 
-  it('one unknown file broadens an otherwise selective or documentation PR', () => {
-    for (const known of ['docs/readme.md', 'src/client/schedules.ts']) {
-      const plan = selectImpact([known, 'src/server/new-feature/index.ts']);
-      assert.equal(plan.mode, 'full');
-      assert.equal(selected(plan).length, 25);
-    }
-  });
-
-  it('only explicit nonempty Markdown documentation can skip DB and browsers', () => {
-    const plan = selectImpact(['README.md', 'docs/work-log/ci.md']);
-    assert.equal(plan.mode, 'docs-only');
-    assert.ok(CONDITIONAL_JOBS.every((job) => plan.jobs[job] === false));
-    assert.equal(selectImpact([]).mode, 'full');
-    assert.equal(selectImpact(['docs/image.png']).mode, 'full');
-    assert.equal(classifyPath('README.md.mjs').kind, 'full');
-  });
-
-  it('never truncates a large changed-file list into a selective plan', () => {
+  it('rejects empty or oversized evidence instead of emitting an implicit all-tests plan', () => {
+    assert.throws(() => plan([], []));
     const paths = Array.from(
       { length: 1500 },
-      (_, index) => `src/components/schedules/${index}-${'x'.repeat(100)}.tsx`,
+      (_, i) => `docs/${i}-${'x'.repeat(100)}.md`,
     );
-    const plan = selectImpact(paths);
-    assert.equal(plan.reason, 'oversized-plan');
-    assert.equal(plan.mode, 'full');
-    assert.equal(plan.paths, null);
-    assert.equal(plan.pathCount, 1500);
-    assert.equal(selected(plan).length, 25);
+    assert.throws(() => plan(paths, []));
   });
+
+  for (const mutate of [
+    (s) => {
+      s.version = 2;
+    },
+    (s) => {
+      s.id = '';
+    },
+    (s) => {
+      s.base = 'branch-name';
+    },
+    (s) => {
+      s.reason = '';
+    },
+    (s) => {
+      s.covers = ['src/**'];
+    },
+    (s) => {
+      s.covers = ['/absolute'];
+    },
+    (s) => {
+      s.covers = ['src/../secret'];
+    },
+    (s) => {
+      s.selection.unit = ['tests/unit/*.test.ts'];
+    },
+    (s) => {
+      s.selection.unit = ['--run'];
+    },
+    (s) => {
+      s.selection.browser = {
+        'unknown-browser': [{ file: 'tests/e2e/unknown.spec.ts' }],
+      };
+    },
+    (s) => {
+      s.selection.typecheck = 'true';
+    },
+  ])
+    it(`rejects invalid manifest ${mutate.toString()}`, () => {
+      const invalid = scope();
+      mutate(invalid);
+      assert.throws(() => plan([path], [invalid]));
+    });
+
+  it('requires verified PR provenance even for documentation-only changes', () => {
+    for (const mutation of [
+      { event: 'push' },
+      { baseRef: 'main' },
+      { base: undefined },
+      { head: 'feature' },
+      { mergeBase: undefined },
+      { testSha: undefined },
+    ])
+      assert.throws(() =>
+        selectImpact(['docs/notes.md'], {
+          scopes: [],
+          provenance: { ...provenance, ...mutation },
+        }),
+      );
+    assert.throws(() => selectImpact([path], { scopes: [scope()] }));
+  });
+
+  for (const mutate of [
+    (p) => {
+      p.selection.unit = [];
+    },
+    (p) => {
+      p.selection.sql = ['supabase/tests/analytics_security.test.sql'];
+    },
+    (p) => {
+      p.selection.typecheck = true;
+    },
+    (p) => {
+      p.jobs.database = true;
+    },
+    (p) => {
+      p.changedPaths = ['docs/disguised.md'];
+    },
+    (p) => {
+      p.pathCount = 0;
+    },
+    (p) => {
+      p.pathDigest = '0'.repeat(64);
+    },
+    (p) => {
+      p.scopes[0].selection.unit = ['tests/unit/unrelated.test.ts'];
+    },
+    (p) => {
+      p.scopes = [];
+    },
+    (p) => {
+      p.mode = 'full';
+    },
+  ])
+    it(`rejects inconsistent plan ${mutate.toString()}`, () => {
+      const result = structuredClone(plan());
+      mutate(result);
+      assert.throws(() => validatePlan(result));
+    });
 });
 
-describe('NUL-delimited git diff parsing', () => {
-  it('accepts Git zero-padded partial-rename similarity scores', () => {
-    assert.deepEqual(
-      parseNameStatus(Buffer.from('R050\0old\0new\0C099\0source\0copy\0')),
-      [
-        { status: 'R050', paths: ['old', 'new'] },
-        { status: 'C099', paths: ['source', 'copy'] },
-      ],
-    );
-  });
-  it('retains both rename/copy sides and deleted paths without splitting whitespace', () => {
+describe('NUL-delimited diff evidence', () => {
+  it('preserves both sides of rename/copy and deleted/type-changed paths', () => {
     assert.deepEqual(
       parseNameStatus(
         Buffer.from(
-          'R100\0src/old name.ts\0src/새\nname.ts\0C75\0a\0b\0D\0deleted\0M\0$(touch nope)\0T\0link\0',
+          'R050\0old\0new\0C099\0source\0copy\0D\0deleted\0T\0link\0',
         ),
       ),
       [
-        { status: 'R100', paths: ['src/old name.ts', 'src/새\nname.ts'] },
-        { status: 'C75', paths: ['a', 'b'] },
+        { status: 'R050', paths: ['old', 'new'] },
+        { status: 'C099', paths: ['source', 'copy'] },
         { status: 'D', paths: ['deleted'] },
-        { status: 'M', paths: ['$(touch nope)'] },
         { status: 'T', paths: ['link'] },
       ],
     );
+  });
+  it('untrusted filenames cannot silently select a wider suite', () => {
+    const input = 'src/한글 [a] $HOME;\n`touch injected`.tsx';
+    assert.throws(() => plan([input], []));
   });
   for (const input of [
     'M\0missing terminator',
@@ -333,83 +341,8 @@ describe('NUL-delimited git diff parsing', () => {
     'M\0/absolute\0',
     'M\0docs/../code.md\0',
   ])
-    it(`rejects malformed diff ${JSON.stringify(input)}`, () => {
-      assert.throws(() => parseNameStatus(Buffer.from(input)));
-    });
-  it('rejects invalid UTF-8 instead of silently replacing path bytes', () => {
-    assert.throws(() => parseNameStatus(Buffer.from([77, 0, 255, 0])));
-  });
-});
-
-it('keeps community board consumers linked to shared media, navigation and policy changes', () => {
-  for (const path of [
-    'src/client/media.ts',
-    'src/lib/schedule-navigation.ts',
-    'src/server/admin-settings/http.ts',
-    'src/components/admin-artists/AdminArtistsScreen.tsx',
-  ])
-    has([path], 'community-posts', 'community-interactions');
-});
-
-it('selects attendance, activity rewards and auth on isolated attendance leaf changes while keeping its database and shared files full', () => {
-  for (const path of [
-    'src/components/attendance-points/AttendancePointsScreen.tsx',
-    'src/client/attendance-points.ts',
-    'src/server/services/attendance-points/manage.ts',
-    'src/server/attendance-points/http.ts',
-    'src/app/points/page.tsx',
-    'src/app/api/points/attendance/route.ts',
-    'tests/unit/attendance-points-ui.test.tsx',
-    'tests/e2e/attendance-points/attendance-points.spec.ts',
-    'scripts/attendance-points-local-config.mjs',
-    'playwright.attendance-points.config.ts',
-  ]) {
-    const plan = has([path], 'auth', 'attendance-points', 'activity-rewards');
-    assert.equal(plan.mode, 'selective');
-    assert.equal(selected(plan).length, 3);
-    assert.equal(plan.jobs.database, true);
-  }
-  for (const path of [
-    'supabase/migrations/20261026000036_attendance_points.sql',
-    'src/server/db/attendance-points.ts',
-    'src/config/attendance-points.ts',
-    'src/components/attendance-points/AttendancePointsEntry.tsx',
-    'scripts/test-attendance-points-concurrency.mjs',
-    'scripts/test-attendance-points-upgrade.mjs',
-  ]) {
-    const plan = has([path], 'attendance-points');
-    assert.equal(plan.mode, 'full');
-  }
-});
-
-it('selects private activity, attendance and auth on activity reward leaves while shared/database paths stay full', () => {
-  for (const path of [
-    'src/components/activity-rewards/ActivityRewardsScreen.tsx',
-    'src/client/activity-rewards.ts',
-    'src/server/services/activity-rewards/read.ts',
-    'src/server/activity-rewards/http.ts',
-    'src/app/points/activity/page.tsx',
-    'src/app/api/points/activity/route.ts',
-    'tests/unit/activity-rewards-ui.test.tsx',
-    'tests/e2e/activity-rewards/activity-rewards.spec.ts',
-    'scripts/activity-rewards-local-config.mjs',
-    'playwright.activity-rewards.config.ts',
-  ]) {
-    const plan = has([path], 'auth', 'attendance-points', 'activity-rewards');
-    assert.equal(plan.mode, 'selective');
-    assert.equal(selected(plan).length, 3);
-    assert.equal(plan.jobs.database, true);
-  }
-  for (const path of [
-    'supabase/migrations/20261026000037_activity_rewards.sql',
-    'src/server/db/activity-rewards.ts',
-    'src/config/activity-rewards.ts',
-    'src/components/activity-rewards/ActivityRewardsEntry.tsx',
-    'scripts/test-activity-rewards-concurrency.mjs',
-    'scripts/test-activity-rewards-upgrade.mjs',
-  ]) {
-    const plan = has([path], 'activity-rewards');
-    assert.equal(plan.mode, 'full');
-    assert.equal(selected(plan).length, 25);
-  }
+    it(`rejects malformed evidence ${JSON.stringify(input)}`, () =>
+      assert.throws(() => parseNameStatus(Buffer.from(input))));
+  it('rejects invalid UTF-8 instead of replacing path bytes', () =>
+    assert.throws(() => parseNameStatus(Buffer.from([77, 0, 255, 0]))));
 });

@@ -4,12 +4,8 @@ on:
     branches: [develop, main, 'release/**', 'releases/**']
     # edited includes base retargeting; merely leaving draft does not rerun CI.
     types: [opened, synchronize, reopened, edited]
-  # No develop push run: PR validation must not be duplicated after every merge.
-  push:
-    branches: [main, 'release/**', 'releases/**']
-  merge_group:
-    types: [checks_requested]
-  workflow_dispatch:
+  # Development validation is PR-only and explicitly scoped to the current work.
+  # No push/merge/manual full-suite fallback; predeployment needs separate approval.
 permissions:
   contents: read
 concurrency:
@@ -29,17 +25,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      # Dependency-free selector/aggregate tests run even for documentation PRs.
-      - run: node --test scripts/ci-*.test.mjs
+      # The planner validates the explicit work manifest; test execution follows
+      # only its named selections, including any selected CI-script tests.
       - id: select
         run: node scripts/ci-impact.mjs
   database:
     needs: impact
     if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['database'] }}
     runs-on: ubuntu-latest
-    # Feature37 verified DB run reached 28m05. Keep every historical gate and
-    # add headroom for activity outcomes/races and the tenth populated upgrade.
+    # Disposable schema setup is retained; regression execution is selected only.
     timeout-minutes: 35
+    env:
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,55 +49,11 @@ jobs:
       - run: npm run db:start
       - run: npm run db:reset
       - run: npm run db:lint
-      - run: npm run test:integration
-      # Test repeatability and rollback: fixtures must not persist between runs.
-      - run: npm run test:integration
-      # Independent psql sessions prove lock serialization; the script restores
-      # the disposable local database after its committed fictional fixtures.
-      - run: npm run test:db:concurrency
-      - run: npm run test:db:messaging-concurrency
-      - run: npm run test:db:community-concurrency
-      - run: npm run test:db:schedule-concurrency
-      - run: npm run test:db:points-concurrency
-      - run: npm run test:db:notification-concurrency
-      - run: npm run test:db:analytics-concurrency
-      - run: npm run test:db:settlement-concurrency
-      - run: npm run test:db:discovery-concurrency
-      - run: npm run test:db:onboarding-concurrency
-      - run: npm run test:db:checkout-concurrency
-      - run: npm run test:db:enrollment-concurrency
-      - run: npm run test:db:renewal-concurrency
-      - run: npm run test:db:cancellation-concurrency
-      - run: npm run test:db:reconciliation-concurrency
-      - run: node scripts/test-media-concurrency.mjs
-      - run: node scripts/test-chat-concurrency.mjs
-      - run: node scripts/test-reply-concurrency.mjs
-      - run: node scripts/test-compose-concurrency.mjs
-      - run: node scripts/test-dispatch-concurrency.mjs
-      - run: node scripts/test-artist-reply-activity-concurrency.mjs
-      - run: npm run test:db:webpush-concurrency
-      - run: npm run test:db:billing-notice-concurrency
-      - run: npm run test:db:admin-artist-concurrency
-      - run: npm run test:db:admin-settings-concurrency
-      - run: node scripts/test-admin-settings-upgrade.mjs
-      - run: npm run test:db:admin-subscriptions-concurrency
-      - run: node scripts/test-admin-subscriptions-upgrade.mjs
-      - run: node scripts/test-schedule-management-concurrency.mjs
-      - run: node scripts/test-schedule-management-upgrade.mjs
-      - run: node scripts/test-schedule-notice-concurrency.mjs
-      - run: node scripts/test-schedule-notice-upgrade.mjs
-      - run: npm run test:db:content-calendar-concurrency
-      - run: node scripts/test-content-calendar-upgrade.mjs
-      - run: npm run test:db:community-posts-concurrency
-      - run: node scripts/test-community-posts-upgrade.mjs
-      - run: npm run test:db:community-interactions-concurrency
-      - run: node scripts/test-community-interactions-upgrade.mjs
-      - run: npm run test:db:community-moderation-concurrency
-      - run: node scripts/test-community-moderation-upgrade.mjs
-      - run: npm run test:db:attendance-points-concurrency
-      - run: node scripts/test-attendance-points-upgrade.mjs
-      - run: npm run test:db:activity-rewards-concurrency
-      - run: node scripts/test-activity-rewards-upgrade.mjs
+      - run: node scripts/ci-run-selected.mjs sql
+      # Repeat only the selected SQL files to prove their rollback/repeatability.
+      - run: node scripts/ci-run-selected.mjs sql
+      - run: node scripts/ci-run-selected.mjs races
+      - run: node scripts/ci-run-selected.mjs upgrades
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
@@ -119,10 +72,13 @@ jobs:
       - run: npm run db:stop -- --no-backup
         if: always()
   quality:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -130,35 +86,23 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run check:all
-      - run: npm run test:enrollment-fixture
-      - run: npm run test:renewal-fixture
-      - run: npm run test:cancellation-fixture
-      - run: npm run test:reconciliation-fixture
-      - run: node --test scripts/media-local-config.test.mjs
-      - run: npm run test:chat-fixture
-      - run: npm run test:reply-fixture
-      - run: npm run test:speech-fixture
-      - run: npm run test:compose-fixture
-      - run: npm run test:dispatch-fixture
-      - run: npm run test:activity-fixture
-      - run: npm run test:webpush-fixture
-      - run: npm run test:billing-notices-fixture
-      - run: npm run test:admin-artists-fixture
-      - run: npm run test:admin-settings-fixture
-      - run: npm run test:admin-subscriptions-fixture
-      - run: npm run test:schedules-fixture
-      - run: npm run test:schedule-notices-fixture
-      - run: npm run test:content-calendar-fixture
-      - run: npm run test:community-posts-fixture
-      - run: npm run test:community-interactions-fixture
-      - run: npm run test:community-moderation-fixture
-      - run: npm run test:attendance-points-fixture
-      - run: npm run test:activity-rewards-fixture
+        if: ${{ fromJSON(needs.impact.outputs.plan).mode == 'scoped' }}
+      - run: node scripts/ci-run-selected.mjs lint
+      # Dependency-graph compilation, not a cumulative regression run.
+      - run: npm run typecheck
+        if: ${{ fromJSON(needs.impact.outputs.plan).selection.typecheck == true }}
+      - run: node scripts/ci-run-selected.mjs unit
+      - run: node scripts/ci-run-selected.mjs fixtures
+      # The default browser config serves a production build, but no build or
+      # browser installation is needed when that explicit selection is empty.
+      - run: npm run build
+        if: ${{ fromJSON(needs.impact.outputs.plan).selection.browser.quality[0] != null }}
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+        if: ${{ fromJSON(needs.impact.outputs.plan).selection.browser.quality[0] != null }}
+      - run: node scripts/ci-run-selected.mjs browser quality
+        if: ${{ fromJSON(needs.impact.outputs.plan).selection.browser.quality[0] != null }}
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ always() && fromJSON(needs.impact.outputs.plan).selection.browser.quality[0] != null }}
         with:
           name: browser-results
           path: |
@@ -172,6 +116,7 @@ jobs:
     timeout-minutes: 20
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -187,7 +132,7 @@ jobs:
       - run: node scripts/auth-local-ci.mjs environment
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test --config playwright.auth.config.ts
+      - run: node scripts/ci-run-selected.mjs browser auth-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -205,6 +150,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -220,7 +166,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # No external provider requests. The real adapters use a guarded loopback
       # HTTP fixture; real Auth, private RPCs and ledger run in local Supabase.
-      - run: npm run test:e2e:enrollment
+      - run: node scripts/ci-run-selected.mjs browser enrollment-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -238,6 +184,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -254,7 +201,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # No scheduler is enabled. Explicit requests exercise the real protected
       # route with a public fixture secret, local DB and loopback provider only.
-      - run: npm run test:e2e:renewal
+      - run: node scripts/ci-run-selected.mjs browser renewal-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -272,6 +219,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -289,7 +237,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Real Auth/RPC/ledger with fictional test-only policy and loopback HTTP.
       # No external provider, real refund, deployed keys or scheduler is enabled.
-      - run: npm run test:e2e:cancellation
+      - run: node scripts/ci-run-selected.mjs browser cancellation-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -307,6 +255,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -325,7 +274,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Real Auth/private RPCs/ledger, query-only worker and untrusted hints.
       # Fixed loopback HTTP only; no registered webhook, scheduler or real money.
-      - run: npm run test:e2e:reconciliation
+      - run: node scripts/ci-run-selected.mjs browser reconciliation-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -343,6 +292,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -360,7 +310,7 @@ jobs:
       # Actual local Storage uploads/signatures and real Auth/RPC authorization.
       # Only generated fictional bytes; no provider fixtures, hosted buckets,
       # production users, deployed credentials or external requests.
-      - run: npm run test:e2e:media
+      - run: node scripts/ci-run-selected.mjs browser media-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -378,6 +328,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -394,7 +345,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Real Auth, current readiness, subscription history, cursor RPCs and
       # read receipts in a disposable local database; only fictional content.
-      - run: npm run test:e2e:chat
+      - run: node scripts/ci-run-selected.mjs browser chat-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -413,6 +364,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -429,7 +381,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Real Auth, current readiness, reply idempotency, content/rate policy and
       # private own-feed RPCs in a disposable local database; only fictional content.
-      - run: npm run test:e2e:replies
+      - run: node scripts/ci-run-selected.mjs browser reply-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -448,6 +400,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -466,7 +419,7 @@ jobs:
       # Native speech API contract simulation only: controlled constructor stub,
       # no microphone grant, user audio or external recognition provider. Auth,
       # reply authorization and consent-gated analytics use the real local DB.
-      - run: npm run test:e2e:speech
+      - run: node scripts/ci-run-selected.mjs browser speech-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -485,6 +438,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -502,7 +456,7 @@ jobs:
       # Actual Auth, owned draft RPCs and normal secure Storage upload contracts.
       # MediaRecorder is a controlled API stub using existing synthetic bytes;
       # no real microphone, private user content, provider or hosted resources.
-      - run: npm run test:e2e:compose
+      - run: node scripts/ci-run-selected.mjs browser compose-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -521,6 +475,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -538,7 +493,7 @@ jobs:
       # Fictional artist/fan accounts and actual local Auth/DB/Storage only.
       # Explicit protected worker invocation publishes in-app and enqueues jobs;
       # no external notification provider or recurring scheduler is activated.
-      - run: npm run test:e2e:dispatch
+      - run: node scripts/ci-run-selected.mjs browser dispatch-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -557,6 +512,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -574,7 +530,7 @@ jobs:
       # Real local Auth and read-only artist reply/activity RPCs. Source rows,
       # names, policies and memberships are fictional disposable fixtures only.
       # No provider, media upload, scheduler, payout or live data is accessed.
-      - run: npm run test:e2e:activity
+      - run: node scripts/ci-run-selected.mjs browser activity-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -593,6 +549,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -609,7 +566,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Real local Auth/RPC; PushManager and permission are simulated contracts.
       # Public RFC synthetic keys only; worker remains disabled, no pushes.
-      - run: npm run test:e2e:webpush
+      - run: node scripts/ci-run-selected.mjs browser webpush-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -628,6 +585,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -645,7 +603,7 @@ jobs:
       # Real Auth, exact-current notice inbox and disabled-by-default worker
       # with fictional policy/subscription snapshots. No real push, PG request,
       # browser permission grant or recurring scheduler is activated.
-      - run: npm run test:e2e:billing-notices
+      - run: node scripts/ci-run-selected.mjs browser billing-notices-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -664,6 +622,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -681,7 +640,7 @@ jobs:
       # Disposable local Auth/RPC and synthetic accepted media. Account linkage
       # uses exact fictional existing users and explicit recipient consent;
       # no real invitation email, provider, credentials, grant or scheduler.
-      - run: npm run test:e2e:admin-artists
+      - run: node scripts/ci-run-selected.mjs browser admin-artists-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -700,6 +659,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -716,7 +676,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Real local Auth/RPC and fictional numeric policies only. No legal terms,
       # payment/provider enablement, remote approval, account, role or scheduler.
-      - run: npm run test:e2e:admin-settings
+      - run: node scripts/ci-run-selected.mjs browser admin-settings-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -735,6 +695,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -751,7 +712,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Real local Auth/RPC with fictional aggregate fixtures only. No real account,
       # billing/provider action, policy approval, remote data or scheduler.
-      - run: npm run test:e2e:admin-subscriptions
+      - run: node scripts/ci-run-selected.mjs browser admin-subscriptions-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -770,6 +731,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -787,7 +749,7 @@ jobs:
       # Fictional local Auth/events/subscriptions, current-role RPC and audited
       # CRUD only. Map URLs are inspected without any provider navigation;
       # no real accounts, outbound messages, location, payments or scheduler.
-      - run: npm run test:e2e:schedules
+      - run: node scripts/ci-run-selected.mjs browser schedules-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -806,6 +768,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -822,7 +785,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Fictional local Auth/event/policy fixtures and real queue RPCs only.
       # Device transport, payments, external providers and scheduler stay disabled.
-      - run: npm run test:e2e:schedule-notices
+      - run: node scripts/ci-run-selected.mjs browser schedule-notices-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -840,6 +803,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -856,7 +820,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Fictional local Auth/editorial fixtures and real current-role RPCs only.
       # No actual content publication, provider delivery, payment or scheduler.
-      - run: npm run test:e2e:content-calendar
+      - run: node scripts/ci-run-selected.mjs browser content-calendar-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -874,6 +838,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -890,7 +855,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Fictional local Auth/board fixtures and real private storage/RPCs only.
       # No real user posts, private assets, provider traffic or scheduler.
-      - run: npm run test:e2e:community-posts
+      - run: node scripts/ci-run-selected.mjs browser community-posts-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -908,6 +873,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -924,7 +890,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Fictional local Auth/comment/like fixtures and actual database RPCs only.
       # No real user posts/comments/likes, provider traffic or scheduler.
-      - run: npm run test:e2e:community-interactions
+      - run: node scripts/ci-run-selected.mjs browser community-interactions-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -942,6 +908,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -958,7 +925,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Fictional local Auth/report/review fixtures and actual database RPCs only.
       # No real moderation, role grants, provider traffic or scheduler.
-      - run: npm run test:e2e:community-moderation
+      - run: node scripts/ci-run-selected.mjs browser community-moderation-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -976,6 +943,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -992,7 +960,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Fictional local Auth/attendance/history fixtures and actual database RPCs only.
       # No real points awards, policy approvals, provider traffic or scheduler.
-      - run: npm run test:e2e:attendance-points
+      - run: node scripts/ci-run-selected.mjs browser attendance-points-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -1010,6 +978,7 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -1026,11 +995,46 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Fictional local Auth/contribution/outcome fixtures and actual database RPCs only.
       # No real rewards, share verification, mission or grade activation.
-      - run: npm run test:e2e:activity-rewards
+      - run: node scripts/ci-run-selected.mjs browser activity-rewards-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: activity-rewards-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
+  analytics-funnel-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['analytics-funnel-browser'] }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/analytics-funnel-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Fictional local Auth/consent/event fixtures and actual database RPCs only.
+      # No real consent, external tracking or business-metric policy activation.
+      - run: node scripts/ci-run-selected.mjs browser analytics-funnel-browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: analytics-funnel-browser-results
           path: |
             playwright-report/
             test-results/
@@ -1070,6 +1074,7 @@ jobs:
       - community-moderation-browser
       - attendance-points-browser
       - activity-rewards-browser
+      - analytics-funnel-browser
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

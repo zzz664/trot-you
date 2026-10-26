@@ -1,7 +1,11 @@
 import 'server-only';
 import { z } from 'zod';
 import { AnalyticsEvent } from '@/config/analytics-events';
-import type { AnalyticsError, AnalyticsResult } from '@/config/analytics';
+import {
+  ANALYTICS_REQUEST_TIMEOUT_MS,
+  type AnalyticsError,
+  type AnalyticsResult,
+} from '@/config/analytics';
 import type { AnalyticsPort } from '@/server/services/analytics/track';
 import type { ActorClient } from './client';
 
@@ -30,9 +34,10 @@ export function createAnalyticsPort(client: ActorClient): AnalyticsPort {
           ? { p_voice_context: input.properties.voice_context }
           : { p_source_id: input.properties.source_id }),
       });
-      const { data, error } = await (signal
-        ? request.abortSignal(signal)
-        : request);
+      const timeout = AbortSignal.timeout(ANALYTICS_REQUEST_TIMEOUT_MS);
+      const { data, error } = await request.abortSignal(
+        signal ? AbortSignal.any([signal, timeout]) : timeout,
+      );
       if (error) return failure(error.message);
       // The DB returns an internal row UUID. Do not expose it to the browser.
       return z.uuid().safeParse(data).success

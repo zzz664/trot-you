@@ -33,9 +33,23 @@ describe('consent-gated actor analytics RPC adapter', () => {
   });
   it('passes a lifecycle AbortSignal to the actual request', async () => {
     const { port, abortSignal } = fixture({ data: id, error: null });
-    const signal = new AbortController().signal;
-    expect(await port.record(input, signal)).toEqual({ ok: true, data: null });
-    expect(abortSignal).toHaveBeenCalledExactlyOnceWith(signal);
+    const controller = new AbortController();
+    expect(await port.record(input, controller.signal)).toEqual({
+      ok: true,
+      data: null,
+    });
+    expect(abortSignal).toHaveBeenCalledOnce();
+    const signal = abortSignal.mock.calls[0]![0] as AbortSignal;
+    expect(signal.aborted).toBe(false);
+    controller.abort();
+    expect(signal.aborted).toBe(true);
+  });
+  it('bounds optional collection even without an external lifecycle signal', async () => {
+    const { port, abortSignal } = fixture({ data: id, error: null });
+    await port.record(input);
+    expect(abortSignal).toHaveBeenCalledExactlyOnceWith(
+      expect.any(AbortSignal),
+    );
   });
   it('uses only source handle for the existing generic message observation', async () => {
     const { port, rpc } = fixture({ data: id, error: null });

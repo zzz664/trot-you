@@ -67,7 +67,7 @@ describe('renewal dependency boundary', () => {
   });
   it('injects guarded transport into both real adapters without dispatch', () => {
     const deps = createRenewalDependencies()!;
-    expect(deps.db).toEqual({ db: true });
+    expect(deps.db).toEqual({ db: true, finalize: expect.any(Function) });
     expect(mocks.toss).toHaveBeenCalledExactlyOnceWith(
       env,
       mocks.transport.mock.results[0]!.value,

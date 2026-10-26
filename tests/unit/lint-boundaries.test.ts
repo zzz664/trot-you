@@ -234,4 +234,51 @@ describe('activity rewards UI boundaries', () => {
       ).toContain('no-restricted-imports');
     },
   );
+  it.each(['button', 'input', 'a'])(
+    'keeps analytics %s in accessible primitives',
+    async (element) => {
+      expect(
+        await rules(
+          'src/components/attendance-points/Probe.tsx',
+          `export const Probe = () => <${element} />;`,
+        ),
+      ).toContain('no-restricted-syntax');
+    },
+  );
+  it.each(['@/server/db/attendance-points', '@/server/adapters/payment/toss'])(
+    'keeps analytics data and external I/O out of UI: %s',
+    async (path) => {
+      expect(
+        await rules(
+          'src/components/attendance-points/Probe.tsx',
+          `import value from '${path}'; export { value };`,
+        ),
+      ).toContain('no-restricted-imports');
+    },
+  );
+});
+
+describe('activity rewards UI boundaries', () => {
+  it.each(['button', 'input', 'a'])(
+    'keeps analytics %s in accessible primitives',
+    async (element) => {
+      expect(
+        await rules(
+          'src/components/analytics-funnel/Probe.tsx',
+          `export const Probe = () => <${element} />;`,
+        ),
+      ).toContain('no-restricted-syntax');
+    },
+  );
+  it.each(['@/server/db/analytics-funnel', '@/server/adapters/payment/toss'])(
+    'keeps analytics data and external I/O out of UI: %s',
+    async (path) => {
+      expect(
+        await rules(
+          'src/components/analytics-funnel/Probe.tsx',
+          `import value from '${path}'; export { value };`,
+        ),
+      ).toContain('no-restricted-imports');
+    },
+  );
 });

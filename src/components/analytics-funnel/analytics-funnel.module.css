@@ -1,0 +1,53 @@
+.screen {
+  overflow-wrap: anywhere;
+}
+.stack,
+.list,
+.panel,
+.notice {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+}
+.list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+.list > li {
+  min-width: 0;
+}
+.panel,
+.notice {
+  border: var(--border-width) solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  padding: calc(var(--space-unit) * 2);
+}
+.panel h3 {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: var(--line-title);
+}
+.panel code {
+  font: inherit;
+  color: var(--color-muted);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-unit);
+}
+.actions > * {
+  max-width: 100%;
+}
+.screen input[type='date'] {
+  min-width: 0;
+  max-width: 100%;
+}
+.bar {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--fs-body);
+}

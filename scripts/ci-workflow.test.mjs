@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
-import { CONDITIONAL_JOBS, REQUIRED_JOB_IDS } from './ci-impact-registry.mjs';
+import {
+  BROWSER_JOBS,
+  CONDITIONAL_JOBS,
+  REQUIRED_JOB_IDS,
+} from './ci-impact-registry.mjs';
 
 const workflow = readFileSync(
   new URL('../.github/workflows/ci.yml', import.meta.url),
@@ -11,12 +15,19 @@ const workflow = readFileSync(
 const baseline = JSON.parse(
   readFileSync(new URL('./ci-workflow-baseline.json', import.meta.url), 'utf8'),
 );
+const runner = 'node scripts/ci-run-selected.mjs';
+const planEnv = 'CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}';
+const browserSelected =
+  '${{ fromJSON(needs.impact.outputs.plan).selection.browser.quality[0] != null }}';
+const scoped = "${{ fromJSON(needs.impact.outputs.plan).mode == 'scoped' }}";
+const compileSelected =
+  '${{ fromJSON(needs.impact.outputs.plan).selection.typecheck == true }}';
 
-// This is an intentionally narrow contract reader for this checked-in workflow,
-// not a general YAML parser. Unexpected job layout causes a failing assertion.
+// This narrow checked-in-workflow contract reader is intentionally not a YAML
+// parser. Unexpected layout or duplicate job IDs fail instead of hiding a gate.
 function jobBodies(source) {
+  assert.equal(source.split('\njobs:\n').length, 2);
   const body = source.split('\njobs:\n')[1];
-  assert.ok(body, 'Expected one top-level jobs mapping.');
   const headers = [...body.matchAll(/^  ([a-z][a-z0-9-]*):\n/gm)];
   const jobs = Object.fromEntries(
     headers.map((match, index) => [
@@ -32,66 +43,195 @@ function jobBodies(source) {
 }
 
 const jobs = jobBodies(workflow);
-
-// The historical hashes stay immutable. Feature33 adds these exact gates;
-// removing only their reviewed insertion blocks must recover every old byte.
-const reviewedAdditions = {
-  quality: [
-    {
-      before: '      - run: npx playwright install --with-deps chromium\n',
-      text:
-        '      - run: npm run test:content-calendar-fixture\n' +
-        '      - run: npm run test:community-posts-fixture\n' +
-        '      - run: npm run test:community-interactions-fixture\n' +
-        '      - run: npm run test:community-moderation-fixture\n' +
-        '      - run: npm run test:attendance-points-fixture\n' +
-        '      - run: npm run test:activity-rewards-fixture\n',
-    },
-  ],
-  database: [
-    {
-      before: '      - run: npm run db:types\n',
-      text:
-        '      - run: npm run test:db:content-calendar-concurrency\n' +
-        '      - run: node scripts/test-content-calendar-upgrade.mjs\n' +
-        '      - run: npm run test:db:community-posts-concurrency\n' +
-        '      - run: node scripts/test-community-posts-upgrade.mjs\n' +
-        '      - run: npm run test:db:community-interactions-concurrency\n' +
-        '      - run: node scripts/test-community-interactions-upgrade.mjs\n' +
-        '      - run: npm run test:db:community-moderation-concurrency\n' +
-        '      - run: node scripts/test-community-moderation-upgrade.mjs\n' +
-        '      - run: npm run test:db:attendance-points-concurrency\n' +
-        '      - run: node scripts/test-attendance-points-upgrade.mjs\n' +
-        '      - run: npm run test:db:activity-rewards-concurrency\n' +
-        '      - run: node scripts/test-activity-rewards-upgrade.mjs\n',
-    },
-  ],
-};
-function originalSteps(name, steps) {
-  let original = steps;
-  for (const { before, text } of reviewedAdditions[name] ?? []) {
-    const insertion = `${text}${before}`;
-    assert.equal(
-      original.split(insertion).length,
-      2,
-      `${name}: reviewed gates missing, duplicated or moved`,
-    );
-    original = original.replace(insertion, before);
-  }
-  return original;
+function runCommands(body) {
+  return [...body.matchAll(/^      - run: (.*)$/gm)].map((match) => match[1]);
 }
-function verifyLegacySteps(name, body) {
+function guarded(body, command, condition) {
+  assert.ok(
+    body.includes(`      - run: ${command}\n        if: ${condition}\n`),
+    `Missing explicit guard for ${command}`,
+  );
+}
+function ordered(body, entries) {
+  let previous = -1;
+  for (const entry of entries) {
+    const index = body.indexOf(entry, previous + 1);
+    assert.ok(index > previous, `Missing/out-of-order gate: ${entry}`);
+    previous = index;
+  }
+}
+function selectedJob(name, body) {
+  assert.match(body, /^    needs: impact$/m);
+  assert.ok(
+    body.includes(
+      `if: \${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['${name}'] }}`,
+    ),
+  );
+  assert.ok(body.includes(planEnv));
+}
+function noBlanketExecution(source) {
+  assert.doesNotMatch(
+    source,
+    /(?:run:|&&|\|\|)\s*(?:npm run (?:check:all|lint\b|test(?::|\s|$))|npx (?:vitest|playwright test)|node --test|node scripts\/test-)/m,
+  );
+  assert.doesNotMatch(source, /continue-on-error:|\|\|\s*(?:true|:)|set \+e/);
+}
+function qualityContract(body) {
+  assert.match(body, /^    needs: impact$/m);
+  assert.match(
+    body,
+    /^    if: \$\{\{ needs\.impact\.result == 'success' \}\}$/m,
+  );
+  assert.ok(body.includes(planEnv));
+  assert.deepEqual(runCommands(body), [
+    'npm ci',
+    `${runner} lint`,
+    'npm run typecheck',
+    `${runner} unit`,
+    `${runner} fixtures`,
+    'npm run build',
+    'npx playwright install --with-deps chromium',
+    `${runner} browser quality`,
+  ]);
+  guarded(body, 'npm ci', scoped);
+  guarded(body, 'npm run typecheck', compileSelected);
+  for (const command of [
+    'npm run build',
+    'npx playwright install --with-deps chromium',
+    `${runner} browser quality`,
+  ])
+    guarded(body, command, browserSelected);
+  assert.ok(
+    body.includes(
+      'uses: actions/upload-artifact@v4\n' +
+        '        if: ${{ always() && fromJSON(needs.impact.outputs.plan).selection.browser.quality[0] != null }}\n',
+    ),
+  );
+}
+function databaseContract(body) {
+  selectedJob('database', body);
+  assert.deepEqual(runCommands(body), [
+    'npm ci',
+    'npm run db:start',
+    'npm run db:reset',
+    'npm run db:lint',
+    `${runner} sql`,
+    `${runner} sql`,
+    `${runner} races`,
+    `${runner} upgrades`,
+    'npm run db:types',
+    'npm run typecheck',
+    'npm run db:stop -- --no-backup',
+  ]);
+  ordered(body, [
+    'run: npm run db:types',
+    'uses: actions/upload-artifact@v4\n        if: success()',
+    'name: database-types',
+    'path: src/types/database.ts',
+    'if-no-files-found: error',
+    'run: npm run typecheck',
+    'git ls-files --error-unmatch src/types/database.ts',
+    'git diff --exit-code -- src/types/database.ts',
+    'run: npm run db:stop -- --no-backup\n        if: always()',
+  ]);
+  assert.match(body, /timeout-minutes: 35/);
+}
+
+const developmentServers = new Set([
+  'enrollment-browser',
+  'renewal-browser',
+  'cancellation-browser',
+  'reconciliation-browser',
+]);
+function browserCommands(name) {
+  const feature = name.replace(/-browser$/, '');
+  const environments = ['auth'];
+  if (developmentServers.has(name)) {
+    for (const prerequisite of [
+      'enrollment',
+      'renewal',
+      'cancellation',
+      'reconciliation',
+    ]) {
+      environments.push(prerequisite);
+      if (prerequisite === feature) break;
+    }
+  } else if (feature === 'speech') environments.push('reply', 'speech');
+  else if (feature !== 'auth') environments.push(feature);
+  return [
+    'npm ci',
+    'node scripts/auth-local-ci.mjs configure',
+    'npm run db:start',
+    'npm run db:reset',
+    ...environments.map(
+      (item) => `node scripts/${item}-local-ci.mjs environment`,
+    ),
+    ...(!developmentServers.has(name) ? ['npm run build'] : []),
+    'npx playwright install --with-deps chromium',
+    `${runner} browser ${name}`,
+    'npm run db:stop -- --no-backup',
+  ];
+}
+function browserContract(name, body) {
+  selectedJob(name, body);
+  assert.deepEqual(runCommands(body), browserCommands(name));
+  ordered(body, [
+    `run: ${runner} browser ${name}`,
+    'uses: actions/upload-artifact@v4\n        if: always()',
+    `name: ${name}-results`,
+    'playwright-report/',
+    'test-results/',
+    'retention-days: 7',
+    'run: npm run db:stop -- --no-backup\n        if: always()',
+  ]);
+  assert.match(body, /NEXT_TELEMETRY_DISABLED: '1'/);
+  assert.match(body, /timeout-minutes: (?:20|25)/);
+}
+
+// Historical browser setup hashes remain immutable. Reconstruct ONLY the old
+// suite command to prove all fixture/build/artifact/teardown bytes are retained.
+// This never executes the old suite or requires cumulative regression coverage.
+function preservedBrowserSetup(name, body) {
   const steps = body.split('    steps:\n')[1];
-  assert.ok(steps, `${name}: missing legacy steps`);
+  assert.ok(steps);
+  const originalCommand =
+    name === 'auth-browser'
+      ? 'npx playwright test --config playwright.auth.config.ts'
+      : `npm run test:e2e:${name === 'reply-browser' ? 'replies' : name.replace(/-browser$/, '')}`;
+  const original = steps.replace(
+    `run: ${runner} browser ${name}\n`,
+    `run: ${originalCommand}\n`,
+  );
   assert.equal(
-    createHash('sha256').update(originalSteps(name, steps)).digest('hex'),
+    createHash('sha256').update(original).digest('hex'),
     baseline.stepHashes[name],
-    `${name}: original setup/test/cleanup/artifact steps changed`,
+    `${name}: guarded fixture setup/artifact/teardown changed`,
   );
 }
 
-describe('CI workflow safety and unchanged regression coverage', () => {
-  it('registers every workflow job in the stable aggregate and registry', () => {
+describe('explicit changed-work-only CI workflow', () => {
+  it('has PR-only automatic triggers and no manual or merge/push fallback', () => {
+    const trigger = workflow.split('\npermissions:\n')[0];
+    assert.deepEqual(
+      [...trigger.matchAll(/^  ([a-z_]+):$/gm)].map((match) => match[1]),
+      ['pull_request'],
+    );
+    assert.match(
+      trigger,
+      /branches: \[develop, main, 'release\/\*\*', 'releases\/\*\*'\]/,
+    );
+    assert.match(trigger, /types: \[opened, synchronize, reopened, edited\]/);
+  });
+
+  it('remains fork-safe, read-only, and without workflow-level path filters', () => {
+    assert.match(workflow, /permissions:\n  contents: read\n/);
+    assert.doesNotMatch(
+      workflow,
+      /pull_request_target|secrets\.|(?:^|\n) *paths(?:-ignore)?:|(?:pull-requests|checks|actions|id-token): write/,
+    );
+  });
+
+  it('preserves the complete stable job and aggregate inventory', () => {
     assert.deepEqual(
       Object.keys(jobs).sort(),
       [...REQUIRED_JOB_IDS, 'ci-required'].sort(),
@@ -101,541 +241,146 @@ describe('CI workflow safety and unchanged regression coverage', () => {
       ?.split('    runs-on:')[0];
     assert.ok(needs);
     assert.deepEqual(
-      [...needs.matchAll(/^      - ([a-z-]+)$/gm)]
-        .map((match) => match[1])
-        .sort(),
+      [...needs.matchAll(/^      - ([a-z-]+)$/gm)].map((m) => m[1]).sort(),
       [...REQUIRED_JOB_IDS].sort(),
     );
     assert.match(jobs['ci-required'], /^    if: \$\{\{ always\(\) \}\}$/m);
-    assert.match(
-      jobs['ci-required'],
-      /CI_IMPACT_PLAN: \$\{\{ needs\.impact\.outputs\.plan \}\}/,
-    );
+    assert.ok(jobs['ci-required'].includes(planEnv));
     assert.match(jobs['ci-required'], /CI_NEEDS: \$\{\{ toJSON\(needs\) \}\}/);
     assert.match(jobs['ci-required'], /run: node scripts\/ci-required\.mjs/);
   });
 
-  it('guards every expensive job with its own explicit plan decision', () => {
-    for (const name of CONDITIONAL_JOBS) {
-      assert.match(jobs[name], /^    needs: impact$/m);
-      assert.ok(
-        jobs[name].includes(
-          `if: \${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['${name}'] }}`,
-        ),
-      );
-    }
-    assert.doesNotMatch(jobs.quality, /^    (?:if|needs):/m);
-    assert.doesNotMatch(jobs.impact, /^    (?:if|needs):/m);
-    assert.doesNotMatch(workflow, /continue-on-error:/);
-  });
-
-  it('runs all dependency-free CI tests before computing any skip decision', () => {
-    const tests = jobs.impact.indexOf('run: node --test scripts/ci-*.test.mjs');
-    const selector = jobs.impact.indexOf('run: node scripts/ci-impact.mjs');
-    assert.ok(tests >= 0 && selector > tests);
+  it('computes one plan before selected tests with no blanket bootstrap tests', () => {
+    assert.deepEqual(runCommands(jobs.impact), []);
+    assert.match(
+      jobs.impact,
+      /id: select\n        run: node scripts\/ci-impact\.mjs/,
+    );
     assert.match(jobs.impact, /fetch-depth: 0/);
     assert.match(jobs.impact, /persist-credentials: false/);
     assert.match(jobs.impact, /plan: \$\{\{ steps\.select\.outputs\.plan \}\}/);
+    assert.doesNotMatch(jobs.impact, /--test|npm ci|ci-run-selected/);
   });
 
-  it('keeps fork-safe read-only PR execution with no workflow-level path filtering', () => {
-    const trigger = workflow.split('\njobs:\n')[0];
-    assert.match(trigger, /^  pull_request:$/m);
-    assert.doesNotMatch(
-      workflow,
-      /pull_request_target|secrets\.|(?:^|\n) *paths(?:-ignore)?:/,
-    );
-    assert.match(trigger, /permissions:\n  contents: read\n/);
-    assert.doesNotMatch(
-      trigger,
-      /(?:pull-requests|checks|actions|id-token): write/,
-    );
+  it('has no cumulative test/lint invocation or failure masking anywhere', () => {
+    noBlanketExecution(workflow);
   });
 
-  it('covers full main/release/manual/merge-queue runs without develop push duplication', () => {
-    const trigger = workflow.split('\njobs:\n')[0];
-    assert.match(
-      trigger,
-      /pull_request:\n    branches: \[develop, main, 'release\/\*\*', 'releases\/\*\*'\]/,
-    );
-    assert.match(
-      trigger,
-      /push:\n    branches: \[main, 'release\/\*\*', 'releases\/\*\*'\]/,
-    );
-    assert.match(trigger, /^  workflow_dispatch:$/m);
-    assert.match(trigger, /^  merge_group:$/m);
+  it('passes the validated plan and exact explicit job gate to all expensive jobs', () => {
+    for (const name of CONDITIONAL_JOBS) selectedJob(name, jobs[name]);
   });
 
-  it('preserves all 21 original job steps with only exact reviewed additions', () => {
+  it('runs only selected quality work, compiles explicitly, builds only selected browser work', () => {
+    qualityContract(jobs.quality);
+  });
+
+  it('retains genuine schema setup/types but only two selected SQL passes and selected races/upgrades', () => {
+    databaseContract(jobs.database);
+  });
+
+  for (const name of BROWSER_JOBS) {
+    it(`${name}: retains isolated fixture lifecycle and only invokes its named browser selection`, () => {
+      browserContract(name, jobs[name]);
+      if (name in baseline.stepHashes) preservedBrowserSetup(name, jobs[name]);
+    });
+  }
+
+  it('keeps historical setup evidence immutable without requiring historical tests', () => {
     assert.equal(baseline.commit, '4b4a9f55de1fb5c61302dcf0fc28d42eae570f65');
-    // This historical snapshot is fixed at 21 jobs. A future additional suite
-    // belongs in the registry/aggregate, not falsely in this old commit's data.
     assert.equal(Object.keys(baseline.stepHashes).length, 21);
     assert.ok(Object.keys(baseline.stepHashes).every((name) => name in jobs));
-    for (const name of Object.keys(baseline.stepHashes)) {
-      verifyLegacySteps(name, jobs[name]);
+  });
+
+  for (const command of [
+    'npm run check:all',
+    'npm run test',
+    'npm run test:integration',
+    'npm run test:e2e:analytics-funnel',
+    'npm run test:analytics-funnel-fixture',
+    'npm run lint',
+    'node --test scripts/ci-*.test.mjs',
+    'npx vitest run',
+    'npx playwright test',
+    'node scripts/test-analytics-funnel-concurrency.mjs',
+  ]) {
+    it(`rejects bypassing the explicit runner with ${command}`, () => {
+      assert.throws(() =>
+        noBlanketExecution(`${workflow}\n      - run: ${command}\n`),
+      );
+    });
+  }
+
+  it('rejects removing, duplicating, or weakening selected database gates', () => {
+    for (const command of [
+      `${runner} sql`,
+      `${runner} races`,
+      `${runner} upgrades`,
+      'npm run db:lint',
+      'npm run db:types',
+    ]) {
+      const line = `      - run: ${command}\n`;
+      for (const replacement of [
+        '',
+        line + line,
+        '      - run: echo bypassed\n',
+      ])
+        assert.throws(() =>
+          databaseContract(jobs.database.replace(line, replacement)),
+        );
     }
   });
 
-  it('rejects missing, duplicated, relocated or weakened reviewed DB gates', () => {
-    const original = jobs.database;
-    const added = reviewedAdditions.database[0].text;
+  it('rejects quality build/install/browser work without its nonempty selection gate', () => {
+    for (const command of [
+      'npm ci',
+      'npm run typecheck',
+      'npm run build',
+      'npx playwright install --with-deps chromium',
+      `${runner} browser quality`,
+    ]) {
+      const prefix = `      - run: ${command}\n`;
+      const start = jobs.quality.indexOf(prefix) + prefix.length;
+      const end = jobs.quality.indexOf('\n', start) + 1;
+      const unguarded = jobs.quality.slice(0, start) + jobs.quality.slice(end);
+      assert.throws(() => qualityContract(unguarded));
+    }
+  });
+
+  it('rejects lost cleanup, fixture guards, plan or narrowed execution in a browser job', () => {
+    const name = 'analytics-funnel-browser';
+    const body = jobs[name];
     for (const changed of [
-      original.replace(added, ''),
-      original.replace(added, added + added),
-      original
-        .replace(added, '')
-        .replace(
-          '      - run: npm run db:reset\n',
-          `      - run: npm run db:reset\n${added}`,
-        ),
-      original.replace(
-        'npm run test:db:content-calendar-concurrency',
-        'echo skipped calendar races',
+      body.replace('node scripts/auth-local-ci.mjs configure', 'echo bypassed'),
+      body.replace(
+        'node scripts/analytics-funnel-local-ci.mjs environment',
+        'echo bypassed',
       ),
-      original.replace(
-        'node scripts/test-content-calendar-upgrade.mjs',
-        'echo skipped calendar upgrade',
+      body.replace(planEnv, ''),
+      body.replace(
+        `${runner} browser ${name}`,
+        'npm run test:e2e:analytics-funnel',
       ),
-      original.replace(
-        'npm run test:db:community-moderation-concurrency',
-        'echo skipped moderation races',
+      body.replace(
+        'run: npm run db:stop -- --no-backup\n        if: always()',
+        'run: npm run db:stop -- --no-backup',
       ),
-      original.replace(
-        'node scripts/test-community-moderation-upgrade.mjs',
-        'echo skipped moderation upgrade',
-      ),
-      original.replace(
-        'npm run test:db:attendance-points-concurrency',
-        'echo skipped attendance races',
-      ),
-      original.replace(
-        'node scripts/test-attendance-points-upgrade.mjs',
-        'echo skipped attendance upgrade',
-      ),
-      original.replace(
-        'npm run test:db:activity-rewards-concurrency',
-        'echo skipped activity reward races',
-      ),
-      original.replace(
-        'node scripts/test-activity-rewards-upgrade.mjs',
-        'echo skipped activity reward upgrade',
-      ),
-      original.replace(
-        'npm run test:integration',
-        'echo skipped original integration',
-      ),
-      original.replace('npm run db:lint', 'echo skipped original lint'),
-      original.replace(
-        'npm run test:db:community-posts-concurrency',
-        'echo skipped board races',
-      ),
-      original.replace(
-        'node scripts/test-community-posts-upgrade.mjs',
-        'echo skipped board upgrade',
-      ),
-      original.replace(
-        'npm run test:db:community-interactions-concurrency',
-        'echo skipped interaction races',
-      ),
-      original.replace(
-        'node scripts/test-community-interactions-upgrade.mjs',
-        'echo skipped interaction upgrade',
+      body.replace(
+        'uses: actions/upload-artifact@v4\n        if: always()',
+        'uses: actions/upload-artifact@v4',
       ),
     ])
-      assert.throws(() => verifyLegacySteps('database', changed));
+      assert.throws(() => browserContract(name, changed));
   });
 
-  it('rejects missing, duplicated, relocated or weakened reviewed fixture gates', () => {
-    const original = jobs.quality;
-    const added = reviewedAdditions.quality[0].text;
-    for (const changed of [
-      original.replace(added, ''),
-      original.replace(added, added + added),
-      original
-        .replace(added, '')
-        .replace('      - run: npm ci\n', `      - run: npm ci\n${added}`),
-      original.replace(
-        'npm run test:content-calendar-fixture',
-        'echo skipped calendar fixtures',
-      ),
-      original.replace(
-        'npm run test:attendance-points-fixture',
-        'echo skipped attendance fixture',
-      ),
-      original.replace(
-        'npm run test:activity-rewards-fixture',
-        'echo skipped activity reward fixture',
-      ),
-      original.replace(
-        'npm run test:community-moderation-fixture',
-        'echo skipped moderation fixtures',
-      ),
-      original.replace('npm run check:all', 'echo skipped original quality'),
-      original.replace(
-        'npm run test:community-posts-fixture',
-        'echo skipped board fixtures',
-      ),
-      original.replace(
-        'npm run test:community-interactions-fixture',
-        'echo skipped interaction fixtures',
-      ),
+  it('rejects failure suppression and duplicate job definitions', () => {
+    for (const suffix of [
+      'continue-on-error: true',
+      'run: false || true',
+      'run: set +e',
     ])
-      assert.throws(() => verifyLegacySteps('quality', changed));
-  });
-
-  it('runs the registered calendar suite in its isolated Auth/database fixture job', () => {
-    const calendar = jobs['content-calendar-browser'];
-    const required = [
-      'run: node scripts/auth-local-ci.mjs configure',
-      'run: npm run db:start',
-      'run: npm run db:reset',
-      'run: node scripts/auth-local-ci.mjs environment',
-      'run: node scripts/content-calendar-local-ci.mjs environment',
-      'run: npm run build',
-      'run: npx playwright install --with-deps chromium',
-      'run: npm run test:e2e:content-calendar',
-      'uses: actions/upload-artifact@v4',
-      'name: content-calendar-browser-results',
-      'run: npm run db:stop -- --no-backup',
-    ];
-    let previous = -1;
-    for (const gate of required) {
-      const index = calendar.indexOf(gate);
-      assert.ok(
-        index > previous,
-        `Calendar gate missing or out of order: ${gate}`,
-      );
-      previous = index;
-    }
-    assert.match(
-      calendar,
-      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
+      assert.throws(() => noBlanketExecution(workflow + '\n' + suffix));
+    assert.throws(() =>
+      jobBodies(workflow + '\n  quality:\n    runs-on: ubuntu-latest\n'),
     );
-    assert.match(
-      calendar,
-      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
-    );
-    assert.match(calendar, /timeout-minutes: 25/);
-    const config = readFileSync(
-      new URL('../playwright.config.ts', import.meta.url),
-      'utf8',
-    );
-    assert.ok(config.includes("'**/content-calendar/**'"));
-    const scripts = JSON.parse(
-      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-    ).scripts;
-    assert.equal(
-      scripts['test:e2e:content-calendar'],
-      'playwright test --config playwright.content-calendar.config.ts',
-    );
-    assert.equal(
-      scripts['test:content-calendar-fixture'],
-      'node --test scripts/content-calendar-local-config.test.mjs',
-    );
-    assert.equal(
-      scripts['test:db:content-calendar-concurrency'],
-      'node scripts/test-content-calendar-concurrency.mjs',
-    );
-  });
-
-  it('runs the registered community board suite in its isolated Auth/database fixture job', () => {
-    const calendar = jobs['community-posts-browser'];
-    const required = [
-      'run: node scripts/auth-local-ci.mjs configure',
-      'run: npm run db:start',
-      'run: npm run db:reset',
-      'run: node scripts/auth-local-ci.mjs environment',
-      'run: node scripts/community-posts-local-ci.mjs environment',
-      'run: npm run build',
-      'run: npx playwright install --with-deps chromium',
-      'run: npm run test:e2e:community-posts',
-      'uses: actions/upload-artifact@v4',
-      'name: community-posts-browser-results',
-      'run: npm run db:stop -- --no-backup',
-    ];
-    let previous = -1;
-    for (const gate of required) {
-      const index = calendar.indexOf(gate);
-      assert.ok(
-        index > previous,
-        `Community board gate missing or out of order: ${gate}`,
-      );
-      previous = index;
-    }
-    assert.match(
-      calendar,
-      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
-    );
-    assert.match(
-      calendar,
-      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
-    );
-    assert.match(calendar, /timeout-minutes: 25/);
-    const config = readFileSync(
-      new URL('../playwright.config.ts', import.meta.url),
-      'utf8',
-    );
-    assert.ok(config.includes("'**/community-posts/**'"));
-    const scripts = JSON.parse(
-      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-    ).scripts;
-    assert.equal(
-      scripts['test:e2e:community-posts'],
-      'playwright test --config playwright.community-posts.config.ts',
-    );
-    assert.equal(
-      scripts['test:community-posts-fixture'],
-      'node --test scripts/community-posts-local-config.test.mjs',
-    );
-    assert.equal(
-      scripts['test:db:community-posts-concurrency'],
-      'node scripts/test-community-posts-concurrency.mjs',
-    );
-  });
-
-  it('runs the registered community interaction suite in its isolated Auth/database fixture job', () => {
-    const calendar = jobs['community-interactions-browser'];
-    const required = [
-      'run: node scripts/auth-local-ci.mjs configure',
-      'run: npm run db:start',
-      'run: npm run db:reset',
-      'run: node scripts/auth-local-ci.mjs environment',
-      'run: node scripts/community-interactions-local-ci.mjs environment',
-      'run: npm run build',
-      'run: npx playwright install --with-deps chromium',
-      'run: npm run test:e2e:community-interactions',
-      'uses: actions/upload-artifact@v4',
-      'name: community-interactions-browser-results',
-      'run: npm run db:stop -- --no-backup',
-    ];
-    let previous = -1;
-    for (const gate of required) {
-      const index = calendar.indexOf(gate);
-      assert.ok(
-        index > previous,
-        `Community interaction gate missing or out of order: ${gate}`,
-      );
-      previous = index;
-    }
-    assert.match(
-      calendar,
-      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
-    );
-    assert.match(
-      calendar,
-      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
-    );
-    assert.match(calendar, /timeout-minutes: 25/);
-    const config = readFileSync(
-      new URL('../playwright.config.ts', import.meta.url),
-      'utf8',
-    );
-    assert.ok(config.includes("'**/community-interactions/**'"));
-    const scripts = JSON.parse(
-      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-    ).scripts;
-    assert.equal(
-      scripts['test:e2e:community-interactions'],
-      'playwright test --config playwright.community-interactions.config.ts',
-    );
-    assert.equal(
-      scripts['test:community-interactions-fixture'],
-      'node --test scripts/community-interactions-local-config.test.mjs',
-    );
-    assert.equal(
-      scripts['test:db:community-interactions-concurrency'],
-      'node scripts/test-community-interactions-concurrency.mjs',
-    );
-  });
-
-  it('runs the registered community moderation suite in its isolated Auth/database fixture job', () => {
-    const calendar = jobs['community-moderation-browser'];
-    const required = [
-      'run: node scripts/auth-local-ci.mjs configure',
-      'run: npm run db:start',
-      'run: npm run db:reset',
-      'run: node scripts/auth-local-ci.mjs environment',
-      'run: node scripts/community-moderation-local-ci.mjs environment',
-      'run: npm run build',
-      'run: npx playwright install --with-deps chromium',
-      'run: npm run test:e2e:community-moderation',
-      'uses: actions/upload-artifact@v4',
-      'name: community-moderation-browser-results',
-      'run: npm run db:stop -- --no-backup',
-    ];
-    let previous = -1;
-    for (const gate of required) {
-      const index = calendar.indexOf(gate);
-      assert.ok(
-        index > previous,
-        `Community moderation gate missing or out of order: ${gate}`,
-      );
-      previous = index;
-    }
-    assert.match(
-      calendar,
-      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
-    );
-    assert.match(
-      calendar,
-      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
-    );
-    assert.match(calendar, /timeout-minutes: 25/);
-    const config = readFileSync(
-      new URL('../playwright.config.ts', import.meta.url),
-      'utf8',
-    );
-    assert.ok(config.includes("'**/community-moderation/**'"));
-    const scripts = JSON.parse(
-      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-    ).scripts;
-    assert.equal(
-      scripts['test:e2e:community-moderation'],
-      'playwright test --config playwright.community-moderation.config.ts',
-    );
-    assert.equal(
-      scripts['test:community-moderation-fixture'],
-      'node --test scripts/community-moderation-local-config.test.mjs',
-    );
-    assert.equal(
-      scripts['test:db:community-moderation-concurrency'],
-      'node scripts/test-community-moderation-concurrency.mjs',
-    );
-  });
-
-  it('runs the registered attendance points suite in its isolated Auth/database fixture job', () => {
-    const calendar = jobs['attendance-points-browser'];
-    const required = [
-      'run: node scripts/auth-local-ci.mjs configure',
-      'run: npm run db:start',
-      'run: npm run db:reset',
-      'run: node scripts/auth-local-ci.mjs environment',
-      'run: node scripts/attendance-points-local-ci.mjs environment',
-      'run: npm run build',
-      'run: npx playwright install --with-deps chromium',
-      'run: npm run test:e2e:attendance-points',
-      'uses: actions/upload-artifact@v4',
-      'name: attendance-points-browser-results',
-      'run: npm run db:stop -- --no-backup',
-    ];
-    let previous = -1;
-    for (const gate of required) {
-      const index = calendar.indexOf(gate);
-      assert.ok(
-        index > previous,
-        `Attendance points gate missing or out of order: ${gate}`,
-      );
-      previous = index;
-    }
-    assert.match(
-      calendar,
-      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
-    );
-    assert.match(
-      calendar,
-      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
-    );
-    assert.match(calendar, /timeout-minutes: 25/);
-    const config = readFileSync(
-      new URL('../playwright.config.ts', import.meta.url),
-      'utf8',
-    );
-    assert.ok(config.includes("'**/attendance-points/**'"));
-    const scripts = JSON.parse(
-      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-    ).scripts;
-    assert.equal(
-      scripts['test:e2e:attendance-points'],
-      'playwright test --config playwright.attendance-points.config.ts',
-    );
-    assert.equal(
-      scripts['test:attendance-points-fixture'],
-      'node --test scripts/attendance-points-local-config.test.mjs',
-    );
-    assert.equal(
-      scripts['test:db:attendance-points-concurrency'],
-      'node scripts/test-attendance-points-concurrency.mjs',
-    );
-  });
-
-  it('runs the registered activity rewards suite in its isolated Auth/database fixture job', () => {
-    const calendar = jobs['activity-rewards-browser'];
-    const required = [
-      'run: node scripts/auth-local-ci.mjs configure',
-      'run: npm run db:start',
-      'run: npm run db:reset',
-      'run: node scripts/auth-local-ci.mjs environment',
-      'run: node scripts/activity-rewards-local-ci.mjs environment',
-      'run: npm run build',
-      'run: npx playwright install --with-deps chromium',
-      'run: npm run test:e2e:activity-rewards',
-      'uses: actions/upload-artifact@v4',
-      'name: activity-rewards-browser-results',
-      'run: npm run db:stop -- --no-backup',
-    ];
-    let previous = -1;
-    for (const gate of required) {
-      const index = calendar.indexOf(gate);
-      assert.ok(
-        index > previous,
-        `Activity rewards gate missing or out of order: ${gate}`,
-      );
-      previous = index;
-    }
-    assert.match(
-      calendar,
-      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
-    );
-    assert.match(
-      calendar,
-      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
-    );
-    assert.match(calendar, /timeout-minutes: 25/);
-    const config = readFileSync(
-      new URL('../playwright.config.ts', import.meta.url),
-      'utf8',
-    );
-    assert.ok(config.includes("'**/activity-rewards/**'"));
-    const scripts = JSON.parse(
-      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-    ).scripts;
-    assert.equal(
-      scripts['test:e2e:activity-rewards'],
-      'playwright test --config playwright.activity-rewards.config.ts',
-    );
-    assert.equal(
-      scripts['test:activity-rewards-fixture'],
-      'node --test scripts/activity-rewards-local-config.test.mjs',
-    );
-    assert.equal(
-      scripts['test:db:activity-rewards-concurrency'],
-      'node scripts/test-activity-rewards-concurrency.mjs',
-    );
-  });
-
-  it('retains both pgTAP passes, all concurrency suites, and populated upgrades', () => {
-    const database = jobs.database;
-    assert.equal(
-      (database.match(/run: npm run test:integration\n/g) || []).length,
-      2,
-    );
-    assert.equal(
-      (
-        database.match(
-          /run: (?:npm run test:db:[^\n]*concurrency|node scripts\/test-[^\n]*concurrency\.mjs)\n/g,
-        ) || []
-      ).length,
-      34,
-    );
-    assert.equal(
-      (database.match(/run: node scripts\/test-[^\n]*upgrade\.mjs\n/g) || [])
-        .length,
-      10,
-    );
-    assert.match(database, /git diff --exit-code -- src\/types\/database\.ts/);
-    assert.match(database, /npm run db:lint/);
-    assert.match(database, /npm run typecheck/);
-    assert.match(database, /timeout-minutes: 35/);
   });
 });

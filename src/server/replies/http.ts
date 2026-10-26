@@ -5,6 +5,9 @@ import {
   REPLY_HTTP_OK,
   type ReplyResult,
 } from '@/config/replies';
+import { AnalyticsEvent } from '@/config/analytics-events';
+import { captureServerEvent } from '@/server/services/analytics/capture';
+import { getAnalyticsCapturePort } from '@/server/analytics/capture';
 import { createAuthContext } from '@/server/auth/context';
 import { createReplyPort } from '@/server/db/replies';
 import { isRestricted, isSameOriginPost } from '@/server/services/auth/access';
@@ -21,7 +24,7 @@ function respond(context: Context, result: ReplyResult<unknown>) {
     }),
   );
 }
-async function subject(context: Context): Promise<ReplyResult<null>> {
+async function subject(context: Context): Promise<ReplyResult<string>> {
   if (!context.configuration || !context.client || !context.port)
     return { ok: false, code: 'SETUP_NOT_READY' };
   const state = await readSession(context.port);
@@ -34,7 +37,7 @@ async function subject(context: Context): Promise<ReplyResult<null>> {
     return { ok: false, code: 'FORBIDDEN' };
   if (!state.profile.onboarding_completed_at)
     return { ok: false, code: 'PROFILE_REQUIRED' };
-  return { ok: true, data: null };
+  return { ok: true, data: state.profile.id };
 }
 export async function repliesGet(request: NextRequest, slug: unknown) {
   const context = createAuthContext(request.cookies.getAll());
@@ -76,8 +79,22 @@ export async function repliesPost(request: NextRequest, slug: unknown) {
   if (!actor.ok) return respond(context, actor);
   const body = await replyWriteBody(request);
   if (!body) return respond(context, { ok: false, code: 'INVALID_INPUT' });
-  return respond(
-    context,
-    await sendReply(createReplyPort(context.client), { ...body, slug }),
-  );
+  const result = await sendReply(createReplyPort(context.client), {
+    ...body,
+    slug,
+  });
+  if (result.ok && !result.data.reply.blocked)
+    await captureServerEvent(
+      getAnalyticsCapturePort(),
+      {
+        actor_id: actor.data,
+        event: {
+          name: AnalyticsEvent.REPLY_SENT,
+          event_key: result.data.reply.id,
+          properties: { source_id: result.data.reply.id },
+        },
+      },
+      request.signal,
+    );
+  return respond(context, result);
 }

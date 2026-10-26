@@ -7,10 +7,17 @@ import { fanRepliesPath } from '@/config/routes';
 import { repliesGet, repliesPost } from '@/server/replies/http';
 
 const mock = vi.hoisted(() => ({
+  observation: vi.fn(),
   context: vi.fn(),
   port: vi.fn(),
   page: vi.fn(),
   send: vi.fn(),
+}));
+vi.mock('@/server/analytics/capture', () => ({
+  getAnalyticsCapturePort: () => ({
+    server: mock.observation,
+    cancellation: mock.observation,
+  }),
 }));
 vi.mock('@/server/auth/context', () => ({ createAuthContext: mock.context }));
 vi.mock('@/server/db/replies', () => ({ createReplyPort: mock.port }));
@@ -92,6 +99,7 @@ function post(
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  mock.observation.mockResolvedValue({ ok: true, data: null });
   mock.context.mockReturnValue(context());
   mock.port.mockReturnValue({ actorReplyPort: true });
   mock.page.mockResolvedValue({ ok: true, data: page });
@@ -299,4 +307,46 @@ describe('both reply operations require a verified current fan session', () => {
       expect((await repliesPost(post(), slug)).status).toBe(status);
     },
   );
+});
+
+describe('prospective reply source hook', () => {
+  it('records only immutable reply identity bound to verified actor', async () => {
+    const request = post();
+    expect((await repliesPost(request, slug)).status).toBe(200);
+    expect(mock.observation).toHaveBeenCalledExactlyOnceWith(
+      {
+        actor_id: actor,
+        event: {
+          name: 'reply_sent',
+          event_key: receipt.reply.id,
+          properties: { source_id: receipt.reply.id },
+        },
+      },
+      request.signal,
+    );
+    expect(JSON.stringify(mock.observation.mock.calls)).not.toContain(
+      body.body,
+    );
+  });
+  it('does not describe a blocked moderation row as a sent reply', async () => {
+    mock.send.mockResolvedValue({
+      ok: true,
+      data: { ...receipt, reply: { ...receipt.reply, blocked: true } },
+    });
+    expect((await repliesPost(post(), slug)).status).toBe(200);
+    expect(mock.observation).not.toHaveBeenCalled();
+  });
+  it('does not observe a refused reply operation', async () => {
+    mock.send.mockResolvedValue({ ok: false, code: 'FORBIDDEN' });
+    expect((await repliesPost(post(), slug)).status).toBe(403);
+    expect(mock.observation).not.toHaveBeenCalled();
+  });
+  it('preserves committed reply and does not resend after observation throws', async () => {
+    mock.observation.mockRejectedValue(new Error('offline'));
+    const response = await repliesPost(post(), slug);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, data: receipt });
+    expect(mock.send).toHaveBeenCalledOnce();
+    expect(mock.observation).toHaveBeenCalledOnce();
+  });
 });

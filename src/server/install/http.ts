@@ -3,8 +3,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 import {
   INSTALL_BODY_LIMIT,
   INSTALL_ERROR_STATUS,
+  installInputSchema,
   type InstallSubmitResult,
 } from '@/config/install';
+import { AnalyticsEvent } from '@/config/analytics-events';
+import { captureServerEvent } from '@/server/services/analytics/capture';
+import { getAnalyticsCapturePort } from '@/server/analytics/capture';
 import { createAuthContext } from '@/server/auth/context';
 import { createInstallPort } from '@/server/db/install';
 import { isRestricted, isSameOriginPost } from '@/server/services/auth/access';
@@ -83,5 +87,20 @@ export async function installPost(request: NextRequest) {
   } catch {
     return respond({ ok: false, code: 'INVALID_INPUT' });
   }
-  return respond(await submitInstall(createInstallPort(context.client), input));
+  const result = await submitInstall(createInstallPort(context.client), input);
+  const parsed = installInputSchema.safeParse(input);
+  if (result.ok && parsed.success && parsed.data.action === 'complete')
+    await captureServerEvent(
+      getAnalyticsCapturePort(),
+      {
+        actor_id: session.profile.id,
+        event: {
+          name: AnalyticsEvent.SIGNUP_COMPLETE,
+          event_key: session.profile.id,
+          properties: {},
+        },
+      },
+      request.signal,
+    );
+  return respond(result);
 }

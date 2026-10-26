@@ -61,6 +61,9 @@ export type ArtistPreviewMessage = {
   media: PreviewMedia[];
 };
 export type ArtistPreviewData = {
+  // Optional own-account assertion for prospective observations, not authority.
+  // Only the authenticated page may attach it; reusable/legacy DTOs omit it.
+  observationActorId?: string;
   artist: ArtistSummary;
   messages: ArtistPreviewMessage[];
   selectedSlug: string | null;

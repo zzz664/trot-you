@@ -26,6 +26,7 @@ import {
   managementSubscription,
 } from './management-fixtures';
 const mocks = vi.hoisted(() => ({
+  observation: vi.fn(),
   context: vi.fn(),
   db: vi.fn(),
   dependencies: vi.fn(),
@@ -41,6 +42,12 @@ const mocks = vi.hoisted(() => ({
     authorize: vi.fn(),
     reject: vi.fn(),
   },
+}));
+vi.mock('@/server/analytics/capture', () => ({
+  getAnalyticsCapturePort: () => ({
+    server: mocks.observation,
+    cancellation: mocks.observation,
+  }),
 }));
 vi.mock('@/server/auth/context', () => ({ createAuthContext: mocks.context }));
 vi.mock('@/server/db/subscription-management', () => ({
@@ -114,6 +121,7 @@ async function expectResult(
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.observation.mockResolvedValue({ ok: true, data: null });
   mocks.context.mockReturnValue(context());
   mocks.db.mockReturnValue(mocks.port);
   mocks.dependencies.mockReturnValue({ fixtureDependencies: true });
@@ -443,5 +451,36 @@ describe('management read-only status endpoint', () => {
     }
     expect(mocks.port.adminRead).toHaveBeenCalledOnce();
     expect(mocks.run).not.toHaveBeenCalled();
+  });
+});
+
+describe('prospective cancellation source hook', () => {
+  it('passes only actor and actual canceled subscription; DB derives epoch', async () => {
+    const request = post();
+    expect((await managementPost(request, 'cancel')).status).toBe(200);
+    expect(mocks.observation).toHaveBeenCalledExactlyOnceWith(
+      { actor_id: profile.id, subscription_id: managementCanceled.id },
+      request.signal,
+    );
+  });
+  it('does not invent cancellation from an expired observation', async () => {
+    mocks.port.read.mockResolvedValue({
+      ok: true,
+      data: { ...managementCanceled, status: 'expired' },
+    });
+    expect((await managementPost(post(), 'cancel')).status).toBe(200);
+    expect(mocks.observation).not.toHaveBeenCalled();
+  });
+  it('does not observe an unconfirmed cancellation', async () => {
+    mocks.port.cancel.mockResolvedValue({ ok: false, code: 'UNAVAILABLE' });
+    mocks.port.read.mockResolvedValue({ ok: false, code: 'UNAVAILABLE' });
+    expect((await managementPost(post(), 'cancel')).status).toBe(503);
+    expect(mocks.observation).not.toHaveBeenCalled();
+  });
+  it('preserves observed terminal intent even when optional capture fails', async () => {
+    mocks.observation.mockRejectedValue(new Error('offline'));
+    expect((await managementPost(post(), 'cancel')).status).toBe(200);
+    expect(mocks.port.cancel).toHaveBeenCalledOnce();
+    expect(mocks.observation).toHaveBeenCalledOnce();
   });
 });

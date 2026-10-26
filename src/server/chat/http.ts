@@ -5,6 +5,9 @@ import {
   CHAT_HTTP_OK,
   type ChatResult,
 } from '@/config/chat';
+import { AnalyticsEvent } from '@/config/analytics-events';
+import { createAnalyticsPort } from '@/server/db/analytics';
+import { track } from '@/server/services/analytics/track';
 import { createAuthContext } from '@/server/auth/context';
 import { createChatServiceClient } from '@/server/db/chat-client';
 import { createChatPagePort, createChatReadPort } from '@/server/db/chat';
@@ -88,8 +91,21 @@ export async function chatReadPost(
   if (!actor.ok) return respond(context, actor);
   if (!(await chatReadBody(request)))
     return respond(context, { ok: false, code: 'INVALID_INPUT' });
-  return respond(
-    context,
-    await markChatRead(createChatReadPort(context.client), { slug, messageId }),
-  );
+  const result = await markChatRead(createChatReadPort(context.client), {
+    slug,
+    messageId,
+  });
+  if (result.ok)
+    await track(
+      createAnalyticsPort(context.client),
+      {
+        event_key: result.data.messageId,
+        name: AnalyticsEvent.MESSAGE_OPEN,
+        properties: { source_id: result.data.messageId },
+      },
+      request.signal,
+    );
+  // Same request-bound actor capability owns both operations. A cookie switch
+  // after this response cannot attribute A's read to B in a second request.
+  return respond(context, result);
 }
