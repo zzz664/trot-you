@@ -67,3 +67,71 @@ Exact checkpoint hashes, file manifests and results will be appended as verified
   Hosted DB bootstrap must generate the new RPC type, upload its official artifact
   and intentionally detect committed-schema drift before an unchanged import.
   No complete hosted pass is claimed at this checkpoint.
+
+## Application checkpoint awaiting official schema output
+
+DB-only local commit `cd0c34fca6a539cce9dd9e73b8f6f0f89bc2ffbb` was published as
+remote `2d0c378324b8d633bc60f891452cb1e6bf52df2e`, with identical tree
+`968d2537b3a5905d4433a477ac93515ca22ead9b`. Draft PR 42 targets develop;
+publication/merge remain parent-controlled. Hosted DB run `40329167805` is still
+pending at this application checkpoint.
+
+- Added `/points/activity`, its private GET API, strict contribution/outcome
+  schemas, actor-bound service/database/client layers, identity-only RSC shell
+  and a stable entry on the existing attendance screen. The UI has no reward
+  claim or completion controls. Legacy outcome evidence is never inferred from
+  its amount, and current cap availability is not a future award promise.
+- Reads purge prior visible data before a fresh authority check. Navigation,
+  actor replacement, hidden-document/pagehide and stale responses cannot restore
+  private history. Immutable paginated rows reappear only after the next bounded,
+  actor-bound read succeeds.
+- Complete local unit regression passed: **9,820 tests in 311 files**. Repository
+  lint/format and contrast passed. **204 CI selector/workflow/aggregate tests**
+  and **546 fixture/discovery checks** passed. An initial formatting-only failure
+  in a new client test was corrected before the successful repeat.
+- Typecheck reports exactly the one new RPC absent from the unchanged genuine
+  predecessor schema: `point_ui_activity` in the database adapter. No manual
+  schema edit or type bypass is used. Full application `check:all` and build await
+  the official hosted schema artifact; they are not claimed as passed yet.
+- The new isolated browser suite contains **15 real local Auth/RPC scenarios**
+  (including all six font/viewport combinations), plus **one keyless case** in
+  the default suite. It plans **44 screenshots**: 42 matrix/full-history/offscreen
+  captures and two authority-state captures. Actual browser execution and pixel
+  inspection remain hosted final-head gates, not local results.
+- The 25th isolated browser is included in the stable aggregate. Attendance
+  dependencies include the new activity browser; the shared route-invalidation
+  helper explicitly retains full fallback. Every historical setup/test/artifact/
+  cleanup step remains protected by fixed legacy step hashes.
+
+## Official database execution and generated schema
+
+Hosted checkpoint run `40329167805` completed both real pgTAP executions:
+**4,909 assertions in 67 files per pass**. Its 34 independent-session scripts
+produced **530 raw PASS lines**, plus the two unchanged legacy combined cases,
+for **532 semantic concurrency scenarios**; all **ten populated upgrades**
+passed. New activity coverage contributes the 130 assertions, 18 races and one
+upgrade described above. The DB log spans 13:16:50.767–13:46:31.002 UTC,
+**29m40.235s**, within the explicitly increased 35-minute budget.
+
+The genuine `database-types` artifact `12656195579` contains **96,304 bytes** at
+SHA-256 `104d228fe2f07ac3b200c10b52340d9a9d18bfaee0f8bcdc7d771e4e2f03a7d9`.
+Its ZIP is 9,427 bytes, SHA-256
+`2eef6982ed0f0d300373eb15bc7ab02f5bba7e62282942576add29a05a4bc35d`; CRC was
+verified before extraction. Local byte comparison confirms an unchanged import.
+The complete generated-type diff is exactly the eight-line `point_ui_activity`
+RPC definition; no private-table type placeholder or manual edit was made.
+
+The DB job passed generated-schema typecheck and failed only the expected
+committed-type drift gate. The checkpoint run is **not green**: its existing
+attendance browser job failed before tests because Mailpit could not bind local
+port 54324, and the required aggregate failed accordingly. This is neither an
+attendance application assertion failure nor a waived gate. The final app head
+must run the complete required suite, including attendance and the new activity
+browser, before merge. No local browser or PostgreSQL execution is claimed.
+
+After the genuine schema import, the complete application `npm run check:all`
+passed: repository lint/format, typecheck, **9,820 unit tests in 311 files**,
+contrast and production/PWA build. Final **204 CI contracts** and **546 fixture/
+discovery checks** also passed. The generated file remains byte-identical to the
+verified artifact. Hosted final-head browsers and actual pixel review remain
+pending; these local successes do not replace those gates or approve policy.

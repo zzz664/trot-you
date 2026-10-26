@@ -44,7 +44,8 @@ const reviewedAdditions = {
         '      - run: npm run test:community-posts-fixture\n' +
         '      - run: npm run test:community-interactions-fixture\n' +
         '      - run: npm run test:community-moderation-fixture\n' +
-        '      - run: npm run test:attendance-points-fixture\n',
+        '      - run: npm run test:attendance-points-fixture\n' +
+        '      - run: npm run test:activity-rewards-fixture\n',
     },
   ],
   database: [
@@ -261,6 +262,10 @@ describe('CI workflow safety and unchanged regression coverage', () => {
       original.replace(
         'npm run test:attendance-points-fixture',
         'echo skipped attendance fixture',
+      ),
+      original.replace(
+        'npm run test:activity-rewards-fixture',
+        'echo skipped activity reward fixture',
       ),
       original.replace(
         'npm run test:community-moderation-fixture',
@@ -551,6 +556,61 @@ describe('CI workflow safety and unchanged regression coverage', () => {
     assert.equal(
       scripts['test:db:attendance-points-concurrency'],
       'node scripts/test-attendance-points-concurrency.mjs',
+    );
+  });
+
+  it('runs the registered activity rewards suite in its isolated Auth/database fixture job', () => {
+    const calendar = jobs['activity-rewards-browser'];
+    const required = [
+      'run: node scripts/auth-local-ci.mjs configure',
+      'run: npm run db:start',
+      'run: npm run db:reset',
+      'run: node scripts/auth-local-ci.mjs environment',
+      'run: node scripts/activity-rewards-local-ci.mjs environment',
+      'run: npm run build',
+      'run: npx playwright install --with-deps chromium',
+      'run: npm run test:e2e:activity-rewards',
+      'uses: actions/upload-artifact@v4',
+      'name: activity-rewards-browser-results',
+      'run: npm run db:stop -- --no-backup',
+    ];
+    let previous = -1;
+    for (const gate of required) {
+      const index = calendar.indexOf(gate);
+      assert.ok(
+        index > previous,
+        `Activity rewards gate missing or out of order: ${gate}`,
+      );
+      previous = index;
+    }
+    assert.match(
+      calendar,
+      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
+    );
+    assert.match(
+      calendar,
+      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
+    );
+    assert.match(calendar, /timeout-minutes: 25/);
+    const config = readFileSync(
+      new URL('../playwright.config.ts', import.meta.url),
+      'utf8',
+    );
+    assert.ok(config.includes("'**/activity-rewards/**'"));
+    const scripts = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    ).scripts;
+    assert.equal(
+      scripts['test:e2e:activity-rewards'],
+      'playwright test --config playwright.activity-rewards.config.ts',
+    );
+    assert.equal(
+      scripts['test:activity-rewards-fixture'],
+      'node --test scripts/activity-rewards-local-config.test.mjs',
+    );
+    assert.equal(
+      scripts['test:db:activity-rewards-concurrency'],
+      'node scripts/test-activity-rewards-concurrency.mjs',
     );
   });
 

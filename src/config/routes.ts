@@ -1,6 +1,8 @@
 export const routes = {
   home: '/',
   points: '/points',
+  activityRewards: '/points/activity',
+  activityRewardsApi: '/api/points/activity',
   pointsApi: '/api/points',
   pointsAttendanceApi: '/api/points/attendance',
   communityReports: '/me/reports',
@@ -369,4 +371,10 @@ export function pointsHistoryPath(cursor?: string | null) {
   return cursor
     ? `${routes.pointsApi}?${new URLSearchParams({ cursor })}`
     : routes.pointsApi;
+}
+
+export function activityRewardsHistoryPath(cursor?: string | null) {
+  return cursor
+    ? `${routes.activityRewardsApi}?${new URLSearchParams({ cursor })}`
+    : routes.activityRewardsApi;
 }
