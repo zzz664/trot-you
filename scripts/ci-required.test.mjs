@@ -177,6 +177,26 @@ test('new interactions failures and stale inventories cannot pass the aggregate'
   );
 });
 
+test('new moderation failures and stale inventories cannot pass the aggregate', () => {
+  const plan = fullPlan();
+  for (const result of ['failure', 'cancelled', 'skipped']) {
+    const needs = results(plan);
+    needs['community-moderation-browser'].result = result;
+    assert.throws(
+      () => validateResults(plan, needs, SHA),
+      /community-moderation-browser: expected success/,
+    );
+  }
+  const missing = results(plan);
+  delete missing['community-moderation-browser'];
+  assert.throws(() => validateResults(plan, missing, SHA), /inventory/);
+  delete plan.jobs['community-moderation-browser'];
+  assert.throws(
+    () => validateResults(plan, results(plan), SHA),
+    /job inventory/,
+  );
+});
+
 test('selected DB failure is not accepted when every browser passed', () => {
   const plan = fullPlan();
   const needs = results(plan);

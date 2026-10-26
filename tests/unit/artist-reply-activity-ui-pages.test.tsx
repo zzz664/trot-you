@@ -11,6 +11,7 @@ import messages from '@/messages/ko.json';
 
 const mock = vi.hoisted(() => ({
   menu: vi.fn(),
+  identity: vi.fn(),
   page: vi.fn(),
   translations: vi.fn(),
   screen: vi.fn(),
@@ -19,6 +20,9 @@ const mock = vi.hoisted(() => ({
 vi.mock('@/server/artist-reply-activity/page', () => ({
   getArtistReplyActivityMenu: mock.menu,
   getArtistReplyActivityPage: mock.page,
+}));
+vi.mock('@/server/community-posts/page', () => ({
+  getCommunityPostsPage: mock.identity,
 }));
 vi.mock('next-intl/server', () => ({ getTranslations: mock.translations }));
 vi.mock('@/components/artist-reply-activity/ArtistReplyActivityScreen', () => ({
@@ -48,6 +52,10 @@ const message = {
 };
 beforeEach(() => {
   Object.values(mock).forEach((fn) => fn.mockReset());
+  mock.identity.mockResolvedValue({
+    ok: true,
+    data: { key: '15111f52-a02e-42f7-9012-446401a10003' },
+  });
   mock.menu.mockResolvedValue({
     ok: true,
     data: { artists: [artist], nextSlug: null },
@@ -61,12 +69,11 @@ beforeEach(() => {
     },
   });
   mock.translations.mockImplementation(
-    async () =>
-      (
-        key: keyof typeof messages.artistReplyActivity,
-        values?: Record<string, string>,
-      ) => {
-        const text = messages.artistReplyActivity[key];
+    async (namespace: 'artistReplyActivity' | 'communityModeration') =>
+      (key: string, values?: Record<string, string>) => {
+        const text: unknown = (messages[namespace] as Record<string, unknown>)[
+          key
+        ];
         if (typeof text !== 'string')
           throw new Error('Expected a leaf translation');
         return Object.entries(values ?? {}).reduce(
@@ -128,7 +135,12 @@ describe('artist reply/activity server-rendered route shells', () => {
     expect(
       screen.getByText(messages.artistReplyActivity.menuEmpty),
     ).toBeVisible();
-    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getAllByRole('link')).toHaveLength(2);
+    expect(
+      screen.getByRole('link', {
+        name: messages.communityModeration.inboxEntry,
+      }),
+    ).toHaveAttribute('href', routes.communityReports);
   });
 
   it('forwards duplicate menu parameters for service rejection', async () => {
@@ -152,6 +164,7 @@ describe('artist reply/activity server-rendered route shells', () => {
     );
     expect(mock.page).toHaveBeenCalledWith(artist.slug, null, undefined);
     expect(mock.screen).toHaveBeenCalledWith({
+      actorKey: '15111f52-a02e-42f7-9012-446401a10003',
       slug: artist.slug,
       name: artist.name,
       messageId: null,
@@ -179,6 +192,7 @@ describe('artist reply/activity server-rendered route shells', () => {
       'opaqueCursor',
     );
     expect(mock.screen).toHaveBeenCalledWith({
+      actorKey: '15111f52-a02e-42f7-9012-446401a10003',
       slug: artist.slug,
       name: artist.name,
       messageId: message.id,
@@ -201,4 +215,27 @@ describe('artist reply/activity server-rendered route shells', () => {
     expect(mock.screen).not.toHaveBeenCalled();
     expect(mock.error).toHaveBeenCalledWith({ code: 'FORBIDDEN' });
   });
+});
+
+it.each(['FORBIDDEN', 'SETUP_NOT_READY', 'UNAVAILABLE'] as const)(
+  'does not expose reply controls when current actor identity is %s',
+  async (code) => {
+    mock.identity.mockResolvedValueOnce({ ok: false, code });
+    render(
+      await ArtistReplyActivityPage({
+        params: Promise.resolve({ slug: artist.slug }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    expect(mock.screen).not.toHaveBeenCalled();
+    expect(mock.error).toHaveBeenCalledWith({ code });
+  },
+);
+
+it('keeps the private own-report inbox discoverable from the artist reply menu', async () => {
+  render(await ArtistReplyActivityMenu({ searchParams: Promise.resolve({}) }));
+  expect(
+    screen.getByRole('link', { name: messages.communityModeration.inboxEntry }),
+  ).toHaveAttribute('href', routes.communityReports);
+  expect(mock.translations).toHaveBeenCalledWith('communityModeration');
 });

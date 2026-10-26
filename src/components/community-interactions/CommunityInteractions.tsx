@@ -20,6 +20,7 @@ import {
   type CommunityCommentDeleteInput,
   type CommunityLikeInput,
 } from '@/config/community-interactions';
+import type { ModerationTarget } from '@/config/community-moderation';
 import type {
   CommunityDetail,
   CommunityError,
@@ -49,6 +50,8 @@ type Props = {
   onAccessLost: (code: CommunityError) => void;
   onChanged: () => Promise<void>;
   onBusyChange: (busy: boolean) => void;
+  onReport?: (target: ModerationTarget) => void;
+  reportOpen?: boolean;
 };
 function losesAccess(code: CommunityError | null) {
   return (
@@ -81,8 +84,11 @@ function InteractionSession({
   onAccessLost,
   onChanged,
   onBusyChange,
+  onReport,
+  reportOpen = false,
 }: Props) {
   const t = useTranslations('communityInteractions');
+  const moderationCopy = useTranslations('communityModeration');
   const errors = useTranslations('communityPosts.errors');
   const format = useFormatter();
   const { showDialog, cancelDialog } = useDialog();
@@ -446,6 +452,20 @@ function InteractionSession({
                     })}
                   </p>
                   <p className={styles.body}>{comment.body}</p>
+                  {!comment.is_owner && onReport && (
+                    <Button
+                      variant="secondary"
+                      disabled={frozen || reportOpen}
+                      onClick={() =>
+                        onReport({
+                          target_type: 'comment',
+                          target_id: comment.id,
+                        })
+                      }
+                    >
+                      {moderationCopy('reportComment')}
+                    </Button>
+                  )}
                   {comment.is_owner && (
                     <div className={styles.actions}>
                       <Button

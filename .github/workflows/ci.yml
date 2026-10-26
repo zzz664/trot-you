@@ -148,6 +148,7 @@ jobs:
       - run: npm run test:content-calendar-fixture
       - run: npm run test:community-posts-fixture
       - run: npm run test:community-interactions-fixture
+      - run: npm run test:community-moderation-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
@@ -928,6 +929,40 @@ jobs:
           retention-days: 7
       - run: npm run db:stop -- --no-backup
         if: always()
+  community-moderation-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['community-moderation-browser'] }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/community-moderation-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Fictional local Auth/report/review fixtures and actual database RPCs only.
+      # No real moderation, role grants, provider traffic or scheduler.
+      - run: npm run test:e2e:community-moderation
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: community-moderation-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
   # Require this stable check in branch rules before relying on selective CI.
   # always() is essential: upstream failure/cancellation/skips must be inspected.
   ci-required:
@@ -958,6 +993,7 @@ jobs:
       - content-calendar-browser
       - community-posts-browser
       - community-interactions-browser
+      - community-moderation-browser
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

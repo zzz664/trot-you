@@ -28,6 +28,13 @@ vi.mock('@/components/admin/reconciliation/ReconciliationEntry', () => ({
 vi.mock('@/components/artists/ArtistCatalogEntry', () => ({
   ArtistCatalogEntry: () => null,
 }));
+vi.mock('@/components/community-moderation/ModerationEntry', () => ({
+  ModerationEntry: ({ admin = false }: { admin?: boolean }) => (
+    <div
+      data-testid={admin ? 'moderation-admin-entry' : 'moderation-inbox-entry'}
+    />
+  ),
+}));
 vi.mock('@/components/community-posts/CommunityEntry', () => ({
   CommunityEntry: () => <div data-testid="community-entry" />,
 }));
@@ -81,5 +88,24 @@ it.each([
     });
     render(await SessionPage({ path: path as string }));
     expect(screen.queryByTestId('community-entry') !== null).toBe(visible);
+  },
+);
+
+it.each([
+  ['fan', routes.home, true, false],
+  ['admin', routes.admin, true, true],
+  ['artist', routes.artist, false, false],
+  ['fan', routes.restricted, false, false],
+  ['fan', routes.onboarding, false, false],
+])(
+  'moderation entries remain on eligible %s %s pages',
+  async (role, path, inbox, admin) => {
+    mocks.guard.mockResolvedValue({
+      status: 'authenticated',
+      profile: { role },
+    });
+    render(await SessionPage({ path: path as string }));
+    expect(screen.queryByTestId('moderation-inbox-entry') !== null).toBe(inbox);
+    expect(screen.queryByTestId('moderation-admin-entry') !== null).toBe(admin);
   },
 );

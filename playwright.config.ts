@@ -25,6 +25,7 @@ export default defineConfig({
     '**/content-calendar/**',
     '**/community-posts/**',
     '**/community-interactions/**',
+    '**/community-moderation/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

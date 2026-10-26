@@ -23,6 +23,7 @@ export const BROWSER_JOBS = Object.freeze([
   'content-calendar-browser',
   'community-posts-browser',
   'community-interactions-browser',
+  'community-moderation-browser',
 ]);
 
 export const CONDITIONAL_JOBS = Object.freeze(['database', ...BROWSER_JOBS]);
@@ -45,6 +46,7 @@ const communication = browsers(
   'admin-artists',
   'community-posts',
   'community-interactions',
+  'community-moderation',
 );
 const payment = browsers(
   'auth',
@@ -64,6 +66,7 @@ const schedules = browsers(
   'content-calendar',
   'community-posts',
   'community-interactions',
+  'community-moderation',
 );
 const notification = browsers(
   'auth',
@@ -193,7 +196,12 @@ export const FEATURE_RULES = Object.freeze([
   },
   {
     id: 'artist-reply-activity',
-    jobs: browsers('auth', 'activity', 'content-calendar'),
+    jobs: browsers(
+      'auth',
+      'activity',
+      'content-calendar',
+      'community-moderation',
+    ),
     patterns: [
       /^src\/(?:components|server(?:\/services)?)\/artist-reply-activity\//,
       /^src\/(?:client|config)\/artist-reply-activity\.ts$/,
@@ -223,7 +231,7 @@ export const FEATURE_RULES = Object.freeze([
       'auth',
       feature,
       ...(feature === 'admin-settings'
-        ? ['community-posts', 'community-interactions']
+        ? ['community-posts', 'community-interactions', 'community-moderation']
         : []),
     ),
     patterns: [

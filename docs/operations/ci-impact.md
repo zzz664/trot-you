@@ -149,7 +149,7 @@ again. Do not replace populated upgrade tests with fresh-schema-only checks.
 Database selection is intentionally not optimized by SQL filenames. The schedule
 notice migration's first checkpoint passed its new tests while breaking existing
 message-dispatch tests through a shared notification wrapper. Every migration
-therefore retains all DB regressions. All 38 race/upgrade scripts perform whole
+therefore retains all DB regressions. All 40 race/upgrade scripts perform whole
 local-database resets: running them concurrently against one Supabase instance
 would be unsafe. A separate, measured improvement may shard the unchanged suites
 onto isolated runners; this PR does not do that. Browser selection reduces work
@@ -169,3 +169,11 @@ The isolated `community-interactions-browser` is registered in the selector and
 required aggregate, including shared media/navigation/admin-policy dependencies.
 New interaction paths remain unknown/full fallback. The quality job also runs its
 fixture guard checks, while keyless routes stay in the normal browser suite.
+
+Feature 36 adds `community-moderation-browser`, its always-on fixture guards,
+concurrency suite and populated upgrade. The registry and stable aggregate include
+the new job and reject missing, failed or unexpectedly skipped moderation results.
+Moderation leaf paths remain full fallback; shared reply/activity, community-policy,
+media/navigation and schedule consumers conservatively include the new browser.
+No historical step hash is replaced. The serial database timeout remains 30 minutes
+pending measurement of the added gates on the hosted runner.

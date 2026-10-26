@@ -38,3 +38,68 @@ specifications are read locally and are not copied into the repository.
 - Local static verification: 118 combined upgrade contract tests passed; both
   new DB scripts parsed; targeted lint and diff-whitespace checks passed. Actual
   SQL and races have not run locally because the authorized hosted CI is required.
+
+## Application and isolated browser implementation
+
+- Strict schemas and actor-bound report/context/queue/resolve/restrict/notice
+  services, bounded no-store HTTP/client transport, administrator review and
+  reporter inbox are implemented. New reports can originate from posts/comments
+  or assigned-artist reply views. The report host survives parent disappearance.
+- Review displays text/reason; no protected-media review path or independent media
+  security probing is added. Current provider workers remain untouched.
+- Dedicated browser harness contains 20 real Auth/RPC scenarios plus one keyless
+  default scenario. Six text-scale/viewport combinations cover settled report,
+  recovery, review/dialog, restriction and notice screens, including offscreen
+  controls. Hosted execution and pixel review are still pending.
+- Local script verification: 189 selector/workflow/aggregate tests and 479
+  fixture/discovery tests (668 total) passed. Full application typecheck is waiting
+  only for official generation of the six new RPC names; no type placeholder is
+  introduced.
+
+## Exact DB checkpoint validation
+
+Local `5812eab9f3c37a9cda759c4df3064742485fde25`, published by the parent as
+`9c01808e61bcb6445bf74f5f7c55756229c1dfa9`, has identical tree
+`f86c63a71cff9e279054b912083cf36fc9745aab`. An isolated exact-commit export passed
+`npm run check:all`: lint, typecheck, 8,643 unit tests, contrast and production/PWA
+build. An initial temporary dependency symlink was incompatible with Turbopack's
+root resolution; replacing that export-only link with local package files fixed
+the validation environment without source changes. Hosted SQL, races, upgrades
+and genuine schema generation remain a separate pending gate.
+
+## Local application checkpoint
+
+- Full working-tree unit regression: **9,097 tests in 292 files passed**.
+- The new async menu entry exposed three old test-renderer mock omissions. The
+  fixtures now mock that RSC entry explicitly, preserve the previous assertions
+  and add eligibility cases; the full rerun is green.
+- Known write receipts stay successful even if subsequent refresh fails. Unknown
+  results retain the exact immutable request; current-account denial clears
+  private drafts/content. Expired restrictions are labelled separately from active
+  restrictions. These cases have focused regression coverage.
+- Full repository lint/format checks and all 668 script tests passed. The schema
+  artifact is still pending official CI; its six RPC names are the only outstanding
+  typecheck errors. Actual browser execution and visual review remain pending.
+
+## Official DB/type verification
+
+Hosted run `40294446752` checked remote DB head
+`9c01808e61bcb6445bf74f5f7c55756229c1dfa9`. It passed **4,690 pgTAP assertions
+on each of two passes**, **497 semantic concurrency scenarios** (495 raw PASS
+lines plus two unchanged legacy combined cases), and **eight populated upgrades**.
+The new moderation suite contributed 18 actual races. The serial database stage
+took **25m31.727s**, so its existing 30-minute timeout remains unchanged.
+
+The official generated `database.ts` is 95,823 bytes, SHA-256
+`0c3fc6f3b6bada63e9c6ecbc571e11be364f6e31f0ae66f632635d92e4358bf8`.
+It was imported byte-for-byte from verified artifact `12639490146`; no generated
+type was handwritten. Generated-schema typecheck passed on the hosted runner.
+Only the expected bootstrap committed-type drift gate and dependent aggregate
+failed before this artifact import; all preceding SQL/race/upgrade checks passed.
+
+After the official type import, the complete application `npm run check:all`
+passed: repository lint/format, typecheck, **9,097 unit tests in 292 files**,
+contrast and production/PWA build. All **189 CI contract tests plus 479 fixture
+checks** also passed. The new moderation browser and final-head pixel review are
+not claimed as run locally; the hosted final-head gates remain required before
+merge.

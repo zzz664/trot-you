@@ -748,10 +748,14 @@ export type Database = {
           artist_id: string;
           body: string;
           created_at: string;
+          deleted_at: string | null;
           id: string;
           is_blocked: boolean;
+          is_hidden: boolean;
           message_id: string | null;
           operation_id: string | null;
+          report_count: number;
+          revision: number;
           subscription_id: string;
           user_id: string;
         };
@@ -760,10 +764,14 @@ export type Database = {
           artist_id: string;
           body: string;
           created_at?: string;
+          deleted_at?: string | null;
           id?: string;
           is_blocked?: boolean;
+          is_hidden?: boolean;
           message_id?: string | null;
           operation_id?: string | null;
+          report_count?: number;
+          revision?: number;
           subscription_id: string;
           user_id: string;
         };
@@ -771,10 +779,14 @@ export type Database = {
           artist_id?: string;
           body?: string;
           created_at?: string;
+          deleted_at?: string | null;
           id?: string;
           is_blocked?: boolean;
+          is_hidden?: boolean;
           message_id?: string | null;
           operation_id?: string | null;
+          report_count?: number;
+          revision?: number;
           subscription_id?: string;
           user_id?: string;
         };
@@ -1867,6 +1879,61 @@ export type Database = {
           p_target_type: Database['public']['Enums']['report_target'];
         };
         Returns: undefined;
+      };
+      community_moderation_context: {
+        Args: {
+          p_target_id: string;
+          p_target_type: Database['public']['Enums']['report_target'];
+        };
+        Returns: Json;
+      };
+      community_moderation_notices: {
+        Args: {
+          p_before_created_at?: string;
+          p_before_id?: string;
+          p_limit?: number;
+        };
+        Returns: Json;
+      };
+      community_moderation_queue: {
+        Args: {
+          p_before_created_at?: string;
+          p_before_id?: string;
+          p_limit?: number;
+        };
+        Returns: Json;
+      };
+      community_moderation_report: {
+        Args: {
+          p_operation_id: string;
+          p_reason: string;
+          p_target_id: string;
+          p_target_type: Database['public']['Enums']['report_target'];
+        };
+        Returns: Json;
+      };
+      community_moderation_resolve: {
+        Args: {
+          p_confirmed: boolean;
+          p_decision: string;
+          p_expected_revision: number;
+          p_operation_id: string;
+          p_reason: string;
+          p_report_id: string;
+        };
+        Returns: Json;
+      };
+      community_moderation_restrict: {
+        Args: {
+          p_confirmed?: boolean;
+          p_expected_updated_at: string;
+          p_operation_id: string;
+          p_reason?: string;
+          p_restricted: boolean;
+          p_until?: string;
+          p_user_id: string;
+        };
+        Returns: Json;
       };
       community_register_image: {
         Args: {

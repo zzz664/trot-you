@@ -42,7 +42,8 @@ const reviewedAdditions = {
       text:
         '      - run: npm run test:content-calendar-fixture\n' +
         '      - run: npm run test:community-posts-fixture\n' +
-        '      - run: npm run test:community-interactions-fixture\n',
+        '      - run: npm run test:community-interactions-fixture\n' +
+        '      - run: npm run test:community-moderation-fixture\n',
     },
   ],
   database: [
@@ -236,6 +237,10 @@ describe('CI workflow safety and unchanged regression coverage', () => {
         'npm run test:content-calendar-fixture',
         'echo skipped calendar fixtures',
       ),
+      original.replace(
+        'npm run test:community-moderation-fixture',
+        'echo skipped moderation fixtures',
+      ),
       original.replace('npm run check:all', 'echo skipped original quality'),
       original.replace(
         'npm run test:community-posts-fixture',
@@ -411,6 +416,61 @@ describe('CI workflow safety and unchanged regression coverage', () => {
     assert.equal(
       scripts['test:db:community-interactions-concurrency'],
       'node scripts/test-community-interactions-concurrency.mjs',
+    );
+  });
+
+  it('runs the registered community moderation suite in its isolated Auth/database fixture job', () => {
+    const calendar = jobs['community-moderation-browser'];
+    const required = [
+      'run: node scripts/auth-local-ci.mjs configure',
+      'run: npm run db:start',
+      'run: npm run db:reset',
+      'run: node scripts/auth-local-ci.mjs environment',
+      'run: node scripts/community-moderation-local-ci.mjs environment',
+      'run: npm run build',
+      'run: npx playwright install --with-deps chromium',
+      'run: npm run test:e2e:community-moderation',
+      'uses: actions/upload-artifact@v4',
+      'name: community-moderation-browser-results',
+      'run: npm run db:stop -- --no-backup',
+    ];
+    let previous = -1;
+    for (const gate of required) {
+      const index = calendar.indexOf(gate);
+      assert.ok(
+        index > previous,
+        `Community moderation gate missing or out of order: ${gate}`,
+      );
+      previous = index;
+    }
+    assert.match(
+      calendar,
+      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
+    );
+    assert.match(
+      calendar,
+      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
+    );
+    assert.match(calendar, /timeout-minutes: 25/);
+    const config = readFileSync(
+      new URL('../playwright.config.ts', import.meta.url),
+      'utf8',
+    );
+    assert.ok(config.includes("'**/community-moderation/**'"));
+    const scripts = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    ).scripts;
+    assert.equal(
+      scripts['test:e2e:community-moderation'],
+      'playwright test --config playwright.community-moderation.config.ts',
+    );
+    assert.equal(
+      scripts['test:community-moderation-fixture'],
+      'node --test scripts/community-moderation-local-config.test.mjs',
+    );
+    assert.equal(
+      scripts['test:db:community-moderation-concurrency'],
+      'node scripts/test-community-moderation-concurrency.mjs',
     );
   });
 
