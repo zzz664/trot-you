@@ -872,7 +872,25 @@ test('a rendered old-actor preview rejects collection after cookie replacement b
   const target = page.locator(
     `[${ANALYTICS_PREVIEW_SOURCE_ATTRIBUTE}="${preview.messageId}"]`,
   );
-  await target.waitFor({ state: 'attached' });
+  // An attached node can still be in Next's hidden streamed segment while the
+  // chat loading fallback is visible. Wait for real layout without scrolling:
+  // the first intersection must still happen only after the actor is replaced.
+  await expect(
+    main(page).getByRole('heading', {
+      name: messages.artists.previewTitle.replace(
+        '{name}',
+        preview.artist.name,
+      ),
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(target).toBeVisible();
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise<void>((done) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => done())),
+    );
+  });
   expect(
     await target.evaluate(
       (element) => element.getBoundingClientRect().top >= innerHeight,
