@@ -12,6 +12,15 @@ export async function captureSettledCommunityPosts(page: Page, path: string) {
     )
     .first()
     .waitFor({ state: 'attached' });
+  // A mounted post starts its separate interaction read after the parent data
+  // commit. Wait for its verified snapshot rather than capturing that effect gap.
+  if (await main.getByTestId('community-post-detail').count())
+    await main
+      .locator(
+        '[data-testid="community-interactions-content"], [data-testid="community-interactions-recovery"], [role="alert"]',
+      )
+      .first()
+      .waitFor({ state: 'attached' });
   await expect(main.locator('.ui-loading')).toHaveCount(0);
   await expect(main).not.toHaveAttribute('aria-busy', 'true');
   await expect(main.locator('[aria-busy="true"]')).toHaveCount(0);

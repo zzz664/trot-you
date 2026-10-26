@@ -315,3 +315,23 @@ export function communityMediaPath(
 ) {
   return `${routes.boardApi}/media/${action}`;
 }
+
+export function communityCommentsPath(
+  slug: string,
+  postId: string,
+  cursor?: string | null,
+) {
+  const base = `${communityPostPath(slug, postId, true)}/comments`;
+  return cursor ? `${base}?${new URLSearchParams({ cursor })}` : base;
+}
+export function communityCommentActionPath(
+  slug: string,
+  postId: string,
+  commentId: string,
+  action: 'edit' | 'delete',
+) {
+  return `${communityCommentsPath(slug, postId)}/${encodeURIComponent(commentId)}/${action}`;
+}
+export function communityLikePath(slug: string, postId: string) {
+  return `${communityPostPath(slug, postId, true)}/like`;
+}

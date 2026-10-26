@@ -24,6 +24,7 @@ export default defineConfig({
     '**/schedule-notices/**',
     '**/content-calendar/**',
     '**/community-posts/**',
+    '**/community-interactions/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

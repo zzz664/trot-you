@@ -1,0 +1,41 @@
+.section,
+.stack,
+.list,
+.editor {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.section {
+  border-top: var(--border-width) solid var(--color-control-border);
+  margin-top: calc(var(--space-unit) * 3);
+  padding-top: calc(var(--space-unit) * 2);
+}
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.comment,
+.editor,
+.recovery {
+  min-width: 0;
+  border: var(--border-width) solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  padding: calc(var(--space-unit) * 2);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-unit);
+  min-width: 0;
+}
+.actions > * {
+  max-width: 100%;
+}
+.body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

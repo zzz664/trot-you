@@ -41,7 +41,8 @@ const reviewedAdditions = {
       before: '      - run: npx playwright install --with-deps chromium\n',
       text:
         '      - run: npm run test:content-calendar-fixture\n' +
-        '      - run: npm run test:community-posts-fixture\n',
+        '      - run: npm run test:community-posts-fixture\n' +
+        '      - run: npm run test:community-interactions-fixture\n',
     },
   ],
   database: [
@@ -51,7 +52,9 @@ const reviewedAdditions = {
         '      - run: npm run test:db:content-calendar-concurrency\n' +
         '      - run: node scripts/test-content-calendar-upgrade.mjs\n' +
         '      - run: npm run test:db:community-posts-concurrency\n' +
-        '      - run: node scripts/test-community-posts-upgrade.mjs\n',
+        '      - run: node scripts/test-community-posts-upgrade.mjs\n' +
+        '      - run: npm run test:db:community-interactions-concurrency\n' +
+        '      - run: node scripts/test-community-interactions-upgrade.mjs\n',
     },
   ],
 };
@@ -198,6 +201,14 @@ describe('CI workflow safety and unchanged regression coverage', () => {
         'node scripts/test-community-posts-upgrade.mjs',
         'echo skipped board upgrade',
       ),
+      original.replace(
+        'npm run test:db:community-interactions-concurrency',
+        'echo skipped interaction races',
+      ),
+      original.replace(
+        'node scripts/test-community-interactions-upgrade.mjs',
+        'echo skipped interaction upgrade',
+      ),
     ])
       assert.throws(() => verifyLegacySteps('database', changed));
   });
@@ -219,6 +230,10 @@ describe('CI workflow safety and unchanged regression coverage', () => {
       original.replace(
         'npm run test:community-posts-fixture',
         'echo skipped board fixtures',
+      ),
+      original.replace(
+        'npm run test:community-interactions-fixture',
+        'echo skipped interaction fixtures',
       ),
     ])
       assert.throws(() => verifyLegacySteps('quality', changed));
@@ -334,6 +349,61 @@ describe('CI workflow safety and unchanged regression coverage', () => {
     );
   });
 
+  it('runs the registered community interaction suite in its isolated Auth/database fixture job', () => {
+    const calendar = jobs['community-interactions-browser'];
+    const required = [
+      'run: node scripts/auth-local-ci.mjs configure',
+      'run: npm run db:start',
+      'run: npm run db:reset',
+      'run: node scripts/auth-local-ci.mjs environment',
+      'run: node scripts/community-interactions-local-ci.mjs environment',
+      'run: npm run build',
+      'run: npx playwright install --with-deps chromium',
+      'run: npm run test:e2e:community-interactions',
+      'uses: actions/upload-artifact@v4',
+      'name: community-interactions-browser-results',
+      'run: npm run db:stop -- --no-backup',
+    ];
+    let previous = -1;
+    for (const gate of required) {
+      const index = calendar.indexOf(gate);
+      assert.ok(
+        index > previous,
+        `Community interaction gate missing or out of order: ${gate}`,
+      );
+      previous = index;
+    }
+    assert.match(
+      calendar,
+      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
+    );
+    assert.match(
+      calendar,
+      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
+    );
+    assert.match(calendar, /timeout-minutes: 25/);
+    const config = readFileSync(
+      new URL('../playwright.config.ts', import.meta.url),
+      'utf8',
+    );
+    assert.ok(config.includes("'**/community-interactions/**'"));
+    const scripts = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    ).scripts;
+    assert.equal(
+      scripts['test:e2e:community-interactions'],
+      'playwright test --config playwright.community-interactions.config.ts',
+    );
+    assert.equal(
+      scripts['test:community-interactions-fixture'],
+      'node --test scripts/community-interactions-local-config.test.mjs',
+    );
+    assert.equal(
+      scripts['test:db:community-interactions-concurrency'],
+      'node scripts/test-community-interactions-concurrency.mjs',
+    );
+  });
+
   it('retains both pgTAP passes, all concurrency suites, and populated upgrades', () => {
     const database = jobs.database;
     assert.equal(
@@ -346,12 +416,12 @@ describe('CI workflow safety and unchanged regression coverage', () => {
           /run: (?:npm run test:db:[^\n]*concurrency|node scripts\/test-[^\n]*concurrency\.mjs)\n/g,
         ) || []
       ).length,
-      30,
+      31,
     );
     assert.equal(
       (database.match(/run: node scripts\/test-[^\n]*upgrade\.mjs\n/g) || [])
         .length,
-      6,
+      7,
     );
     assert.match(database, /git diff --exit-code -- src\/types\/database\.ts/);
     assert.match(database, /npm run db:lint/);
