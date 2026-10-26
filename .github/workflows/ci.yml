@@ -37,8 +37,8 @@ jobs:
     needs: impact
     if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['database'] }}
     runs-on: ubuntu-latest
-    # Feature37 verified DB run reached 28m05. Keep every historical gate and
-    # add headroom for activity outcomes/races and the tenth populated upgrade.
+    # Feature38 verified DB run reached 29m40. Keep every historical gate and
+    # the 35-minute budget while adding analytics races and the eleventh upgrade.
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -101,6 +101,8 @@ jobs:
       - run: node scripts/test-attendance-points-upgrade.mjs
       - run: npm run test:db:activity-rewards-concurrency
       - run: node scripts/test-activity-rewards-upgrade.mjs
+      - run: npm run test:db:analytics-funnel-concurrency
+      - run: node scripts/test-analytics-funnel-upgrade.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()

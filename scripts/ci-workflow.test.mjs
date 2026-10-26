@@ -63,7 +63,9 @@ const reviewedAdditions = {
         '      - run: npm run test:db:attendance-points-concurrency\n' +
         '      - run: node scripts/test-attendance-points-upgrade.mjs\n' +
         '      - run: npm run test:db:activity-rewards-concurrency\n' +
-        '      - run: node scripts/test-activity-rewards-upgrade.mjs\n',
+        '      - run: node scripts/test-activity-rewards-upgrade.mjs\n' +
+        '      - run: npm run test:db:analytics-funnel-concurrency\n' +
+        '      - run: node scripts/test-analytics-funnel-upgrade.mjs\n',
     },
   ],
 };
@@ -220,6 +222,14 @@ describe('CI workflow safety and unchanged regression coverage', () => {
       original.replace(
         'node scripts/test-activity-rewards-upgrade.mjs',
         'echo skipped activity reward upgrade',
+      ),
+      original.replace(
+        'npm run test:db:analytics-funnel-concurrency',
+        'echo skipped analytics funnel races',
+      ),
+      original.replace(
+        'node scripts/test-analytics-funnel-upgrade.mjs',
+        'echo skipped analytics funnel upgrade',
       ),
       original.replace(
         'npm run test:integration',
@@ -626,12 +636,12 @@ describe('CI workflow safety and unchanged regression coverage', () => {
           /run: (?:npm run test:db:[^\n]*concurrency|node scripts\/test-[^\n]*concurrency\.mjs)\n/g,
         ) || []
       ).length,
-      34,
+      35,
     );
     assert.equal(
       (database.match(/run: node scripts\/test-[^\n]*upgrade\.mjs\n/g) || [])
         .length,
-      10,
+      11,
     );
     assert.match(database, /git diff --exit-code -- src\/types\/database\.ts/);
     assert.match(database, /npm run db:lint/);
