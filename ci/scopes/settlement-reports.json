@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "id": "settlement-reports",
+  "base": "656c6f1292ba408df339521c8d982acd1fdbb305",
+  "covers": [
+    "ci/scopes/settlement-reports.json",
+    "docs/work-log/2026-10-26-settlement-reports.md",
+    "supabase/migrations/20261026000040_settlement_report_workflow.sql",
+    "supabase/tests/settlement_report_workflow.test.sql"
+  ],
+  "reason": "Feature41 schema checkpoint: coherent actor-bound saved report/read/export and revision-bound draft workflow. No historical test selection.",
+  "selection": {
+    "unit": [],
+    "fixtures": [],
+    "sql": ["supabase/tests/settlement_report_workflow.test.sql"],
+    "races": [],
+    "upgrades": [],
+    "typecheck": false,
+    "browser": {}
+  },
+  "reasons": {
+    "sql": "Only new report workflow assertions for current authority/consent, exact snapshot, draft CAS, confirmed lock and source privacy.",
+    "unit": "Schema checkpoint only; application contracts follow in this same feature.",
+    "fixtures": "No fixture code committed in this checkpoint.",
+    "races": "Selected new concurrency tests follow; no historical race suites.",
+    "upgrades": "Selected populated39-to40 upgrade follows; no historical upgrade chain.",
+    "browser": "No UI code committed in this checkpoint.",
+    "typecheck": "Official generated schema artifact checkpoint; no hand-edited types."
+  },
+  "exclusions": [
+    "No whole or cumulative unit/SQL/browser/race/upgrade/check:all run.",
+    "No actual payouts, production deployment, policy activation, roles, credentials or provider operations."
+  ]
+}
