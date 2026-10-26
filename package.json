@@ -99,7 +99,8 @@
     "test:e2e:community-interactions": "playwright test --config playwright.community-interactions.config.ts",
     "test:db:community-moderation-concurrency": "node scripts/test-community-moderation-concurrency.mjs",
     "test:community-moderation-fixture": "node --test scripts/community-moderation-local-config.test.mjs",
-    "test:e2e:community-moderation": "playwright test --config playwright.community-moderation.config.ts"
+    "test:e2e:community-moderation": "playwright test --config playwright.community-moderation.config.ts",
+    "test:db:attendance-points-concurrency": "node scripts/test-attendance-points-concurrency.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",

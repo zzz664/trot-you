@@ -97,6 +97,8 @@ jobs:
       - run: node scripts/test-community-interactions-upgrade.mjs
       - run: npm run test:db:community-moderation-concurrency
       - run: node scripts/test-community-moderation-upgrade.mjs
+      - run: npm run test:db:attendance-points-concurrency
+      - run: node scripts/test-attendance-points-upgrade.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
