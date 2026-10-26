@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "id": "settlement-calculation",
+  "base": "e0a8f8be79d5b4f3792eb84128865c4ef84e2f3c",
+  "covers": [
+    "ci/scopes/settlement-calculation.json",
+    "docs/operations/settlement-calculation.md",
+    "docs/work-log/2026-10-26-settlement-calculation.md",
+    "scripts/test-settlement-calculation-concurrency.mjs",
+    "scripts/test-settlement-calculation-upgrade.mjs",
+    "src/config/settlement-calculation.ts",
+    "src/server/db/settlement-calculation.ts",
+    "src/server/services/settlement/calculate.ts",
+    "src/server/services/settlement/exact.ts",
+    "src/server/services/settlement/read.ts",
+    "src/server/services/settlement/weekly-stats.ts",
+    "src/types/database.ts",
+    "supabase/migrations/20261026000039_settlement_calculation.sql",
+    "supabase/tests/settlement_calculation.test.sql",
+    "supabase/tests/settlement_calculation_limits.test.sql",
+    "supabase/tests/settlement_calculation_repeatable_read.test.sql",
+    "supabase/tests/settlement_calculation_serializable.test.sql",
+    "tests/unit/settlement-calculate.test.ts",
+    "tests/unit/settlement-calculation-db.test.ts",
+    "tests/unit/settlement-calculation-fixtures.ts",
+    "tests/unit/settlement-calculation-service.test.ts",
+    "tests/unit/settlement-calculation-upgrade-contract.test.ts",
+    "tests/unit/settlement-exact.test.ts",
+    "tests/unit/settlement-weekly-stats.test.ts"
+  ],
+  "reason": "Feature40 read-only approved-policy settlement input, exact monthly calculator and weekly activity only. Current baseline-specific scope; no inherited historical suite permission.",
+  "selection": {
+    "unit": [
+      "tests/unit/settlement-calculate.test.ts",
+      "tests/unit/settlement-calculation-db.test.ts",
+      "tests/unit/settlement-calculation-service.test.ts",
+      "tests/unit/settlement-calculation-upgrade-contract.test.ts",
+      "tests/unit/settlement-exact.test.ts",
+      "tests/unit/settlement-weekly-stats.test.ts"
+    ],
+    "fixtures": [],
+    "sql": [
+      "supabase/tests/settlement_calculation.test.sql",
+      "supabase/tests/settlement_calculation_limits.test.sql",
+      "supabase/tests/settlement_calculation_repeatable_read.test.sql",
+      "supabase/tests/settlement_calculation_serializable.test.sql"
+    ],
+    "races": ["scripts/test-settlement-calculation-concurrency.mjs"],
+    "upgrades": ["scripts/test-settlement-calculation-upgrade.mjs"],
+    "typecheck": true,
+    "browser": {}
+  },
+  "reasons": {
+    "unit": "Only newly added pure calculation, decimal arithmetic, KST weekly aggregation, strict service/DB read boundary and populated-upgrade contract files.",
+    "fixtures": "No existing fixture/planner/workflow code changes; their historical matrices remain dormant.",
+    "sql": "Exactly four new settlement-calculation files: snapshot/authorization/source assignment,50,000 vs50,001 complete-source bounds, repeatable-read rejection, serializable rejection. Existing report/confirmation/analytics suites unchanged and dormant.",
+    "races": "Only eleven new independently blocked PostgreSQL source/refund commit/rollback, policy revocation, current-admin revocation, message-row fence order, artist NOWAIT and confirmed-month snapshot races.",
+    "upgrades": "Only populated migration38→39 preserving existing financial/policy/message/draft/confirmed snapshots and real RPC JSON→application calculator→SQL exact fraction parity; no prior upgrade chain.",
+    "browser": "No UI, routing, client or browser contract changes, therefore no browser cases or build.",
+    "typecheck": "Dependency graph compile and genuine schema type validation, not permission for cumulative regression."
+  },
+  "exclusions": [
+    "No check:all, full unit/SQL/browser/race/upgrade run, or fallback on shared/schema files.",
+    "No UI or product workflow changes; existing artist activity UI and related browser matrix remain unchanged.",
+    "Existing settlement report create/confirm/export remains feature41 and is not invoked by this read-only service.",
+    "No deployment, real policy activation, role grants, credentials, scheduler, payment provider, or payout."
+  ]
+}
