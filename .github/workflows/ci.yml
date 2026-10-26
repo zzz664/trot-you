@@ -37,9 +37,9 @@ jobs:
     needs: impact
     if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['database'] }}
     runs-on: ubuntu-latest
-    # Verified feature31 database run approached 20min. Preserve every repeat,
-    # race and populated upgrade while adding schedule notice migration gates.
-    timeout-minutes: 30
+    # Feature37 verified DB run reached 28m05. Keep every historical gate and
+    # add headroom for activity outcomes/races and the tenth populated upgrade.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -99,6 +99,8 @@ jobs:
       - run: node scripts/test-community-moderation-upgrade.mjs
       - run: npm run test:db:attendance-points-concurrency
       - run: node scripts/test-attendance-points-upgrade.mjs
+      - run: npm run test:db:activity-rewards-concurrency
+      - run: node scripts/test-activity-rewards-upgrade.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
