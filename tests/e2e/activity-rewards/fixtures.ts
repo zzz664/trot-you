@@ -15,6 +15,7 @@ import { ACTIVITY_REWARDS_CI_ENV } from '../../../scripts/activity-rewards-local
 import type { Database } from '../../../src/types/database';
 import { ACTIVITY_REWARDS } from '../../../src/config/activity-rewards';
 import { captureSettledActivityRewards } from './screenshot-capture';
+import { blockActivityExternalRequests } from './external-guard';
 
 export const appOrigin = 'http://127.0.0.1:3100';
 export const databaseOrigin = 'http://127.0.0.1:54321';
@@ -282,14 +283,10 @@ export function get(request: APIRequestContext, path: string, actor: Identity) {
   });
 }
 export async function blockExternal(context: BrowserContext) {
-  externalRequests.set(context, []);
-  await context.route('**/*', async (route) => {
-    const url = new URL(route.request().url());
-    if ([appOrigin, databaseOrigin].includes(url.origin))
-      return route.continue();
-    externalRequests.get(context)!.push(url.origin);
-    return route.abort('blockedbyclient');
-  });
+  externalRequests.set(
+    context,
+    await blockActivityExternalRequests(context, [appOrigin, databaseOrigin]),
+  );
 }
 export function expectNoExternal(context: BrowserContext) {
   expect(externalRequests.get(context)).toEqual([]);

@@ -11,6 +11,7 @@ import {
   activitySnapshotSchema,
 } from '../../../src/config/activity-rewards';
 import { COMMUNITY_POSTS } from '../../../src/config/community-posts';
+import type { CommunityCommentCreateInput } from '../../../src/config/community-interactions';
 import {
   routes,
   activityRewardsHistoryPath,
@@ -51,6 +52,8 @@ const copy = messages.activityRewards;
 const button = (root: Page | Locator, name: string) =>
   root.getByRole('button', { name, exact: true });
 const entries = (page: Page) => page.locator('[data-activity-entry-id]');
+// Next's route announcer also has role=alert outside the application main.
+const activityAlert = (page: Page) => page.getByRole('main').getByRole('alert');
 async function success(
   response: Pick<APIResponse, 'status' | 'headers' | 'json'>,
 ) {
@@ -218,8 +221,9 @@ test('real post/comment creation APIs award atomically and replay without duplic
   const comment = {
     operation_id: randomUUID(),
     comment_id: randomUUID(),
+    post_id: post.post_id,
     body: '격리 CI의 허구 댓글입니다.',
-  };
+  } satisfies CommunityCommentCreateInput;
   const created = await success(
     await context.request.post(
       communityCommentsPath(world.artist.slug, post.post_id),
@@ -488,7 +492,7 @@ test('account switch and newly applied restriction purge private rows after fres
   await world.other.signIn(context);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByTestId('activity-rewards-content')).toHaveCount(0);
-  await expect(page.getByRole('alert')).toContainText(copy.errors.FORBIDDEN);
+  await expect(activityAlert(page)).toHaveText(copy.errors.FORBIDDEN);
   await screenshot(page, info, 'activity-account-denial-xlarge-360', 'xlarge');
   await openActivity(page, world.other);
   await expect(
@@ -497,7 +501,7 @@ test('account switch and newly applied restriction purge private rows after fres
   setRestricted(world.other, true);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByTestId('activity-rewards-content')).toHaveCount(0);
-  await expect(page.getByRole('alert')).toContainText(copy.errors.FORBIDDEN);
+  await expect(activityAlert(page)).toHaveText(copy.errors.FORBIDDEN);
   await screenshot(
     page,
     info,
@@ -524,7 +528,7 @@ test('transport loss clears private history and a retry verifies the actual unch
   );
   await button(page, copy.refresh).click();
   await expect(page.getByTestId('activity-rewards-content')).toHaveCount(0);
-  await expect(page.getByRole('alert')).toContainText(copy.errors.UNAVAILABLE);
+  await expect(activityAlert(page)).toHaveText(copy.errors.UNAVAILABLE);
   const retry = await captureArrival(page, world.fan);
   await button(page, messages.ui.retry).click();
   await retry.result;
@@ -542,7 +546,8 @@ test('a late verified response cannot repopulate a navigated-away page', async (
   await openActivity(page, world.fan);
   let release!: () => void,
     accepted!: () => void,
-    rejected!: (error: unknown) => void;
+    rejected!: (error: unknown) => void,
+    settled!: (result: { error?: unknown }) => void;
   const hold = new Promise<void>((done) => {
     release = done;
   });
@@ -550,9 +555,13 @@ test('a late verified response cannot repopulate a navigated-away page', async (
     accepted = done;
     rejected = fail;
   });
+  const completed = new Promise<{ error?: unknown }>((done) => {
+    settled = done;
+  });
   await page.route(
     (url) => url.pathname === routes.activityRewardsApi,
     async (route) => {
+      let terminalActionStarted = false;
       try {
         const response = await route.fetch();
         const data = activitySnapshotSchema.parse(await success(response));
@@ -560,10 +569,25 @@ test('a late verified response cannot repopulate a navigated-away page', async (
         expect(data.entries).toHaveLength(1);
         accepted();
         await hold;
-        await route.fulfill({ response }).catch(() => undefined);
+        terminalActionStarted = true;
+        await route.fulfill({ response });
+        settled({});
       } catch (error) {
-        rejected(error);
-        await route.abort().catch(() => undefined);
+        // A fulfill attempt owns the route even when its request was canceled.
+        // Never issue a second terminal action or hide the original failure.
+        let failure = error;
+        if (!terminalActionStarted) {
+          try {
+            await route.abort();
+          } catch (abortError) {
+            failure = new AggregateError(
+              [error, abortError],
+              'Activity verification and route cleanup both failed.',
+            );
+          }
+        }
+        rejected(failure);
+        settled({ error: failure });
       }
     },
     { times: 1 },
@@ -574,8 +598,10 @@ test('a late verified response cannot repopulate a navigated-away page', async (
   const navigation = navigationResponse(page, routes.points);
   await page.getByRole('link', { name: copy.backPoints, exact: true }).click();
   expect((await navigation).status()).toBe(200);
-  release();
   await expect(page).toHaveURL(routes.points);
+  release();
+  const completion = await completed;
+  if ('error' in completion) throw completion.error;
   await expect(page.getByTestId('activity-rewards-content')).toHaveCount(0);
   expect(ledger(world.fan)).toHaveLength(1);
 });
@@ -602,8 +628,18 @@ test('HTML, RSC, worker caches and back navigation never disclose private activi
   const navigation = navigationResponse(page, routes.points);
   await page.getByRole('link', { name: copy.backPoints, exact: true }).click();
   expect((await navigation).status()).toBe(200);
+  // Receiving RSC bytes precedes Next's history commit. Back before this
+  // destination is rendered can otherwise leave the initial about:blank page.
+  await expect(page).toHaveURL(routes.points);
+  await expect(
+    page.getByRole('heading', {
+      name: messages.attendancePoints.title,
+      exact: true,
+    }),
+  ).toBeVisible();
   const arrival = await captureArrival(page, world.fan);
   await page.goBack();
+  await expect(page).toHaveURL(routes.activityRewards);
   await arrival.result;
   await expect(entries(page)).toHaveCount(3);
   const cached = await page.evaluate(async () => {
@@ -624,7 +660,5 @@ test('HTML, RSC, worker caches and back navigation never disclose private activi
   await context.clearCookies();
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByTestId('activity-rewards-content')).toHaveCount(0);
-  await expect(page.getByRole('alert')).toContainText(
-    copy.errors.UNAUTHENTICATED,
-  );
+  await expect(activityAlert(page)).toHaveText(copy.errors.UNAUTHENTICATED);
 });

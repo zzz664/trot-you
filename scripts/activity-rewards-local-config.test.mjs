@@ -220,3 +220,101 @@ test('arrival checks the real current-actor snapshot before forwarding and navig
   assert.ok(source.includes('expect(response?.status()).toBe(200)'));
   assert.ok(!source.includes('waitForTimeout'));
 });
+
+test('activity errors are scoped to application main, not the Next route announcer', () => {
+  const source = readFileSync(
+    new URL(
+      '../tests/e2e/activity-rewards/activity-rewards.spec.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(source, /page\.getByRole\('main'\)\.getByRole\('alert'\)/);
+  assert.doesNotMatch(source, /page\.getByRole\('alert'\)/);
+  assert.equal(
+    (source.match(/expect\(activityAlert\(page\)\)/g) ?? []).length,
+    4,
+  );
+});
+
+test('real comment API fixture includes the URL target and satisfies its strict input contract', () => {
+  const source = readFileSync(
+    new URL(
+      '../tests/e2e/activity-rewards/activity-rewards.spec.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const comment = source
+    .split('const comment = {')[1]
+    ?.split('const created =')[0];
+  assert.ok(comment);
+  assert.match(comment, /post_id: post\.post_id/);
+  assert.match(comment, /satisfies CommunityCommentCreateInput/);
+  assert.match(
+    source,
+    /communityCommentsPath\(world\.artist\.slug, post\.post_id\)/,
+  );
+});
+
+test('late verified reads finish their terminal handler before assertions and teardown', () => {
+  const source = readFileSync(
+    new URL(
+      '../tests/e2e/activity-rewards/activity-rewards.spec.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  )
+    .split("test('a late verified response")[1]
+    ?.split("test('HTML, RSC")[0];
+  assert.ok(source);
+  assert.match(
+    source,
+    /await route\.fulfill\(\{ response \}\);\s*settled\(\{\}\)/,
+  );
+  assert.match(
+    source,
+    /if \(!terminalActionStarted\) \{\s*try \{\s*await route\.abort\(\)/,
+  );
+  assert.match(source, /new AggregateError\(\s*\[error, abortError\]/);
+  assert.ok(
+    source.indexOf('settled({ error: failure })') >
+      source.indexOf('await route.abort()'),
+  );
+  assert.doesNotMatch(source, /\.catch\(/);
+  const release = source.indexOf('release();');
+  const join = source.indexOf('const completion = await completed;');
+  const ledger = source.indexOf('expect(ledger(world.fan))');
+  assert.ok(release >= 0 && join > release && ledger > join);
+  assert.match(source, /if \('error' in completion\) throw completion\.error/);
+});
+
+test('back navigation waits for the destination commit and verifies the return response', () => {
+  const source = readFileSync(
+    new URL(
+      '../tests/e2e/activity-rewards/activity-rewards.spec.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  ).split("test('HTML, RSC")[1];
+  assert.ok(source);
+  const checks = [
+    'expect((await navigation).status()).toBe(200)',
+    'await expect(page).toHaveURL(routes.points)',
+    'name: messages.attendancePoints.title',
+    'const arrival = await captureArrival(page, world.fan)',
+    'await page.goBack()',
+    'await expect(page).toHaveURL(routes.activityRewards)',
+    'await arrival.result',
+    'await expect(entries(page)).toHaveCount(3)',
+  ];
+  let previous = -1;
+  for (const check of checks) {
+    const index = source.indexOf(check);
+    assert.ok(
+      index > previous,
+      `Missing or reordered back navigation guard: ${check}`,
+    );
+    previous = index;
+  }
+});

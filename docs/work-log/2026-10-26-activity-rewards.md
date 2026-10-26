@@ -135,3 +135,60 @@ contrast and production/PWA build. Final **204 CI contracts** and **546 fixture/
 discovery checks** also passed. The generated file remains byte-identical to the
 verified artifact. Hosted final-head browsers and actual pixel review remain
 pending; these local successes do not replace those gates or approve policy.
+
+## First final-head hosted run and evidence-based harness correction
+
+Local application head `8204643fa6a3c7624d7f7f50ddc6aa5f24f594c8` was published
+as `f8e27ce863cd79bc58aaffe8003a219755d5c9be`, with identical tree
+`209883799cf154ac4dbbfac3a17c5979ef8a2e6e`. Hosted run `40334495632` reached a
+terminal result of **27 successful jobs and two failures**: only the new activity
+browser and its required aggregate failed. Every historical regression lane
+passed, including all 20 attendance browser cases. The DB job passed both
+**4,909-assertion / 67-file pgTAP runs**, **532 semantic concurrency scenarios**
+(530 raw PASS lines plus two unchanged legacy combined cases), all **ten populated
+upgrades**, generated-schema typecheck and exact schema-drift comparison. Its DB
+span was **28m55.228s**. The regenerated 96,304-byte schema has the same SHA-256
+reported above.
+
+The new browser lane passed ten of fifteen scenarios, including all six visual
+matrix cases, and failed five scenarios. Official logs and report steps identified
+four concrete harness defects; no production contract was relaxed:
+
+- The comment API fixture omitted required `post_id` from its strict body despite
+  carrying that target in the URL. The fixture now includes both and satisfies
+  `CommunityCommentCreateInput` at compile time; the actual HTTP 200 and immutable
+  award/replay assertions remain required.
+- Unscoped `role=alert` matched both the application error and Next's route
+  announcer. Assertions now target the application's `main` and require exact
+  error text, preserving account-switch, restriction and retry checks.
+- The external-request guard unnecessarily intercepted allowed traffic, and a
+  held response could outlive teardown. The guard now matches and aborts only
+  disallowed origins; allowed traffic is untouched. Late-response tests join the
+  terminal handler, propagate original/cleanup errors and never issue a second
+  terminal action after fulfillment begins. No terminal errors are swallowed.
+- The Back test observed destination RSC bytes but returned before Next committed
+  the destination URL/render; report steps showed Back completing before the
+  return-read wait timed out. It now verifies destination URL and heading before
+  Back, then the expected return URL and actual actor-bound response. The original
+  cache/HTML/RSC/ledger assertions remain unchanged.
+
+Added four executable external-guard unit tests and four fixture regression guards.
+The correction preserves all fifteen browser scenarios, all three text scales,
+360/1280 widths, screenshot targets, timeouts and external-request denial checks.
+Complete corrected local verification passed: `npm run check:all` (lint/format,
+typecheck, **9,824 unit tests in 312 files**, contrast and production/PWA build),
+**204 CI selector/workflow/aggregate tests**, and **550 fixture/discovery checks**.
+No local browser or DB retry was attempted. Hosted corrected-head execution remains
+required; these harness fixes are not themselves evidence that the five cases pass.
+
+Static pixel inspection of this failed run is recorded separately from runtime
+success: all **75 attendance PNGs** and all **42 available named activity matrix
+PNGs** were inspected at native pixel resolution, including every vertical region
+and offscreen controls. No clipping, overlapping text, broken wrapping or truncated
+controls were found. Original hashes remained unchanged. Activity inspection used
+21 mobile captures (110 overlapping native-pixel tiles in 28 sheets, tallest
+20,140 pixels) and 21 desktop captures (111 lossless segments / 86 unique tiles,
+tallest 15,145 pixels). The two authority captures were absent because their tests
+failed; failure/report duplicate PNGs are not counted as completed planned captures.
+Corrected-head browser success and all 44 final activity captures still need fresh
+verification. All business-policy decisions remain unanswered and unactivated.
