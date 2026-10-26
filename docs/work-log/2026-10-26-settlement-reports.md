@@ -70,3 +70,82 @@
 - 브라우저 discovery는 신규 authenticated27개 + keyless1개만 확인했다. 실제
   브라우저/12개 시각 산출물(admin/artist ×3scale ×2width)은 hosted 대기다.
   로컬 browser socket/Docker는 재시도/우회하지 않았다.
+
+## 23:07 UTC — browser response 수명에 한정한 수정
+
+- 원격 앱 head `d2faf68f27f0398d964efd3a3a730c060b1aacc2`, tree
+  `fa812d6eef0f0e50121dee581ede0d4d06b9f080`의 CI `40416137664`에서
+  report SQL **75×2**, 독립 세션 경합 **10**, populated39→40 upgrade,
+  공식 generated types/typecheck/drift가 통과했다. 이 증거는 그대로 보존한다.
+- report browser는 **19/27 통과, 8 실패**였다. 실패 stack 모두 browser
+  `waitForResponse` 결과를 나중에 `.json()`으로 읽다가 CDP
+  `Network.getResponseBody: No data found for resource with given identifier`를
+  냈다. 응답 body가 navigation/cancellation 수명 종료 후 사라진다는 진단이다.
+  direct APIResponse/SQL/검증 경합 실패로 잘못 분류하지 않는다. 성공 처리로 숨기지 않는다.
+- 수정은 `tests/e2e/settlement-reports/response-capture.ts`와 report spec의 관찰
+  경계뿐이다. browser가 실제 시작한 exact URL(query 포함)/method/actor header와
+  mutation body를 확인하고, 실제 upstream 요청을 **1회** 실행하여 bytes를
+  forwarding 전에 보존한다. redirect/retry는 0, status/private headers도 검증한다.
+  실제 bytes만 그대로 전달하며 mock success, 재요청, 취소된 CDP body 재읽기는 없다.
+- 기존 schema·권한·revision·금액·DOM·금융 원장·반복 클릭·취소·12 visual assertion은
+  모두 유지한다. timeout/retry/assertion 완화는 없다. navigation response만 status-only다.
+- patch-only manifest는 신규 helper unit **1파일/17 tests**, 직접 report guard
+  **1파일/35 tests**, 변경 helper를 사용하는 정확히 **24 named browser cases**와
+  **12 visuals**만 선택한다. unchanged direct-API-only browser3개는 제외한다.
+  keyless1개는 이전 실행이 아직 완료되지 않아 기존 미완료 요구로 계속 선택했다.
+- 변경 unit/guard, targeted ESLint/Prettier, `tsc --noEmit`, diff-check 통과.
+  실제 browser는 로컬에서 실행/재시도하지 않고 수정 head hosted 증거를 기다린다.
+- 기존 263 report units/347 CI matrix/DB75×2/races10/upgrade는 이번 수정에서
+  재실행하지 않는다. baseline-bound manifest의 전체 PR 파일 mapping은 유지하되
+  선택 목록을 patch의 직접 계약으로 명시적으로 좁혔다. 실패를 skip 성공으로 바꾸지 않는다.
+- `src` tree `950ec2258596d8c1e797a6ab57623032face82ba`, `supabase` tree
+  `51541a705cc9255aa64c7c11a0d9db2f4b82d792`가 passing DB head와 완전히
+  동일함을 `git diff --quiet d2faf68 -- src supabase`로 검증했다.
+  product/schema/official type bytes, workflow와 registry에는 변경이 없다.
+
+## 23:09 UTC — 실제 선택 범위 위반 발견, publication 중지
+
+- 같은 run `40416137664` quality 로그는 계획상 keyless1파일을 표시했지만
+  실제 실행은 **historical browser94개**였다. 이것은 사용자의 변경 범위 검사
+  규칙 위반이며, 선택 계획이 맞았다는 이유로 정당화하거나 성공으로 숨기지 않는다.
+  부모 작업은 발견 즉시 사용자에게 알리고 모든 publication/hosted rerun을 중지했다.
+- 실제 설치된 Playwright1.64.1 `lib/program.js`는 `--` 뒤의 인수를 testFilters에서
+  제거한다. 기존 runner가 유일한 파일 정규식을 `--` 뒤에 두어 effective file filter가
+  비었고 default config의 historical94개가 실행되었다. dedicated report config가
+  27개로 보인 것은 testDir 제한 때문이지 runner 파일 선택이 입증된 것이 아니었다.
+- 재현 목적으로 historical suite를 다시 실행하지 않는다. 수정은 안전하게 allowlist한
+  파일 정규식을 올바른 위치로 전달하고, 실제 CLI discovery의 file/title/test ID가
+  명시적 선택과 정확히 일치하는지 실행 전에 fail-closed 확인하는 직접 계약에 한정한다.
+  scope 불일치·missing·empty·추가 case는 실행 금지이며 full fallback은 없다.
+
+## 23:23 UTC — 실행 전 실제 collection 강제 검증
+
+- `ci-run-selected`는 `--` 뒤 파일 인수를 제거했다. 안전한 명시적 경로만 CLI에
+  전달하고, 원래 config 옆의 임시 wrapper에서 root/모든 project `testMatch`를
+  **선택한 한 파일의 절대 경로 정규식**으로 고정한다. 프로젝트 dependency/teardown은
+  임의 확대하지 않고 별도 scope를 요구하며 실패한다.
+- 실제 설치 CLI로 file-only discovery 후 요청된 grep에서 exact 기대 ID/file/full-title
+  집합을 정한다. 두 번째 실제 targeted discovery가 그 집합과 완전히 같아야 한다.
+  empty/추가/누락/다른파일/다른ID/다른title/지원되지 않는 metadata는 실행 전에 실패한다.
+  모든 invocation의 preflight가 끝나기 전 runtime을 시작하지 않는다.
+- runtime config도 literal file + exact title allowlist를 고정한다. mandatory reporter가
+  `onBegin`에서 실제 동일 집합을 다시 검증하고 mismatch는 test task 전에 hard-stop한다.
+  Playwright는 reporter exception을 삼키므로 단순 throw에 기대지 않는다.
+  `onTestBegin`도 허용 ID를 검사하며 실제 count/ID/file/title/digest를 구조화 로그에 남긴다.
+- original fixture/build/reporting 설정은 유지하되 root/project retries를 0으로 고정한다.
+  선택 실패는 자동 retry로 성공 처리하지 않는다. 테스트 timeout은 늘리지 않았다.
+  임시 파일은 해당 invocation 종료 시 자기 소유 파일만 정리한다.
+- 신규 runner 직접 계약 **161 tests**, response capture **17 tests**, report guard
+  **35 tests** 통과. installedCLI의 inert fixture discovery는 historical sibling의
+  top-level throw를 전혀 import하지 않았고, test body/서버/browser 실행 sentinel도
+  실행하지 않았다. CLI file/grep가 사라지는 음성 시나리오도 config 고정으로 정확히
+  같은 ID만 수집했고, extra/missing/changed/foreign 집합은 continuation 전에 종료했다.
+- 실제 프로젝트 최종 discovery 증거는
+  `/workspace/shared/settlement-reports-browser-fix-discovery-final.jsonl`에 보존했다.
+  **keyless1 / affected report24** 각각 preflight와 runtime guard를 모두 `--list`로만
+  실행하여 count/ID/file/full-title/digest 동일성을 확인했다. 이 증거는 browser 테스트
+  통과가 아니며, hosted execution은 publication hold 해제 후에만 가능하다.
+- patch 선택은 helper unit1파일 + 실제 바뀐 runner/report guard2파일 + keyless1/
+  report24(visual12)다. 앞서 통과한 unchanged product/schema/DB 및 historical
+  service/CI matrices는 다시 실행하지 않는다. 기존 broad quality 성공은 범위 준수
+  증거로 재사용하지 않고, isolated keyless1을 수정된 runner의 직접 검증으로 남긴다.

@@ -374,12 +374,273 @@ export function buildSelectedCommands(
         config,
         '--forbid-only',
         ...(grep === undefined ? [] : ['--grep', grep]),
-        '--',
+        // Playwright 1.64 removes post-`--` values from testFilters.
+        // The validated literal file regex cannot be an option.
         `(?:^|/)${escaped(file)}$`,
       ],
       [config, file],
     ),
   );
+}
+
+const PLAYWRIGHT_CLI = 'node_modules/@playwright/test/cli.js';
+const MAX_BROWSER_INVENTORY_BYTES = 16 * 1024 * 1024;
+const BROWSER_DISCOVERY_TIMEOUT_MS = 60_000;
+
+// The identity includes the exact file, complete title path, project/repeat ID
+// and Playwright's actual grep title (including nested tags). This is collected
+// from the installed runner, not inferred from source text or a generic count.
+export function validateBrowserInventory(value, { file, root }) {
+  if (
+    !object(value) ||
+    value.version !== 1 ||
+    !Array.isArray(value.tests) ||
+    !value.tests.length ||
+    value.tests.length > MAX_ITEMS
+  )
+    throw new Error('Browser discovery is empty or malformed.');
+  const absolute = `${root.replace(/\\/g, '/').replace(/\/$/, '')}/${file}`;
+  const ids = new Set();
+  const tests = value.tests
+    .map((entry) => {
+      if (
+        !object(entry) ||
+        Object.keys(entry).sort().join(',') !== 'file,grepTitle,id,titlePath' ||
+        typeof entry.id !== 'string' ||
+        !entry.id ||
+        entry.id.length > 256 ||
+        /[\u0000-\u001f\u007f]/.test(entry.id) ||
+        ids.has(entry.id) ||
+        entry.file !== absolute ||
+        !Array.isArray(entry.titlePath) ||
+        entry.titlePath.length < 3 ||
+        entry.titlePath.length > 100 ||
+        entry.titlePath.some(
+          (title) =>
+            typeof title !== 'string' ||
+            title.length > 16_384 ||
+            /[\u0000\u000A\u000D]/.test(title),
+        ) ||
+        typeof entry.grepTitle !== 'string' ||
+        !entry.grepTitle ||
+        entry.grepTitle.length > 65_536
+      )
+        throw new Error(
+          'Browser discovery contains an unexpected file, identity or title.',
+        );
+      ids.add(entry.id);
+      return {
+        id: entry.id,
+        file: entry.file,
+        titlePath: entry.titlePath,
+        grepTitle: entry.grepTitle,
+      };
+    })
+    .sort((a, b) => a.id.localeCompare(b.id));
+  return { version: 1, tests };
+}
+export function selectBrowserInventory(inventory, grep) {
+  // Match the installed Playwright forceRegExp semantics, including /.../gi.
+  // Reset global regex state for every title, just as its title matcher does.
+  const literal = grep?.match(/^\/(.*)\/([gi]*)$/);
+  const expression =
+    grep === undefined
+      ? null
+      : literal
+        ? new RegExp(literal[1], literal[2])
+        : new RegExp(grep, 'gi');
+  const tests = inventory.tests.filter((entry) => {
+    if (!expression) return true;
+    expression.lastIndex = 0;
+    return expression.test(entry.grepTitle);
+  });
+  if (!tests.length) throw new Error('Selected browser cases are absent.');
+  return { version: 1, tests };
+}
+export function assertBrowserInventory(actual, expected) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected))
+    throw new Error(
+      'Browser collection differs from the exact selected IDs/files/titles.',
+    );
+}
+
+// All generated files belong to one invocation and are removed in finally.
+// Configs live beside the original config, preserving every relative testDir,
+// snapshot/output path and fixture lifecycle. Literal testMatch is applied to
+// every project independently; a lost CLI filter can never load other files.
+export async function prepareBrowserCommands(
+  commands,
+  { cwd, spawn, nodeExecutable = process.execPath, log = () => undefined } = {},
+) {
+  if (!commands.length) return { commands: [], dispose() {} };
+  const [
+    { mkdtempSync, writeFileSync, readFileSync, lstatSync, rmSync },
+    { resolve, dirname, basename, join },
+    { randomUUID, createHash },
+  ] = await Promise.all([
+    import('node:fs'),
+    import('node:path'),
+    import('node:crypto'),
+  ]);
+  const owned = [];
+  const dispose = () => {
+    for (const path of owned.reverse())
+      rmSync(path, { recursive: true, force: true });
+  };
+  try {
+    const prepared = [];
+    for (const item of commands) {
+      if (
+        item.args[0] !== PLAYWRIGHT_CLI ||
+        item.args.includes('--') ||
+        item.files?.length !== 2 ||
+        item.args[1] !== 'test'
+      )
+        throw new Error('Browser command cannot bypass exact discovery.');
+      const [config, file] = item.files;
+      const root = resolve(cwd);
+      const original = resolve(root, config);
+      const directory = mkdtempSync(
+        join(dirname(original), '.ci-browser-scope-'),
+      );
+      owned.push(directory);
+      const wrapper = join(
+        dirname(original),
+        `.ci-browser-scope-${randomUUID()}.config.ts`,
+      );
+      owned.push(wrapper);
+      const reporter = join(directory, 'guard.mjs');
+      const actualPath = join(directory, 'actual.json');
+      const expectedPath = join(directory, 'expected.json');
+      const runnerUrl = pathToFileURL(
+        resolve(root, 'scripts/ci-run-selected.mjs'),
+      ).href;
+      const target = resolve(root, file).replace(/\\/g, '/');
+      const grepAt = item.args.indexOf('--grep');
+      const requestedGrep = grepAt === -1 ? undefined : item.args[grepAt + 1];
+      writeFileSync(
+        reporter,
+        `
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { validateBrowserInventory, assertBrowserInventory } from ${JSON.stringify(runnerUrl)};
+const boundary = ${JSON.stringify({ file, root })};
+function stop() {
+  process.stderr.write('Exact browser collection guard rejected this run.\\n');
+  // Reporter callback exceptions are swallowed by Playwright's multiplexer.
+  // Hard exit is intentional: onBegin runs before createRunTestsTask.
+  process.exit(1);
+}
+export default class ExactBrowserGuard {
+  constructor(options) { this.options = options; this.allowed = null; }
+  printsToStdio() { return true; }
+  onBegin(config, suite) {
+    try {
+      if (!Array.isArray(config.projects) || config.projects.some(project => project.retries !== 0)) throw new Error('Automatic browser retries are not allowed.');
+      const inventory = validateBrowserInventory({ version: 1, tests: suite.allTests().map(test => {
+        if (typeof test._grepTitleWithTags !== 'function') throw new Error('Unsupported Playwright metadata.');
+        const titlePath = test.titlePath();
+        const withRoot = test._grepTitleWithTags();
+        if (titlePath[0] !== '' || !withRoot.startsWith(' ')) throw new Error('Unsupported Playwright root title.');
+        // CLI grep runs on the project suite before the empty root is attached.
+        return { id: test.id, file: test.location.file.replace(/\\\\/g, '/'), titlePath, grepTitle: withRoot.slice(1) };
+      }) }, boundary);
+      if (this.options.expected) {
+        const expected = validateBrowserInventory(JSON.parse(readFileSync(this.options.expected, 'utf8')), boundary);
+        assertBrowserInventory(inventory, expected);
+        const digest = createHash('sha256').update(JSON.stringify(inventory)).digest('hex');
+        process.stdout.write('browser-runtime-inventory: ' + JSON.stringify({ count: inventory.tests.length, digest, tests: inventory.tests }) + '\\n');
+      }
+      this.allowed = new Set(inventory.tests.map(test => test.id));
+      if (this.options.output) writeFileSync(this.options.output, JSON.stringify(inventory), { flag: 'wx', mode: 0o600 });
+    } catch { stop(); }
+  }
+  onTestBegin(test) { if (!this.allowed?.has(test.id)) stop(); }
+  onEnd() { if (!this.allowed) return { status: 'failed' }; }
+}
+`,
+        { flag: 'wx', mode: 0o600 },
+      );
+      const writeConfig = (expected, exactGrep) => {
+        const guardOptions = expected
+          ? { expected: expectedPath }
+          : { output: actualPath };
+        writeFileSync(
+          wrapper,
+          `
+import source from ${JSON.stringify(`./${basename(original)}`)};
+const exactFile = new RegExp(${JSON.stringify(`^${escaped(target)}$`)});
+const exactGrep = ${exactGrep ? `new RegExp(${JSON.stringify(exactGrep)})` : 'undefined'};
+const restrict = (project) => {
+  if (project.dependencies?.length || project.teardown) throw new Error('Explicit scoped plan required for project dependencies.');
+  return { ...project, retries: 0, testMatch: [exactFile], ...(exactGrep ? { grep: exactGrep, grepInvert: [] } : {}) };
+};
+const guarded = restrict(source);
+export default {
+  ...guarded,
+  forbidOnly: true,
+  ...(source.projects ? { projects: source.projects.map(restrict) } : {}),
+  reporter: ${expected ? `[ [${JSON.stringify(reporter)}, ${JSON.stringify(guardOptions)}], ...(typeof source.reporter === 'string' ? [[source.reporter]] : source.reporter ?? [['list']]) ]` : `[[${JSON.stringify(reporter)}, ${JSON.stringify(guardOptions)}]]`},
+};
+`,
+          { mode: 0o600 },
+        );
+      };
+      const args = [...item.args];
+      args[args.indexOf('--config') + 1] = wrapper;
+      const collect = (collectionArgs) => {
+        rmSync(actualPath, { force: true });
+        // --list only loads tests: no web server, global setup, test body or
+        // browser is started. Output is bounded; every subprocess error fails.
+        const result = spawn(nodeExecutable, [...collectionArgs, '--list'], {
+          cwd: root,
+          stdio: 'pipe',
+          encoding: 'utf8',
+          shell: false,
+          timeout: BROWSER_DISCOVERY_TIMEOUT_MS,
+          maxBuffer: MAX_BROWSER_INVENTORY_BYTES,
+        });
+        if (result.error || result.signal || result.status !== 0)
+          throw new Error(
+            'Exact browser discovery failed; no browser tests started.',
+          );
+        const status = lstatSync(actualPath);
+        if (
+          !status.isFile() ||
+          status.isSymbolicLink() ||
+          status.size > MAX_BROWSER_INVENTORY_BYTES
+        )
+          throw new Error(
+            'Browser discovery evidence is invalid or oversized.',
+          );
+        return validateBrowserInventory(
+          JSON.parse(readFileSync(actualPath, 'utf8')),
+          { file, root },
+        );
+      };
+      writeConfig(false);
+      const fileOnlyArgs = [...args];
+      if (grepAt !== -1) fileOnlyArgs.splice(grepAt, 2);
+      const completeFile = collect(fileOnlyArgs);
+      const expected = selectBrowserInventory(completeFile, requestedGrep);
+      const selected = collect(args);
+      assertBrowserInventory(selected, expected);
+      writeFileSync(expectedPath, JSON.stringify(expected), {
+        flag: 'wx',
+        mode: 0o600,
+      });
+      const exactGrep = `^(?:${unique(expected.tests.map((test) => escaped(test.grepTitle))).join('|')})$`;
+      writeConfig(true, exactGrep);
+      log(
+        `browser-preflight-inventory: ${JSON.stringify({ count: expected.tests.length, digest: createHash('sha256').update(JSON.stringify(expected)).digest('hex'), tests: expected.tests })}`,
+      );
+      prepared.push({ ...item, args, browserAudit: true });
+    }
+    return { commands: prepared, dispose };
+  } catch (error) {
+    dispose();
+    throw error;
+  }
 }
 
 // No shell and no plan-provided executable. Injection is only for unit tests;
@@ -394,6 +655,10 @@ export function executeSelectedCommands(
     return 0;
   }
   for (const item of commands) {
+    if (item.args[0] === PLAYWRIGHT_CLI && !item.browserAudit)
+      throw new Error(
+        'Browser execution requires verified collection evidence.',
+      );
     log(`selected: ${JSON.stringify(item.args)}`);
     const result = spawn(nodeExecutable, item.args, {
       cwd,
@@ -489,11 +754,23 @@ export async function runSelected({
   for (const item of commands)
     if (item.args[0].startsWith('node_modules/')) regularFile(item.args[0]);
   const { spawnSync } = await import('node:child_process');
-  return executeSelectedCommands(commands, spawnSync, {
-    cwd: root,
-    nodeExecutable: process.execPath,
-    log,
-  });
+  const browser =
+    args[0] === 'browser'
+      ? await prepareBrowserCommands(commands, {
+          cwd: root,
+          spawn: spawnSync,
+          log,
+        })
+      : null;
+  try {
+    return executeSelectedCommands(browser?.commands ?? commands, spawnSync, {
+      cwd: root,
+      nodeExecutable: process.execPath,
+      log,
+    });
+  } finally {
+    browser?.dispose();
+  }
 }
 if (
   process.argv[1] &&

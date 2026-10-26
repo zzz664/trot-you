@@ -132,7 +132,22 @@ test('dedicated report discovery fails closed without exact local opt-in', () =>
     (error) => /Run settlement-reports tests only/.test(String(error.stderr)),
   );
 });
-test('exact opted-in report discovery lists only new report cases without launching browser/server/database', () => {
+test('exact opted-in report discovery lists only the 24 changed-capture cases without launching browser/server/database', () => {
+  const scope = JSON.parse(
+    readFileSync(
+      new URL('../ci/scopes/settlement-reports.json', import.meta.url),
+      'utf8',
+    ),
+  );
+  const selected = scope.selection.browser['settlement-reports-browser'];
+  assert.equal(selected.length, 1);
+  assert.equal(
+    selected[0].file,
+    'tests/e2e/settlement-reports/settlement-reports.spec.ts',
+  );
+  assert.ok(
+    selected[0].grep.startsWith('(?:^| )') && selected[0].grep.endsWith('$'),
+  );
   const listing = execFileSync(
     process.execPath,
     [
@@ -142,6 +157,8 @@ test('exact opted-in report discovery lists only new report cases without launch
       'playwright.settlement-reports.config.ts',
       '--list',
       '--reporter=line',
+      '--grep',
+      selected[0].grep,
     ],
     {
       encoding: 'utf8',
@@ -155,7 +172,18 @@ test('exact opted-in report discovery lists only new report cases without launch
     },
   );
   assert.match(listing, /settlement-reports\.spec\.ts/);
-  assert.match(listing, /Total: [1-9][0-9]* tests in 1 file/);
+  assert.match(listing, /Total: 24 tests in 1 file/);
+  assert.equal((listing.match(/report is readable at/g) ?? []).length, 12);
+  assert.doesNotMatch(
+    listing,
+    /new and existing draft CAS|new committed sources make a draft stale|artist draft isolation, fan\/foreign-member denial/,
+  );
+  assert.deepEqual(scope.selection.unit, [
+    'tests/unit/settlement-reports-response-capture.test.ts',
+  ]);
+  assert.deepEqual(scope.selection.sql, []);
+  assert.deepEqual(scope.selection.races, []);
+  assert.deepEqual(scope.selection.upgrades, []);
   assert.doesNotMatch(
     listing,
     /(?:analytics-funnel|media|speech|auth-unconfigured)\.spec\.ts:/,

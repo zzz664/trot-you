@@ -17,6 +17,10 @@ import {
   parseSelectionPlan,
   runSelected,
   validateSelectionPlan,
+  validateBrowserInventory,
+  selectBrowserInventory,
+  assertBrowserInventory,
+  prepareBrowserCommands,
 } from './ci-run-selected.mjs';
 
 const unit = 'tests/unit/analytics-funnel-client.test.ts';
@@ -273,6 +277,7 @@ for (const [job, [config, directory]] of Object.entries(BROWSER_CONFIGS))
     assert.ok(!filter.test(`/repo/${file}x`));
     assert.ok(!filter.test(`/repo/other/scoped.spec.ts`));
     assert.ok(built.args.includes('--forbid-only'));
+    assert.ok(!built.args.includes('--'));
   });
 for (const entry of [
   {},
@@ -663,4 +668,416 @@ test('settlement-reports selection cannot execute an analytics or other historic
       { browserJob: 'settlement-reports-browser' },
     ),
   );
+});
+
+const scopedBrowserFile = 'tests/e2e/scoped.spec.ts';
+function inventoryRow(overrides = {}) {
+  return {
+    id: 'selected-id',
+    file: `/repo/${scopedBrowserFile}`,
+    titlePath: ['', '', 'scoped.spec.ts', 'chosen'],
+    grepTitle: ' scoped.spec.ts chosen',
+    ...overrides,
+  };
+}
+const inventory = (tests = [inventoryRow()]) => ({ version: 1, tests });
+const checkedInventory = (value = inventory()) =>
+  validateBrowserInventory(value, { file: scopedBrowserFile, root: '/repo' });
+
+test('browser inventory requires exact file and nonempty unique stable identities/full titles', () => {
+  assert.deepEqual(checkedInventory(), inventory());
+  for (const value of [
+    null,
+    {},
+    { version: 1, tests: [] },
+    inventory([inventoryRow(), inventoryRow()]),
+    inventory([inventoryRow({ file: '/repo/tests/e2e/old.spec.ts' })]),
+    inventory([
+      inventoryRow({ file: '/repo/tests/e2e/../e2e/scoped.spec.ts' }),
+    ]),
+    inventory([inventoryRow({ id: '' })]),
+    inventory([inventoryRow({ id: 'bad\nid' })]),
+    inventory([inventoryRow({ titlePath: [] })]),
+    inventory([inventoryRow({ titlePath: ['', 'file', null] })]),
+    inventory([inventoryRow({ grepTitle: '' })]),
+    inventory([inventoryRow({ unknown: true })]),
+  ])
+    assert.throws(() => checkedInventory(value));
+});
+test('browser inventory comparison rejects extra, missing or changed IDs/files/titles, not merely counts', () => {
+  const expected = checkedInventory();
+  assert.doesNotThrow(() =>
+    assertBrowserInventory(checkedInventory(), expected),
+  );
+  for (const actual of [
+    inventory([]),
+    inventory([inventoryRow(), inventoryRow({ id: 'extra' })]),
+    inventory([inventoryRow({ id: 'different' })]),
+    inventory([
+      inventoryRow({ titlePath: ['', '', 'scoped.spec.ts', 'other'] }),
+    ]),
+    inventory([inventoryRow({ file: '/repo/tests/e2e/old.spec.ts' })]),
+  ])
+    assert.throws(() => assertBrowserInventory(actual, expected), /differs/);
+});
+test('independent browser title selection uses installed slash flags and resets global regex state', () => {
+  const all = checkedInventory(
+    inventory([
+      inventoryRow(),
+      inventoryRow({
+        id: 'second',
+        titlePath: ['', '', 'scoped.spec.ts', 'CHOSEN'],
+        grepTitle: ' scoped.spec.ts CHOSEN',
+      }),
+      inventoryRow({
+        id: 'third',
+        titlePath: ['', '', 'scoped.spec.ts', 'old'],
+        grepTitle: ' scoped.spec.ts old',
+      }),
+    ]),
+  );
+  assert.equal(selectBrowserInventory(all, 'chosen$').tests.length, 2);
+  assert.equal(selectBrowserInventory(all, '/chosen$/g').tests.length, 1);
+  assert.equal(selectBrowserInventory(all, '/chosen$/gi').tests.length, 2);
+  assert.throws(() => selectBrowserInventory(all, '^absent$'), /absent/);
+});
+test('raw browser builder output cannot bypass mandatory collection preflight', () => {
+  const built = buildSelectedCommands(
+    selected({ browser: { quality: [{ file: scopedBrowserFile }] } }),
+    'browser',
+    { browserJob: 'quality' },
+  );
+  assert.throws(
+    () =>
+      executeSelectedCommands(built, () => assert.fail('No runtime may start')),
+    /verified collection/,
+  );
+});
+test('installed Playwright strips post-separator filters; generated filters are never post-separator', () => {
+  const source = readFileSync(
+    new URL('../node_modules/playwright/lib/program.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /const dashDashIndex = process\.argv\.indexOf\("--"\)/);
+  assert.match(
+    source,
+    /const testFilters = args\.slice\(0, args\.length - postDashCount\)/,
+  );
+  const built = command(
+    selected({ browser: { quality: [{ file: scopedBrowserFile }] } }),
+    'browser',
+    { browserJob: 'quality' },
+  );
+  assert.ok(!built.args.includes('--'));
+});
+test('installed report-begin is before the task that starts tests, and callback errors are swallowed', () => {
+  const source = readFileSync(
+    new URL('../node_modules/playwright/lib/runner/index.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    source,
+    /function createRunTestsTasks\(config2\) \{\s*return \[\s*createPhasesTask\(\),\s*createReportBeginTask\(\),\s*createRunTestsTask\(\)/,
+  );
+  assert.match(source, /this\._wrap\(\(\) => reporter\.onBegin\?\.\(suite\)\)/);
+  // List mode excludes global/web-server setup and all test-run tasks.
+  assert.match(
+    source,
+    /const tasks = options\.listMode \? \[\s*createLoadTask\("in-process", \{ failOnLoadErrors: true, filterOnly: false \}\),\s*createReportBeginTask\(\)\s*\] :/,
+  );
+});
+
+function browserDiscoveryFixture() {
+  const directory = temp();
+  const cli = new URL(
+    '../node_modules/@playwright/test/cli.js',
+    import.meta.url,
+  );
+  const testModule = new URL(
+    '../node_modules/@playwright/test/index.js',
+    import.meta.url,
+  );
+  directory.file(
+    'scripts/ci-run-selected.mjs',
+    readFileSync(new URL('./ci-run-selected.mjs', import.meta.url), 'utf8'),
+  );
+  directory.file(
+    'node_modules/@playwright/test/cli.js',
+    `import ${JSON.stringify(cli.href)};`,
+  );
+  directory.file(
+    'playwright.config.ts',
+    `export default { testDir:'./tests/e2e', retries:2, reporter:[['list']], webServer:{command:'THIS_MUST_NEVER_RUN',url:'http://127.0.0.1:1'}, projects:[{name:'one',retries:3},{name:'two'}] };`,
+  );
+  directory.file(
+    scopedBrowserFile,
+    `import { test } from ${JSON.stringify(testModule.pathname)};
+    test('chosen',()=>{ throw new Error('Test body must never execute during discovery'); });
+    test('CHOSEN sibling',()=>{ throw new Error('Test body must never execute during discovery'); });
+    test('not selected',()=>{ throw new Error('Unselected test body must never execute'); });`,
+  );
+  directory.file(
+    'tests/e2e/historical.spec.ts',
+    `throw new Error('Unselected historical test file must never even be imported.');`,
+  );
+  return directory;
+}
+async function discoveryOnly(directory, grep = '(?:^| )chosen$', extra = {}) {
+  const { spawnSync } = await import('node:child_process');
+  const built = buildSelectedCommands(
+    selected({ browser: { quality: [{ file: scopedBrowserFile, grep }] } }),
+    'browser',
+    { browserJob: 'quality' },
+  );
+  const calls = [];
+  const prepared = await prepareBrowserCommands(built, {
+    cwd: directory.root,
+    spawn: (command, args, options) => {
+      assert.ok(
+        args.includes('--list'),
+        'Only collection, never runtime or test bodies',
+      );
+      calls.push(args);
+      const result = spawnSync(command, args, options);
+      if (result.status !== 0)
+        process.stderr.write(String(result.stdout) + String(result.stderr));
+      return result;
+    },
+    ...extra,
+  });
+  return { prepared, calls };
+}
+test('installed Playwright real discovery loads only one literal file and verifies exact named cases across projects', async () => {
+  const directory = browserDiscoveryFixture();
+  try {
+    const lines = [];
+    const { prepared, calls } = await discoveryOnly(
+      directory,
+      '(?:^| )chosen$',
+      { log: (line) => lines.push(line) },
+    );
+    try {
+      assert.equal(calls.length, 2);
+      assert.ok(calls.every((args) => !args.includes('--')));
+      assert.equal(prepared.commands.length, 1);
+      const item = prepared.commands[0];
+      assert.equal(item.browserAudit, true);
+      const evidence = JSON.parse(
+        lines[0].slice('browser-preflight-inventory: '.length),
+      );
+      assert.equal(evidence.count, 2);
+      assert.match(evidence.digest, /^[a-f0-9]{64}$/);
+      assert.ok(
+        evidence.tests.every(
+          (row) => row.file === join(directory.root, scopedBrowserFile),
+        ),
+      );
+      assert.deepEqual(
+        evidence.tests.map((row) => row.titlePath.at(-1)),
+        ['chosen', 'chosen'],
+      );
+      const config = readFileSync(
+        item.args[item.args.indexOf('--config') + 1],
+        'utf8',
+      );
+      assert.match(config, /testMatch: \[exactFile\]/);
+      assert.match(config, /retries: 0/);
+      assert.match(config, /source\.projects\.map\(restrict\)/);
+      assert.match(config, /grep: exactGrep, grepInvert: \[\]/);
+      assert.match(config, /guard\.mjs/);
+    } finally {
+      prepared.dispose();
+    }
+    assert.ok(
+      !readFileSync(
+        join(directory.root, 'playwright.config.ts'),
+        'utf8',
+      ).includes('guard.mjs'),
+    );
+  } finally {
+    directory.dispose();
+  }
+});
+test('real discovery rejects missing named cases without importing a historical test or starting web server', async () => {
+  const directory = browserDiscoveryFixture();
+  try {
+    await assert.rejects(discoveryOnly(directory, '^absent$'), /absent/);
+  } finally {
+    directory.dispose();
+  }
+});
+test('each browser invocation is preflighted before any runtime, and an extra actual case aborts the whole selection', async () => {
+  const directory = browserDiscoveryFixture();
+  const { spawnSync } = await import('node:child_process');
+  let calls = 0;
+  try {
+    const built = buildSelectedCommands(
+      selected({
+        browser: {
+          quality: [{ file: scopedBrowserFile, grep: '(?:^| )chosen$' }],
+        },
+      }),
+      'browser',
+      { browserJob: 'quality' },
+    );
+    await assert.rejects(
+      prepareBrowserCommands(built, {
+        cwd: directory.root,
+        spawn: (command, args, options) => {
+          assert.ok(args.includes('--list'));
+          calls++;
+          // Simulate a CLI regression ignoring --grep. The exact-file wrapper still
+          // prevents historical imports; the ID/title set gate rejects extra cases.
+          const actual = [...args];
+          if (calls === 2) actual.splice(actual.indexOf('--grep'), 2);
+          return spawnSync(command, actual, options);
+        },
+      }),
+      /differs/,
+    );
+    assert.equal(calls, 2);
+  } finally {
+    directory.dispose();
+  }
+});
+
+test('lost runtime CLI file and grep filters still collect only exact pinned IDs and emit the runtime inventory', async () => {
+  const directory = browserDiscoveryFixture();
+  const { spawnSync } = await import('node:child_process');
+  let prepared;
+  try {
+    ({ prepared } = await discoveryOnly(directory));
+    const item = prepared.commands[0];
+    const args = [...item.args];
+    args.pop(); // Simulate losing the CLI file regex.
+    args.splice(args.indexOf('--grep'), 2); // Simulate losing named-case selection.
+    args.push('--list'); // Never execute a test body or start a web server.
+    const result = spawnSync(process.execPath, args, {
+      cwd: directory.root,
+      encoding: 'utf8',
+      timeout: 30_000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const line = result.stdout
+      .split('\n')
+      .find((line) => line.startsWith('browser-runtime-inventory: '));
+    assert.ok(line, 'Actual onBegin inventory must be observable.');
+    const actual = JSON.parse(line.slice('browser-runtime-inventory: '.length));
+    assert.equal(actual.count, 2);
+    assert.match(actual.digest, /^[a-f0-9]{64}$/);
+    assert.deepEqual(
+      actual.tests.map((row) => row.titlePath.at(-1)),
+      ['chosen', 'chosen'],
+    );
+    assert.ok(
+      actual.tests.every(
+        (row) => row.file === join(directory.root, scopedBrowserFile),
+      ),
+    );
+    assert.ok(!result.stdout.includes('CHOSEN sibling'));
+    assert.ok(!result.stdout.includes('not selected'));
+  } finally {
+    prepared?.dispose();
+    directory.dispose();
+  }
+});
+test('runtime onBegin hard-exits before continuation for extra, missing, changed or foreign tests', async () => {
+  const directory = browserDiscoveryFixture();
+  const { spawnSync } = await import('node:child_process');
+  let prepared;
+  try {
+    ({ prepared } = await discoveryOnly(directory));
+    const source = readFileSync(
+      prepared.commands[0].args[
+        prepared.commands[0].args.indexOf('--config') + 1
+      ],
+      'utf8',
+    );
+    const reporter = source.match(/"([^"]+guard[.]mjs)"/)[1];
+    const expectedPath = source.match(/"expected":\s*"([^"]+)"/)[1];
+    const expected = JSON.parse(readFileSync(expectedPath, 'utf8'));
+    const cases = [
+      [],
+      expected.tests.slice(1),
+      [...expected.tests, { ...expected.tests[0], id: 'extra-id' }],
+      expected.tests.map((row, index) =>
+        index ? row : { ...row, id: 'changed-id' },
+      ),
+      expected.tests.map((row, index) =>
+        index
+          ? row
+          : {
+              ...row,
+              file: join(directory.root, 'tests/e2e/historical.spec.ts'),
+            },
+      ),
+      expected.tests.map((row, index) =>
+        index
+          ? row
+          : {
+              ...row,
+              titlePath: [...row.titlePath.slice(0, -1), 'different title'],
+            },
+      ),
+    ];
+    for (const rows of cases) {
+      const code = `import Guard from ${JSON.stringify(reporter)};
+        const guard=new Guard({expected:${JSON.stringify(expectedPath)}});
+        const rows=${JSON.stringify(rows)};
+        guard.onBegin({projects:[{retries:0}]}, {allTests:()=>rows.map(row=>({id:row.id,location:{file:row.file},titlePath:()=>row.titlePath,_grepTitleWithTags:()=>' '+row.grepTitle}))});
+        process.stdout.write('UNAUTHORIZED_CONTINUATION');`;
+      const result = spawnSync(
+        process.execPath,
+        ['--input-type=module', '-e', code],
+        { cwd: directory.root, encoding: 'utf8', timeout: 30_000 },
+      );
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /Exact browser collection guard rejected/);
+      assert.ok(!result.stdout.includes('UNAUTHORIZED_CONTINUATION'));
+    }
+  } finally {
+    prepared?.dispose();
+    directory.dispose();
+  }
+});
+test('later invocation missing selected cases aborts preparation before any earlier invocation can execute', async () => {
+  const directory = browserDiscoveryFixture();
+  const { spawnSync } = await import('node:child_process');
+  const second = 'tests/e2e/second.spec.ts';
+  directory.file(
+    second,
+    readFileSync(join(directory.root, scopedBrowserFile), 'utf8'),
+  );
+  let calls = 0;
+  try {
+    const built = buildSelectedCommands(
+      selected({
+        browser: {
+          quality: [
+            { file: scopedBrowserFile, grep: 'chosen$' },
+            { file: second, grep: '^absent$' },
+          ],
+        },
+      }),
+      'browser',
+      { browserJob: 'quality' },
+    );
+    await assert.rejects(
+      prepareBrowserCommands(built, {
+        cwd: directory.root,
+        spawn: (command, args, options) => {
+          assert.ok(
+            args.includes('--list'),
+            'Every call must still be discovery-only',
+          );
+          calls++;
+          return spawnSync(command, args, options);
+        },
+      }),
+      /absent/,
+    );
+    assert.equal(calls, 3);
+  } finally {
+    directory.dispose();
+  }
 });

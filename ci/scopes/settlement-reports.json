@@ -54,6 +54,7 @@
     "supabase/tests/settlement_report_workflow.test.sql",
     "tests/e2e/settlement-reports-unconfigured.spec.ts",
     "tests/e2e/settlement-reports/fixtures.ts",
+    "tests/e2e/settlement-reports/response-capture.ts",
     "tests/e2e/settlement-reports/settlement-reports.spec.ts",
     "tests/e2e/settlement-reports/source-fixture.ts",
     "tests/e2e/settlement-reports/workbook-inspection.ts",
@@ -63,6 +64,7 @@
     "tests/unit/settlement-reports-http.test.ts",
     "tests/unit/settlement-reports-page.test.ts",
     "tests/unit/settlement-reports-pages.test.tsx",
+    "tests/unit/settlement-reports-response-capture.test.ts",
     "tests/unit/settlement-reports-routes.test.ts",
     "tests/unit/settlement-reports-security.test.ts",
     "tests/unit/settlement-reports-service.test.ts",
@@ -71,37 +73,16 @@
     "tests/unit/settlement-reports-ui.test.tsx",
     "tests/unit/settlement-workbook.test.ts"
   ],
-  "reason": "Feature41 saved settlement report review, draft CAS, locked confirmation, current-member artist visibility and precise two-sheet Excel only; exact merge-base plan, no historical suite permission.",
+  "reason": "Feature41 browser evidence and execution-scope repair after CI40416137664: capture real response bodies before navigation and enforce exact actual Playwright collection. Whole-PR files stay mapped, while execution is limited to changed harness/runner and their direct browser/guard contracts.",
   "selection": {
-    "unit": [
-      "tests/unit/settlement-report-db-contract.test.ts",
-      "tests/unit/settlement-reports-client.test.ts",
-      "tests/unit/settlement-reports-db.test.ts",
-      "tests/unit/settlement-reports-http.test.ts",
-      "tests/unit/settlement-reports-page.test.ts",
-      "tests/unit/settlement-reports-pages.test.tsx",
-      "tests/unit/settlement-reports-routes.test.ts",
-      "tests/unit/settlement-reports-security.test.ts",
-      "tests/unit/settlement-reports-service.test.ts",
-      "tests/unit/settlement-reports-snapshot.test.ts",
-      "tests/unit/settlement-reports-ui.test.tsx",
-      "tests/unit/settlement-workbook.test.ts"
-    ],
+    "unit": ["tests/unit/settlement-reports-response-capture.test.ts"],
     "fixtures": [
-      "scripts/settlement-reports-local-config.test.mjs",
-      "scripts/ci-impact.test.mjs",
-      "scripts/ci-required.test.mjs",
       "scripts/ci-run-selected.test.mjs",
-      "scripts/ci-workflow.test.mjs"
+      "scripts/settlement-reports-local-config.test.mjs"
     ],
-    "sql": [
-      "supabase/tests/settlement_report_workflow.test.sql",
-      "supabase/tests/settlement_report_repeatable_read.test.sql",
-      "supabase/tests/settlement_report_serializable.test.sql",
-      "supabase/tests/settlement_report_precision.test.sql"
-    ],
-    "races": ["scripts/test-settlement-report-concurrency.mjs"],
-    "upgrades": ["scripts/test-settlement-report-upgrade.mjs"],
+    "sql": [],
+    "races": [],
+    "upgrades": [],
     "typecheck": true,
     "browser": {
       "quality": [
@@ -111,24 +92,25 @@
       ],
       "settlement-reports-browser": [
         {
-          "file": "tests/e2e/settlement-reports/settlement-reports.spec.ts"
+          "file": "tests/e2e/settlement-reports/settlement-reports.spec.ts",
+          "grep": "(?:^| )(?:draft creation, explicit cancel/review/confirm, locked artist view and two-sheet download preserve financial sources|old-render administrator cannot read or mutate after cookie identity changes|repeated calculation activation sends one real mutation while the first verified response is pending|a late verified read is discarded after query navigation, and Back/Forward performs fresh authorized reads|pagehide clears the report and pageshow revalidates current administrator restriction|missing monthly policy remains a visible failure and never manufactures a zero-value draft|an interrupted acknowledgement never retries a committed draft and a fresh read reconciles the uncertain result|a review made stale by another administrator is cleared and must be explicitly reviewed again|current artist membership revocation clears displayed confirmed data on fresh read|current artist terms revocation clears displayed confirmed data on fresh read|current artist role revocation clears displayed confirmed data on fresh read|current artist restriction revocation clears displayed confirmed data on fresh read|admin report is readable at normal text and 360px|artist report is readable at normal text and 360px|admin report is readable at normal text and 1280px|artist report is readable at normal text and 1280px|admin report is readable at large text and 360px|artist report is readable at large text and 360px|admin report is readable at large text and 1280px|artist report is readable at large text and 1280px|admin report is readable at xlarge text and 360px|artist report is readable at xlarge text and 360px|admin report is readable at xlarge text and 1280px|artist report is readable at xlarge text and 1280px)$"
         }
       ]
     }
   },
   "reasons": {
-    "unit": "Only newly added report schema/service/exact snapshot/DB/HTTP/body/page/route/UI/client/XLSX and database-harness contract tests. The changed admin/artist navigation is verified by new report browser flows; historical feature tests remain dormant.",
-    "fixtures": "Only new isolated-report environment guard plus four existing direct registry/runner/required/workflow contracts affected by one new browser job. No historical provider/feature fixture matrix.",
-    "sql": "Exactly four new report files:60 workflow,4 repeatable-read,4 serializable and7 tiny large-gross precision assertions. Prior calculation/report foundation suites remain dormant.",
-    "races": "Only ten new independent-session report CAS, coherent revision export commit/rollback, confirm idempotency, current actor/consent/membership and NOWAIT source order scenarios.",
-    "upgrades": "Only populated39-to40 preservation and actual SQL report/export JSON through current exact app validation, including tiny two-charge/refund precision fixture. No previous upgrade chain.",
-    "browser": "Exactly27 new report authenticated cases and1 new keyless case. Includes12 visual captures admin/artist ×3 text scales ×2 widths; no historical browser file or case selected.",
-    "typecheck": "Dependency graph compile and genuine generated-schema drift validation, not authorization for cumulative regression."
+    "unit": "Only the new response-capture helper contract: real upstream bytes before forwarding, exact URL/method/actor/body/status, no retries/redirects, safe terminal failure, body/headers lifetime and retained assertions. Prior263 report units passed on immutable unchanged application code and are dormant for this harness-only patch.",
+    "fixtures": "Only the changed runner direct contracts (including installedCLI inert discovery that forbids historical imports/test bodies) and report guard/discovery that proves exactly24 named affected cases plus12visuals. Registry/workflow/other fixture matrices are unchanged and dormant.",
+    "sql": "None. All75 report SQL assertions passed twice in CI40416137664 on d2faf68. Product/schema/generated-type tree unchanged; preserve evidence rather than rerun unchanged SQL.",
+    "races": "None. All10 report independent-session races passed in CI40416137664; concurrency code and schema unchanged.",
+    "upgrades": "None. Populated39to40 upgrade and actual SQL-to-exact-app parity passed in CI40416137664; upgrade/application/schema code unchanged.",
+    "browser": "Exactly24 named affected report cases use the changed browser capture helper, including12 admin/artist×3textscale×2width visuals. Three unchanged direct-API-only cases are excluded. Isolated keyless1 is retained as the direct root-config runner proof after the prior filter bug wrongly executed94 historical cases; that overbroad success is not scope-compliant evidence.",
+    "typecheck": "Compile the helper, imports and current dependency graph; not cumulative unit/SQL regression."
   },
   "exclusions": [
     "No check:all, full/cumulative unit,SQL,browser,race,upgrade run or unknown-impact fallback.",
-    "No prior calculation,analytics,provider,media,calendar,moderation,rewards or other unchanged feature suites.",
-    "No production deployment or designated predeployment full run.",
-    "No actual payout,provider or bank operation,policy activation,role approval,credentials,scheduler or external notices."
+    "Do not rerun unchanged263 report service/UI/DB/XLSX units, the full347 prior CI fixture matrix,75SQLx2,10races or populated39to40 upgrade merely because the PR still includes their files. Only the actually edited runner fixture contracts are reselected. Passing unchanged product/schema head d2faf68f27f0398d964efd3a3a730c060b1aacc2/run40416137664 is documented; its overbroad quality browser run is explicitly not scope-compliant evidence.",
+    "Three unchanged direct-API-only report browser cases stay stored and dormant in this patch. All assertions in affected cases remain intact; no retries or timeout increases.",
+    "No previous feature suites, production deployment, predeployment full run, payout,provider/bank operation,policy activation,role approval,credentials,scheduler or external notices."
   ]
 }

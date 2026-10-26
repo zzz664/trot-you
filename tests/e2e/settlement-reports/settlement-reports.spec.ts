@@ -12,6 +12,7 @@ import {
   settlementReportExportPath,
 } from '../../../src/config/routes';
 import { inspectWorkbook } from './workbook-inspection';
+import { captureReportResponse } from './response-capture';
 import {
   test,
   expect,
@@ -57,7 +58,7 @@ async function success(
   expect(response.status()).toBe(200);
   expect(response.headers()['cache-control']).toContain('no-store');
   expect(response.headers()['x-content-type-options']).toBe('nosniff');
-  const result: { ok: boolean; data: unknown } = await response.json();
+  const result = (await response.json()) as { ok: boolean; data: unknown };
   expect(result.ok).toBe(true);
   return settlementReportEnvelopeSchema.parse(result.data);
 }
@@ -123,13 +124,15 @@ async function open(
 ) {
   const actor = artist ? world.member : world.admin;
   await actor.signIn(context);
-  const result = page.waitForResponse(
-    (response) =>
-      response.url() === `${appOrigin}${path(world, artist, true)}` &&
-      response.request().method() === 'GET',
-  );
-  await page.goto(path(world, artist));
-  const data = await success(await result);
+  const result = await captureReportResponse(page, {
+    url: `${appOrigin}${path(world, artist, true)}`,
+    method: 'GET',
+    actorId: actor.id,
+    status: 200,
+  });
+  const navigation = await page.goto(path(world, artist));
+  expect(navigation?.status()).toBe(200);
+  const data = await success(await result.result());
   expect(data.actorId).toBe(actor.id);
   expect(data.artist.id).toBe(world.artist.id);
   expect(data.month).toBe(world.month);
@@ -140,15 +143,22 @@ async function open(
 async function waitAction(
   page: Page,
   action: 'calculate' | 'confirm',
+  actor: Identity,
+  body: unknown,
   run: () => Promise<unknown>,
 ) {
-  const response = page.waitForResponse(
-    (response) =>
-      response.url() === `${appOrigin}${settlementReportActionPath(action)}` &&
-      response.request().method() === 'POST',
-  );
+  const response = await captureReportResponse(page, {
+    url: `${appOrigin}${settlementReportActionPath(action)}`,
+    method: 'POST',
+    actorId: actor.id,
+    status: 200,
+    body,
+  });
   await run();
-  return success(await response);
+  const data = await success(await response.result());
+  expect(data.actorId).toBe(actor.id);
+  expect(data.actorRole).toBe('admin');
+  return data;
 }
 function checkWorkbook(
   bytes: Buffer,
@@ -205,8 +215,12 @@ test('draft creation, explicit cancel/review/confirm, locked artist view and two
   await blockExternal(context);
   const moneyBefore = financialFingerprint(world);
   expect((await open(page, context, world)).report).toBeNull();
-  const draft = await waitAction(page, 'calculate', () =>
-    button(page, copy.calculate).click(),
+  const draft = await waitAction(
+    page,
+    'calculate',
+    world.admin,
+    { ...query(world), expectedRevision: null },
+    () => button(page, copy.calculate).click(),
   );
   await expect(content(page)).toContainText(world.artist.name);
   await expect(content(page)).toContainText(copy.draft);
@@ -226,8 +240,12 @@ test('draft creation, explicit cancel/review/confirm, locked artist view and two
   expect(reportFingerprint(world)).toBe(beforeCanceledReview);
   await button(page, copy.review).click();
   await main(page).getByRole('checkbox', { name: copy.reviewCheck }).check();
-  const confirmed = await waitAction(page, 'confirm', () =>
-    button(page, copy.confirm).click(),
+  const confirmed = await waitAction(
+    page,
+    'confirm',
+    world.admin,
+    { reportId: draft.report!.id, expectedRevision: draft.report!.revision },
+    () => button(page, copy.confirm).click(),
   );
   expect(confirmed.report?.id).toBe(draft.report!.id);
   expect(confirmed.report?.revision).toBe(draft.report!.revision);
@@ -238,13 +256,14 @@ test('draft creation, explicit cancel/review/confirm, locked artist view and two
   const repeated = await confirm(context, world, confirmed);
   expect(repeated.report).toEqual(confirmed.report);
   expect(reportFingerprint(world)).toBe(confirmedBefore);
-  const response = page.waitForResponse(
-    (response) =>
-      response.url() ===
-      `${appOrigin}${settlementReportExportPath(confirmed.report!.id, confirmed.report!.revision)}`,
-  );
+  const response = await captureReportResponse(page, {
+    url: `${appOrigin}${settlementReportExportPath(confirmed.report!.id, confirmed.report!.revision)}`,
+    method: 'GET',
+    actorId: world.admin.id,
+    status: 200,
+  });
   await button(page, copy.export).click();
-  const downloaded = await response;
+  const downloaded = await response.result();
   expect(downloaded.status()).toBe(200);
   expect(downloaded.headers()['content-type']).toBe(
     SETTLEMENT_REPORTS.workbookContentType,
@@ -440,11 +459,14 @@ for (const revoke of ['membership', 'terms', 'role', 'restriction'] as const)
     if (revoke === 'terms') withdrawTerms(world.member, world);
     if (revoke === 'role') setRole(world.member, 'fan');
     if (revoke === 'restriction') setRestricted(world.member, true);
-    const response = page.waitForResponse(
-      (response) => response.url() === `${appOrigin}${path(world, true, true)}`,
-    );
+    const response = await captureReportResponse(page, {
+      url: `${appOrigin}${path(world, true, true)}`,
+      method: 'GET',
+      actorId: world.member.id,
+      status: 403,
+    });
     await button(page, copy.refresh).click();
-    await failure(await response, 403, 'FORBIDDEN');
+    await failure(await response.result(), 403, 'FORBIDDEN');
     await expect(content(page)).toHaveCount(0);
     await expect(main(page).getByRole('alert')).toContainText(
       copy.errors.FORBIDDEN,
@@ -458,13 +480,15 @@ test('old-render administrator cannot read or mutate after cookie identity chang
 }) => {
   await open(page, context, world);
   await world.other.signIn(context);
-  const response = page.waitForResponse(
-    (response) =>
-      response.url() ===
-      `${appOrigin}${settlementReportActionPath('calculate')}`,
-  );
+  const response = await captureReportResponse(page, {
+    url: `${appOrigin}${settlementReportActionPath('calculate')}`,
+    method: 'POST',
+    actorId: world.admin.id,
+    status: 403,
+    body: { ...query(world), expectedRevision: null },
+  });
   await button(page, copy.calculate).click();
-  await failure(await response, 403, 'FORBIDDEN');
+  await failure(await response.result(), 403, 'FORBIDDEN');
   await expect(content(page)).toHaveCount(0);
   await expect(main(page).getByRole('alert')).toContainText(
     copy.errors.FORBIDDEN,
@@ -647,11 +671,14 @@ test('a late verified read is discarded after query navigation, and Back/Forward
   const completion = await completed;
   if ('error' in completion) throw completion.error;
   await expect(content(page)).toHaveCount(0);
-  const backRead = page.waitForResponse(
-    (response) => response.url() === `${appOrigin}${path(world, false, true)}`,
-  );
+  const backRead = await captureReportResponse(page, {
+    url: `${appOrigin}${path(world, false, true)}`,
+    method: 'GET',
+    actorId: world.admin.id,
+    status: 200,
+  });
   await page.goBack();
-  expect((await success(await backRead)).report?.status).toBe('draft');
+  expect((await success(await backRead.result())).report?.status).toBe('draft');
   await expect(page).toHaveURL(path(world));
   await expect(content(page)).toContainText(world.artist.name);
   await page.goForward();
@@ -673,15 +700,18 @@ test('pagehide clears the report and pageshow revalidates current administrator 
   );
   await expect(content(page)).toHaveCount(0);
   setRestricted(world.admin, true);
-  const response = page.waitForResponse(
-    (response) => response.url() === `${appOrigin}${path(world, false, true)}`,
-  );
+  const response = await captureReportResponse(page, {
+    url: `${appOrigin}${path(world, false, true)}`,
+    method: 'GET',
+    actorId: world.admin.id,
+    status: 403,
+  });
   await page.evaluate(() =>
     window.dispatchEvent(
       new PageTransitionEvent('pageshow', { persisted: true }),
     ),
   );
-  await failure(await response, 403, 'FORBIDDEN');
+  await failure(await response.result(), 403, 'FORBIDDEN');
   await expect(content(page)).toHaveCount(0);
   await expect(main(page).getByRole('alert')).toContainText(
     copy.errors.FORBIDDEN,
@@ -697,13 +727,15 @@ test('missing monthly policy remains a visible failure and never manufactures a 
     `delete from private.settlement_policies where artist_id='${uuid(world.artist.id)}' and month='2026-01-01';`,
   );
   await open(page, context, world);
-  const response = page.waitForResponse(
-    (response) =>
-      response.url() ===
-      `${appOrigin}${settlementReportActionPath('calculate')}`,
-  );
+  const response = await captureReportResponse(page, {
+    url: `${appOrigin}${settlementReportActionPath('calculate')}`,
+    method: 'POST',
+    actorId: world.admin.id,
+    status: 409,
+    body: { ...query(world), expectedRevision: null },
+  });
   await button(page, copy.calculate).click();
-  await failure(await response, 409, 'POLICY_REQUIRED');
+  await failure(await response.result(), 409, 'POLICY_REQUIRED');
   await expect(content(page)).toHaveCount(0);
   await expect(main(page).getByRole('alert')).toContainText(
     copy.errors.POLICY_REQUIRED,
@@ -759,11 +791,14 @@ test('an interrupted acknowledgement never retries a committed draft and a fresh
   await expect(main(page)).toContainText(copy.uncertain);
   await expect(content(page)).toHaveCount(0);
   const before = reportFingerprint(world);
-  const refresh = page.waitForResponse(
-    (response) => response.url() === `${appOrigin}${path(world, false, true)}`,
-  );
+  const refresh = await captureReportResponse(page, {
+    url: `${appOrigin}${path(world, false, true)}`,
+    method: 'GET',
+    actorId: world.admin.id,
+    status: 200,
+  });
   await button(page, copy.refresh).click();
-  expect((await success(await refresh)).report).toEqual(saved!.report);
+  expect((await success(await refresh.result())).report).toEqual(saved!.report);
   await expect(content(page)).toContainText(copy.draft);
   expect(reportFingerprint(world)).toBe(before);
   expect(calls).toBe(1);
@@ -789,23 +824,32 @@ test('a review made stale by another administrator is cleared and must be explic
       first.report!.revision,
       world.other,
     );
-    const response = page.waitForResponse(
-      (response) =>
-        response.url() ===
-        `${appOrigin}${settlementReportActionPath('confirm')}`,
-    );
+    const response = await captureReportResponse(page, {
+      url: `${appOrigin}${settlementReportActionPath('confirm')}`,
+      method: 'POST',
+      actorId: world.admin.id,
+      status: 409,
+      body: {
+        reportId: first.report!.id,
+        expectedRevision: first.report!.revision,
+      },
+    });
     await button(page, copy.confirm).click();
-    await failure(await response, 409, 'REVISION_CONFLICT');
+    await failure(await response.result(), 409, 'REVISION_CONFLICT');
     await expect(content(page)).toHaveCount(0);
     await expect(main(page).getByRole('alert')).toContainText(
       copy.errors.REVISION_CONFLICT,
     );
-    const refresh = page.waitForResponse(
-      (response) =>
-        response.url() === `${appOrigin}${path(world, false, true)}`,
-    );
+    const refresh = await captureReportResponse(page, {
+      url: `${appOrigin}${path(world, false, true)}`,
+      method: 'GET',
+      actorId: world.admin.id,
+      status: 200,
+    });
     await button(page, copy.refresh).click();
-    expect((await success(await refresh)).report).toEqual(replacement.report);
+    expect((await success(await refresh.result())).report).toEqual(
+      replacement.report,
+    );
     await expect(button(page, copy.confirm)).toHaveCount(0);
     await button(page, copy.review).click();
     await expect(
