@@ -1,3 +1,4 @@
+import { ModerationEntry } from '@/components/community-moderation/ModerationEntry';
 import { CommunityEntry } from '@/components/community-posts/CommunityEntry';
 import { ContentCalendarEntry } from '@/components/content-calendar/ContentCalendarEntry';
 import { ScheduleEntry } from '@/components/schedules/ScheduleEntry';
@@ -56,6 +57,7 @@ export async function SessionPage({ path }: { path: string }) {
           <ArtistCatalogEntry />
           <ScheduleEntry />
           <CommunityEntry />
+          <ModerationEntry />
         </>
       )}
       <SubscriptionEntry />
@@ -81,6 +83,8 @@ export async function SessionPage({ path }: { path: string }) {
           />
           <ScheduleEntry admin />
           <CommunityEntry />
+          <ModerationEntry admin />
+          <ModerationEntry />
           <ContentCalendarEntry
             title={calendarCopy('adminTitle')}
             description={calendarCopy('adminDescription')}

@@ -1,0 +1,45 @@
+.screen {
+  overflow-wrap: anywhere;
+}
+.stack,
+.list,
+.panel {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+}
+.list {
+  list-style: none;
+  padding: 0;
+}
+.list > li {
+  min-width: 0;
+}
+.panel,
+.recovery {
+  border: var(--border-width) solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  padding: calc(var(--space-unit) * 2);
+  min-width: 0;
+}
+.actions {
+  display: flex;
+  align-items: start;
+  flex-wrap: wrap;
+  gap: var(--space-unit);
+}
+.actions > * {
+  max-width: 100%;
+}
+.body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fields {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}

@@ -277,6 +277,18 @@ reset role;
 select is((select count(*) from private.point_ledger),0::bigint,'all reply flows leave point ledger untouched');
 select is((select count(*) from private.analytics_events where name='reply_sent'),0::bigint,'reply sending does not bypass later consent-aware analytics flow');
 select is((select count(*) from public.message_reads),0::bigint,'no reply flow manufactures a read receipt');
+-- Independent moderation masks accepted receipts/history without altering the
+-- original content-policy block, even after current send policy is removed.
+update public.replies set is_hidden=true where operation_id='f7700000-0000-4000-8000-000000000002' and user_id='f7100000-0000-4000-8000-000000000001';
+set local role authenticated;
+select ok((select is_blocked and body is null from public.fan_reply_send('reply-main','f7700000-0000-4000-8000-000000000002','메시지 답장','f7400000-0000-4000-8000-000000000006')),'moderated accepted reply replay masks original body');
+select is((select r->'body' from public.fan_reply_page('reply-main') p,jsonb_array_elements(p.replies) r where r->>'operation_id'='f7700000-0000-4000-8000-000000000002'),'null'::jsonb,'own fan page masks independently hidden reply');
+reset role;
+update public.replies set deleted_at=clock_timestamp() where operation_id='f7700000-0000-4000-8000-000000000002' and user_id='f7100000-0000-4000-8000-000000000001';
+set local role authenticated;
+select ok((select is_blocked and body is null from public.fan_reply_send('reply-main','f7700000-0000-4000-8000-000000000002','메시지 답장','f7400000-0000-4000-8000-000000000006')),'deleted accepted reply replay preserves safe receipt without content');
+reset role;
+select is((select is_blocked from public.replies where operation_id='f7700000-0000-4000-8000-000000000002' and user_id='f7100000-0000-4000-8000-000000000001'),false,'moderation leaves send-policy flag unchanged');
 select * from finish();
 rollback;
 

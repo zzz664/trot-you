@@ -18,6 +18,7 @@ export default async function ArtistReplyActivityMenu({
   const result = await getArtistReplyActivityMenu(after ?? null);
   if (!result.ok) return <ArtistReplyActivityErrorScreen code={result.code} />;
   const t = await getTranslations('artistReplyActivity');
+  const moderationCopy = await getTranslations('communityModeration');
   return (
     <main className="app-shell">
       <Link
@@ -29,6 +30,13 @@ export default async function ArtistReplyActivityMenu({
       </Link>
       <h1>{t('menuTitle')}</h1>
       <p>{t('menuDescription')}</p>
+      <Link
+        href={routes.communityReports}
+        prefetch={false}
+        className="ui-button ui-button--secondary"
+      >
+        {moderationCopy('inboxEntry')}
+      </Link>
       <Card title={t('repliesTitle')}>
         {result.data.artists.length === 0 ? (
           <p>{t('menuEmpty')}</p>

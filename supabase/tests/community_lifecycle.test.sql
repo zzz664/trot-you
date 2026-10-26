@@ -217,8 +217,8 @@ select set_config('request.jwt.claim.sub','93000000-0000-4000-8000-000000000003'
 select is((select count(*) from public.posts),0::bigint,'deleted post is unavailable to another fan');
 select is((select status::text from public.reports where target_id=(select id from community_test_context where key='post')),
   'deleted','owner deletion synchronizes prior report status without deleting report evidence');
-select throws_ok($$select public.community_report('reply','96000000-0000-4000-8000-000000000001','미구현 답장 신고')$$,
-  '0A000','COMMUNITY_REPLY_REPORT_UNSUPPORTED','reply enum does not falsely advertise implemented reply moderation');
+select throws_ok($$select public.community_report('reply','96000000-0000-4000-8000-000000000001','없는 답장 신고')$$,
+  '42501','COMMUNITY_TARGET_UNAVAILABLE','reply reporting validates existence before creating evidence');
 select throws_ok($$select public.community_report('post','96000000-0000-4000-8000-000000000001','없는 글')$$,
   '42501',null,'report rejects a nonexistent target without creating orphan evidence');
 

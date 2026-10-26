@@ -170,4 +170,18 @@ describe('configuration and pure-layer lint boundaries', () => {
       ).toContain('no-restricted-imports');
     }
   });
+  it('keeps moderation screens behind accessible UI and database boundaries', async () => {
+    expect(
+      await rules(
+        'src/components/community-moderation/Probe.tsx',
+        'export const Probe = () => <button>probe</button>;',
+      ),
+    ).toContain('no-restricted-syntax');
+    expect(
+      await rules(
+        'src/components/community-moderation/Probe.tsx',
+        "import { createModerationPort } from '@/server/db/community-moderation'; export const value = createModerationPort;",
+      ),
+    ).toContain('no-restricted-imports');
+  });
 });

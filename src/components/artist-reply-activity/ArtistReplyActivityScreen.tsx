@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { CommunityReportPanel } from '@/components/community-moderation/CommunityReportPanel';
+import type { ModerationTarget } from '@/config/community-moderation';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { InlineError } from '@/components/ui/InlineError';
@@ -42,13 +44,20 @@ export function ArtistReplyActivityScreen({
   name,
   messageId,
   cursor,
+  actorKey,
 }: {
   slug: string;
   name: string;
   messageId: string | null;
   cursor: string | null;
+  actorKey?: string;
 }) {
   const t = useTranslations('artistReplyActivity');
+  const moderationCopy = useTranslations('communityModeration');
+  const [reportTarget, setReportTarget] = useState<ModerationTarget | null>(
+    null,
+  );
+  const [reportBusy, setReportBusy] = useState(false);
   const kinds = useTranslations('artistCompose.kinds');
   const state = useArtistReplyActivity({ slug, messageId, cursor });
   const [pickerExpanded, setPickerExpanded] = useState(false);
@@ -83,6 +92,25 @@ export function ArtistReplyActivityScreen({
         <InlineError
           message={accessLost ? t('accessLost') : t(`errors.${state.error}`)}
           onRetry={state.refresh}
+        />
+      )}
+      {actorKey && reportTarget && (
+        <CommunityReportPanel
+          target={reportTarget}
+          actorKey={actorKey}
+          path={artistReplyActivityPath(slug, messageId, cursor)}
+          available={
+            Boolean(
+              page?.replies.some(
+                (reply) => reply.id === reportTarget.target_id,
+              ),
+            ) && !state.busy
+          }
+          authorityError={state.error}
+          onClose={() => setReportTarget(null)}
+          onReported={state.refresh}
+          onBusyChange={setReportBusy}
+          onAccessLost={state.clear}
         />
       )}
       {page && (
@@ -228,6 +256,22 @@ export function ArtistReplyActivityScreen({
                   <article className="ui-card">
                     <h3>{t('replyFrom', { name: reply.callName })}</h3>
                     <p className={styles.body}>{reply.body}</p>
+                    {actorKey && (
+                      <Button
+                        variant="secondary"
+                        disabled={
+                          state.busy || reportBusy || reportTarget !== null
+                        }
+                        onClick={() =>
+                          setReportTarget({
+                            target_type: 'reply',
+                            target_id: reply.id,
+                          })
+                        }
+                      >
+                        {moderationCopy('reportReply')}
+                      </Button>
+                    )}
                     <p className="ui-hint">
                       <time dateTime={reply.createdAt}>
                         {t('repliedAt', {

@@ -1,0 +1,14 @@
+begin isolation level serializable;
+create extension if not exists pgtap with schema extensions;
+set local search_path=public,extensions;
+select no_plan();
+set local role authenticated;
+select throws_ok($$select public.community_moderation_context('post',gen_random_uuid())$$,'25001','BOARD_ISOLATION_UNSUPPORTED','moderation rejects stale serializable authority');
+select throws_ok($$select public.community_moderation_report(gen_random_uuid(),'post',gen_random_uuid(),'Reason')$$,'25001','BOARD_ISOLATION_UNSUPPORTED','moderation rejects stale serializable authority');
+select throws_ok($$select public.community_moderation_queue()$$,'25001','BOARD_ISOLATION_UNSUPPORTED','moderation rejects stale serializable authority');
+select throws_ok($$select public.community_moderation_resolve(gen_random_uuid(),gen_random_uuid(),1,'restore','Reason',true)$$,'25001','BOARD_ISOLATION_UNSUPPORTED','moderation rejects stale serializable authority');
+select throws_ok($$select public.community_moderation_restrict(gen_random_uuid(),gen_random_uuid(),now(),false,null,'Reason',true)$$,'25001','BOARD_ISOLATION_UNSUPPORTED','moderation rejects stale serializable authority');
+select throws_ok($$select public.community_moderation_notices()$$,'25001','BOARD_ISOLATION_UNSUPPORTED','moderation rejects stale serializable authority');
+reset role;
+select * from finish();
+rollback;

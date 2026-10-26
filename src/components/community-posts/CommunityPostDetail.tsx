@@ -19,6 +19,8 @@ import { Loading } from '@/components/ui/Loading';
 import { InlineError } from '@/components/ui/InlineError';
 import { useDialog } from '@/components/ui/DialogProvider';
 import { CommunityImage } from './CommunityImage';
+import { CommunityReportPanel } from '@/components/community-moderation/CommunityReportPanel';
+import type { ModerationTarget } from '@/config/community-moderation';
 import { CommunityInteractions } from '@/components/community-interactions/CommunityInteractions';
 import { useCommunityResource } from './useCommunityResource';
 import styles from './community-posts.module.css';
@@ -46,6 +48,11 @@ function CommunityPostSession({
   path,
 }: CommunityPostDetailProps) {
   const t = useTranslations('communityPosts');
+  const moderationCopy = useTranslations('communityModeration');
+  const [reportTarget, setReportTarget] = useState<ModerationTarget | null>(
+    null,
+  );
+  const [reportBusy, setReportBusy] = useState(false);
   const format = useFormatter();
   const { showDialog, cancelDialog } = useDialog();
   const [confirming, setConfirming] = useState(false);
@@ -124,6 +131,7 @@ function CommunityPostSession({
   function clear() {
     cancelDialog('community-post-delete');
     erase();
+    setReportTarget(null);
     state.clear();
   }
   async function remove() {
@@ -289,6 +297,22 @@ function CommunityPostSession({
               </li>
             ))}
           </ol>
+          {!data.post.is_owner && (
+            <Button
+              variant="secondary"
+              disabled={
+                state.busy ||
+                confirming ||
+                uncertain !== null ||
+                reportTarget !== null
+              }
+              onClick={() =>
+                setReportTarget({ target_type: 'post', target_id: postId })
+              }
+            >
+              {moderationCopy('reportPost')}
+            </Button>
+          )}
           {data.can_create_notice && (
             <NoticeEditor
               key={`${data.post.id}:${data.post.revision}`}
@@ -297,7 +321,8 @@ function CommunityPostSession({
                 state.busy ||
                 confirming ||
                 uncertain !== null ||
-                interactionsBusy
+                interactionsBusy ||
+                reportBusy
               }
               onSave={notice}
             />
@@ -310,7 +335,8 @@ function CommunityPostSession({
                   state.busy ||
                   confirming ||
                   uncertain !== null ||
-                  interactionsBusy
+                  interactionsBusy ||
+                  reportBusy
                 }
                 onClick={() => void remove()}
               >
@@ -319,6 +345,25 @@ function CommunityPostSession({
             )}
         </article>
       )}
+      {reportTarget && (
+        <CommunityReportPanel
+          target={reportTarget}
+          actorKey={actorKey}
+          path={path}
+          available={
+            Boolean(data) &&
+            !deleted &&
+            !state.busy &&
+            !confirming &&
+            uncertain === null
+          }
+          authorityError={state.error}
+          onClose={() => setReportTarget(null)}
+          onReported={state.refresh}
+          onBusyChange={setReportBusy}
+          onAccessLost={invalidateInteractions}
+        />
+      )}
       <CommunityInteractions
         slug={slug}
         postId={postId}
@@ -326,7 +371,9 @@ function CommunityPostSession({
         path={path}
         parentSnapshot={deleted ? null : data}
         parentError={state.error}
-        disabled={state.busy || confirming || uncertain !== null}
+        disabled={state.busy || confirming || uncertain !== null || reportBusy}
+        onReport={setReportTarget}
+        reportOpen={reportTarget !== null}
         onAccessLost={invalidateInteractions}
         onChanged={state.refresh}
         onBusyChange={setInteractionsBusy}

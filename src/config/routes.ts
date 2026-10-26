@@ -1,5 +1,9 @@
 export const routes = {
   home: '/',
+  communityReports: '/me/reports',
+  communityModerationApi: '/api/community/moderation',
+  adminModeration: '/admin/moderation',
+  adminModerationApi: '/api/admin/moderation',
   board: '/board',
   boardApi: '/api/board',
   communityImageBegin: '/api/board/media/begin',
@@ -334,4 +338,26 @@ export function communityCommentActionPath(
 }
 export function communityLikePath(slug: string, postId: string) {
   return `${communityPostPath(slug, postId, true)}/like`;
+}
+
+export function moderationContextPath(target: {
+  target_type: string;
+  target_id: string;
+}) {
+  return `${routes.communityModerationApi}?${new URLSearchParams(target)}`;
+}
+export function moderationReportPath() {
+  return `${routes.communityModerationApi}/report`;
+}
+export function moderationQueuePath(cursor?: string | null) {
+  return cursor
+    ? `${routes.adminModerationApi}?${new URLSearchParams({ cursor })}`
+    : routes.adminModerationApi;
+}
+export function moderationNoticesPath(cursor?: string | null) {
+  const base = `${routes.communityModerationApi}/notices`;
+  return cursor ? `${base}?${new URLSearchParams({ cursor })}` : base;
+}
+export function moderationAdminActionPath(action: 'resolve' | 'restrict') {
+  return `${routes.adminModerationApi}/${action}`;
 }
