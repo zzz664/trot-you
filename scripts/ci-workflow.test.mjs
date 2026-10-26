@@ -54,7 +54,9 @@ const reviewedAdditions = {
         '      - run: npm run test:db:community-posts-concurrency\n' +
         '      - run: node scripts/test-community-posts-upgrade.mjs\n' +
         '      - run: npm run test:db:community-interactions-concurrency\n' +
-        '      - run: node scripts/test-community-interactions-upgrade.mjs\n',
+        '      - run: node scripts/test-community-interactions-upgrade.mjs\n' +
+        '      - run: npm run test:db:community-moderation-concurrency\n' +
+        '      - run: node scripts/test-community-moderation-upgrade.mjs\n',
     },
   ],
 };
@@ -187,6 +189,14 @@ describe('CI workflow safety and unchanged regression coverage', () => {
       original.replace(
         'node scripts/test-content-calendar-upgrade.mjs',
         'echo skipped calendar upgrade',
+      ),
+      original.replace(
+        'npm run test:db:community-moderation-concurrency',
+        'echo skipped moderation races',
+      ),
+      original.replace(
+        'node scripts/test-community-moderation-upgrade.mjs',
+        'echo skipped moderation upgrade',
       ),
       original.replace(
         'npm run test:integration',
@@ -416,12 +426,12 @@ describe('CI workflow safety and unchanged regression coverage', () => {
           /run: (?:npm run test:db:[^\n]*concurrency|node scripts\/test-[^\n]*concurrency\.mjs)\n/g,
         ) || []
       ).length,
-      31,
+      32,
     );
     assert.equal(
       (database.match(/run: node scripts\/test-[^\n]*upgrade\.mjs\n/g) || [])
         .length,
-      7,
+      8,
     );
     assert.match(database, /git diff --exit-code -- src\/types\/database\.ts/);
     assert.match(database, /npm run db:lint/);
