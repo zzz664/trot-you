@@ -874,3 +874,270 @@ it('new target identity cannot reuse an earlier pending request', async () => {
   expect(mock.like).toHaveBeenCalledOnce();
   expect(mock.list.mock.calls.at(-1)![0].post_id).toBe(nextPost);
 });
+
+it('preserves unknown parent deletion after the child discovers its tombstone and retries the exact receipt', async () => {
+  mock.list
+    .mockResolvedValueOnce(ok(initial))
+    .mockResolvedValue({ ok: false, code: 'NOT_FOUND' });
+  mock.postDelete
+    .mockResolvedValueOnce({ ok: false, code: 'UNAVAILABLE' })
+    .mockResolvedValueOnce(ok({ id: boardDetail.post.id, deleted: true }));
+  detail();
+  await loaded();
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: postCopy.deleteAction }),
+    ).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: postCopy.deleteAction }));
+  fireEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', {
+      name: postCopy.deleteDialogConfirm,
+    }),
+  );
+  await screen.findByText(postCopy.errors.NOT_FOUND);
+  expect(mock.list).toHaveBeenCalledTimes(2);
+  expect(mock.postDelete).toHaveBeenCalledOnce();
+  const original = mock.postDelete.mock.calls[0]![1];
+  expect(screen.queryByTestId('community-post-detail')).not.toBeInTheDocument();
+  expect(screen.queryByText(boardDetail.post.body)).not.toBeInTheDocument();
+  expect(
+    screen.queryByTestId('community-interactions-content'),
+  ).not.toBeInTheDocument();
+  const recovery = screen.getByTestId('community-post-recovery');
+  fireEvent.click(
+    within(recovery).getByRole('button', { name: postCopy.retryOperation }),
+  );
+  await screen.findByText(postCopy.deleted);
+  expect(mock.postDelete).toHaveBeenCalledTimes(2);
+  expect(mock.postDelete.mock.calls[1]![1]).toEqual(original);
+  expect(mock.postDelete.mock.calls[1]![3]).toBe(boardActorId);
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(
+    screen.queryByTestId('community-post-recovery'),
+  ).not.toBeInTheDocument();
+});
+
+it.each(['FORBIDDEN', 'UNAUTHENTICATED'] as const)(
+  'child %s removes unknown parent deletion instead of permitting cross-account replay',
+  async (code) => {
+    mock.list
+      .mockResolvedValueOnce(ok(initial))
+      .mockResolvedValue({ ok: false, code });
+    mock.postDelete.mockResolvedValueOnce({ ok: false, code: 'UNAVAILABLE' });
+    detail();
+    await loaded();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: postCopy.deleteAction }),
+      ).toBeEnabled(),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: postCopy.deleteAction }),
+    );
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: postCopy.deleteDialogConfirm,
+      }),
+    );
+    await screen.findByText(postCopy.errors[code]);
+    expect(
+      screen.queryByTestId('community-post-recovery'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('community-post-detail'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(boardDetail.post.body)).not.toBeInTheDocument();
+    expect(mock.postDelete).toHaveBeenCalledOnce();
+  },
+);
+it.each(['FORBIDDEN', 'UNAUTHENTICATED'] as const)(
+  'late parent retry completion cannot resurrect recovery after child %s',
+  async (code) => {
+    let resolveRead: (value: unknown) => void = () => {};
+    let resolveDelete: (value: unknown) => void = () => {};
+    mock.list.mockResolvedValueOnce(ok(initial)).mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolveRead = done;
+        }),
+    );
+    mock.postDelete
+      .mockResolvedValueOnce({ ok: false, code: 'UNAVAILABLE' })
+      .mockImplementationOnce(
+        () =>
+          new Promise((done) => {
+            resolveDelete = done;
+          }),
+      );
+    detail();
+    await loaded();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: postCopy.deleteAction }),
+      ).toBeEnabled(),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: postCopy.deleteAction }),
+    );
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: postCopy.deleteDialogConfirm,
+      }),
+    );
+    const recovery = await screen.findByTestId('community-post-recovery');
+    await waitFor(() => expect(mock.list).toHaveBeenCalledTimes(2));
+    const original = mock.postDelete.mock.calls[0]![1];
+    fireEvent.click(
+      within(recovery).getByRole('button', { name: postCopy.retryOperation }),
+    );
+    await waitFor(() => expect(mock.postDelete).toHaveBeenCalledTimes(2));
+    // Clearing the parent transport error starts a fresh child read. Resolve
+    // that current request, not the superseded read aborted by the retry.
+    await waitFor(() => expect(mock.list).toHaveBeenCalledTimes(3));
+    await act(async () => resolveRead({ ok: false, code }));
+    await screen.findByText(postCopy.errors[code]);
+    await act(async () =>
+      resolveDelete(ok({ id: boardDetail.post.id, deleted: true })),
+    );
+    expect(
+      screen.queryByTestId('community-post-recovery'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(postCopy.deleted)).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('community-post-detail'),
+    ).not.toBeInTheDocument();
+    expect(mock.postDelete.mock.calls[1]![1]).toEqual(original);
+    expect(mock.postDelete.mock.calls[1]![3]).toBe(boardActorId);
+  },
+);
+it('retains the exact unknown notice intent through child policy loss until explicit retry', async () => {
+  const adminDetail = { ...boardDetail, can_create_notice: true };
+  mock.detail.mockImplementation(async () => ok(structuredClone(adminDetail)));
+  mock.list
+    .mockResolvedValueOnce(ok(initial))
+    .mockResolvedValueOnce({ ok: false, code: 'SETUP_NOT_READY' })
+    .mockImplementation(async () => ok(fresh));
+  mock.notice
+    .mockResolvedValueOnce({ ok: false, code: 'UNAVAILABLE' })
+    .mockResolvedValueOnce(
+      ok({
+        id: boardDetail.post.id,
+        artist_id: boardArtist.id,
+        revision: 2,
+        is_notice: true,
+        is_pinned: false,
+      }),
+    );
+  detail();
+  await loaded();
+  await waitFor(() =>
+    expect(screen.getByLabelText(postCopy.noticeLabel)).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByLabelText(postCopy.noticeLabel));
+  fireEvent.click(screen.getByRole('button', { name: postCopy.saveNotice }));
+  await screen.findByText(postCopy.errors.SETUP_NOT_READY);
+  expect(screen.queryByTestId('community-post-detail')).not.toBeInTheDocument();
+  expect(mock.notice).toHaveBeenCalledOnce();
+  const original = mock.notice.mock.calls[0]![1];
+  const recovery = screen.getByTestId('community-post-recovery');
+  fireEvent.click(
+    within(recovery).getByRole('button', { name: postCopy.retryOperation }),
+  );
+  await screen.findByText(postCopy.noticeSaved);
+  expect(mock.notice).toHaveBeenCalledTimes(2);
+  expect(mock.notice.mock.calls[1]![1]).toEqual(original);
+  expect(mock.notice.mock.calls[1]![3]).toBe(boardActorId);
+  expect(
+    screen.queryByTestId('community-post-recovery'),
+  ).not.toBeInTheDocument();
+});
+
+it.each([
+  ['delete', 'actor'],
+  ['delete', 'target'],
+  ['notice', 'actor'],
+  ['notice', 'target'],
+] as const)(
+  'discards pending parent %s intent when mounted %s identity changes',
+  async (operation, identity) => {
+    let current = { ...boardDetail, can_create_notice: true };
+    mock.detail.mockImplementation(async () => ok(structuredClone(current)));
+    mock.list.mockImplementation(async () =>
+      ok({
+        ...initial,
+        actor_id: current.actor_id,
+        post_id: current.post.id,
+        comments: [],
+      }),
+    );
+    const mutate = operation === 'delete' ? mock.postDelete : mock.notice;
+    mutate.mockResolvedValueOnce({ ok: false, code: 'UNAVAILABLE' });
+    window.history.replaceState(null, '', path);
+    const props = {
+      slug: boardArtist.slug,
+      postId: boardDetail.post.id,
+      actorKey: boardActorId,
+      path,
+    };
+    const view = render(wrapper(<CommunityPostDetail {...props} />));
+    await loaded();
+    if (operation === 'delete') {
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: postCopy.deleteAction }),
+        ).toBeEnabled(),
+      );
+      fireEvent.click(
+        screen.getByRole('button', { name: postCopy.deleteAction }),
+      );
+      fireEvent.click(
+        within(await screen.findByRole('dialog')).getByRole('button', {
+          name: postCopy.deleteDialogConfirm,
+        }),
+      );
+    } else {
+      await waitFor(() =>
+        expect(screen.getByLabelText(postCopy.noticeLabel)).toBeEnabled(),
+      );
+      fireEvent.click(screen.getByLabelText(postCopy.noticeLabel));
+      fireEvent.click(
+        screen.getByRole('button', { name: postCopy.saveNotice }),
+      );
+    }
+    await screen.findByTestId('community-post-recovery');
+    await waitFor(() => expect(mock.list).toHaveBeenCalledTimes(2));
+    expect(mutate).toHaveBeenCalledOnce();
+    const nextActor = identity === 'actor' ? boardOtherId : boardActorId;
+    const nextPost =
+      identity === 'target'
+        ? 'b5000000-0000-4000-8000-000000000021'
+        : boardDetail.post.id;
+    current = {
+      ...current,
+      actor_id: nextActor,
+      post: { ...current.post, id: nextPost, body: '새로 확인한 글' },
+    };
+    const nextPath = communityPostPath(boardArtist.slug, nextPost);
+    window.history.replaceState(null, '', nextPath);
+    view.rerender(
+      wrapper(
+        <CommunityPostDetail
+          {...props}
+          actorKey={nextActor}
+          postId={nextPost}
+          path={nextPath}
+        />,
+      ),
+    );
+    await screen.findByText('새로 확인한 글');
+    await screen.findByTestId('community-interactions-content');
+    expect(
+      screen.queryByTestId('community-post-recovery'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(boardDetail.post.body)).not.toBeInTheDocument();
+    expect(mutate).toHaveBeenCalledOnce();
+    expect(mock.detail.mock.calls.at(-1)![0].post_id).toBe(nextPost);
+    expect(mock.detail.mock.calls.at(-1)![2]).toBe(nextActor);
+  },
+);

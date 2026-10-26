@@ -111,3 +111,38 @@ contrast and optimized Next/PWA builds. A final repeat of all 182 CI contracts a
 447 fixture/discovery guards also passed with no skips. Hosted execution of the
 new application browser scenarios and final pixel review remain separate pending
 gates; no local browser or database restriction was retried.
+
+## 2026-10-26: parent receipt recovery interoperability correction
+
+The application run `40286332434` at exact published head
+`30015f03a92325562099a7dd321fbabab5ee9871` passed all 27 new interaction browser
+scenarios. All 67 new screenshots were inspected with no concrete visual defect,
+but that preliminary review does not establish final-head readiness.
+
+The existing board suite exposed a genuine interoperability regression: 19 tests
+passed and all six font/viewport owner-delete recovery cases timed out waiting for
+the original exact-retry button. A committed post deletion with a lost response
+caused the new interaction read to discover its tombstone; its parent-invalidation
+callback incorrectly erased the already-authorized immutable recovery intent.
+The official failure snapshots and a failing ordinary parent/child integration
+unit reproduced the same missing recovery panel.
+
+The narrow correction removes unavailable post/comment/image content but retains
+an existing parent delete/notice receipt-recovery intent on target/policy denial.
+Current-account denial still erases that intent. Late abandoned responses cannot
+recreate erased recovery, and a keyed parent session discards old operation refs
+when its mounted account, post or route changes. Four actor/target replacement
+regressions also failed before the session-ownership correction. There is no
+automatic resend and no change to interaction intent denial rules, SQL, providers
+or generated types.
+
+Ten regression cases were added to the real parent/child unit integration. The
+focused 88-test UI suite, scoped lint/format, typecheck and whitespace checks pass.
+Full local checks and a corrected exact-head hosted run remain required; no test
+assertion, screenshot capture or CI gate was weakened to hide the failure.
+
+The corrected tree passed a fresh complete `check:all`: full lint/format,
+Next/TypeScript, 8,588 tests in 283 files, contrast and optimized Next/PWA builds.
+All 182 CI contracts and 447 fixture/discovery checks passed again with no skips.
+Generated types remain byte-identical to the verified 93,967-byte official artifact.
+Corrected hosted browser execution and final-head pixel review remain pending.

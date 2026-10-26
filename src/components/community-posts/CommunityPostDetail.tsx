@@ -22,17 +22,29 @@ import { CommunityImage } from './CommunityImage';
 import { CommunityInteractions } from '@/components/community-interactions/CommunityInteractions';
 import { useCommunityResource } from './useCommunityResource';
 import styles from './community-posts.module.css';
-export function CommunityPostDetail({
-  slug,
-  postId,
-  actorKey,
-  path,
-}: {
+type CommunityPostDetailProps = {
   slug: string;
   postId: string;
   actorKey: string;
   path: string;
-}) {
+};
+export function CommunityPostDetail(props: CommunityPostDetailProps) {
+  // Parent receipt recovery belongs to the same authenticated actor and target
+  // as its private snapshot. A reused RSC component must not carry an earlier
+  // account's or post's operation into newly supplied identity props.
+  return (
+    <CommunityPostSession
+      key={`${props.actorKey}:${props.slug}:${props.postId}:${props.path}`}
+      {...props}
+    />
+  );
+}
+function CommunityPostSession({
+  slug,
+  postId,
+  actorKey,
+  path,
+}: CommunityPostDetailProps) {
   const t = useTranslations('communityPosts');
   const format = useFormatter();
   const { showDialog, cancelDialog } = useDialog();
@@ -73,7 +85,14 @@ export function CommunityPostDetail({
   const invalidate = state.invalidate;
   const invalidateInteractions = useCallback(
     (code: Parameters<typeof invalidate>[0]) => {
-      erase();
+      // A child read can discover the tombstone created by an uncertain parent
+      // deletion. Remove all visible content, but do not lose the immutable
+      // receipt request merely because its target is no longer readable. Only
+      // current-account denial invalidates the authority to recover that intent.
+      if (code === 'FORBIDDEN' || code === 'UNAUTHENTICATED') erase();
+      else if (pendingDelete.current) setUncertain('delete');
+      else if (pendingNotice.current) setUncertain('notice');
+      else erase();
       invalidate(code);
     },
     [erase, invalidate],
@@ -135,7 +154,7 @@ export function CommunityPostDetail({
         deleteCommunityPost(slug, pendingDelete.current!, signal, actorKey),
       );
       if (!result || (!result.ok && result.code === 'UNAVAILABLE')) {
-        if (alive.current) setUncertain('delete');
+        if (alive.current && pendingDelete.current) setUncertain('delete');
         return;
       }
       pendingDelete.current = null;
@@ -170,7 +189,7 @@ export function CommunityPostDetail({
         setCommunityNotice(slug, pendingNotice.current!, signal, actorKey),
       );
       if (!result || (!result.ok && result.code === 'UNAVAILABLE')) {
-        if (alive.current) setUncertain('notice');
+        if (alive.current && pendingNotice.current) setUncertain('notice');
         return;
       }
       pendingNotice.current = null;
