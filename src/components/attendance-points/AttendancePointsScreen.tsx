@@ -15,6 +15,7 @@ export function AttendancePointsScreen({ actorKey }: { actorKey: string }) {
 }
 function AttendanceSession({ actorKey }: { actorKey: string }) {
   const t = useTranslations('attendancePoints');
+  const activity = useTranslations('activityRewards');
   const format = useFormatter();
   const state = useAttendancePoints(actorKey);
   const data = state.data;
@@ -31,6 +32,14 @@ function AttendanceSession({ actorKey }: { actorKey: string }) {
       </Link>
       <h1>{t('title')}</h1>
       <p>{t('description')}</p>
+      <Link
+        href={routes.activityRewards}
+        prefetch={false}
+        onNavigate={state.clear}
+        className="ui-button ui-button--secondary"
+      >
+        {activity('entryOpen')}
+      </Link>
       <Button
         variant="secondary"
         disabled={pending}

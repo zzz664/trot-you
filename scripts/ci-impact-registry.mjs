@@ -25,6 +25,7 @@ export const BROWSER_JOBS = Object.freeze([
   'community-interactions-browser',
   'community-moderation-browser',
   'attendance-points-browser',
+  'activity-rewards-browser',
 ]);
 
 export const CONDITIONAL_JOBS = Object.freeze(['database', ...BROWSER_JOBS]);
@@ -123,7 +124,7 @@ export const FULL_RULES = Object.freeze([
       // Feature config is also imported by the global environment schema and by
       // other feature schemas. Keep the entire runtime configuration layer full.
       /^src\/config\//,
-      /^src\/lib\/(?:result|design-tokens)\.ts$/,
+      /^src\/lib\/(?:result|design-tokens|schedule-navigation)\.ts$/,
       /^src\/worker\/(?:sw|cache-policy)\.ts$/,
       /^src\/server\/configuration\.ts$/,
     ],
@@ -132,8 +133,21 @@ export const FULL_RULES = Object.freeze([
 
 export const FEATURE_RULES = Object.freeze([
   {
+    id: 'activity-rewards',
+    jobs: browsers('auth', 'attendance-points', 'activity-rewards'),
+    patterns: [
+      /^src\/(?:components|server(?:\/services)?)\/activity-rewards\//,
+      /^src\/client\/activity-rewards\.ts$/,
+      /^src\/app\/(?:points\/activity|api\/points\/activity)\//,
+      /^tests\/unit\/activity-rewards-/,
+      /^tests\/e2e\/activity-rewards(?:\/|-unconfigured\.spec\.ts$)/,
+      /^scripts\/activity-rewards-local-/,
+      /^playwright\.activity-rewards\.config\.ts$/,
+    ],
+  },
+  {
     id: 'attendance-points',
-    jobs: browsers('auth', 'attendance-points'),
+    jobs: browsers('auth', 'attendance-points', 'activity-rewards'),
     patterns: [
       /^src\/(?:components|server(?:\/services)?)\/attendance-points\//,
       /^src\/client\/attendance-points\.ts$/,
@@ -220,7 +234,7 @@ export const FEATURE_RULES = Object.freeze([
       /^src\/(?:components|server(?:\/services)?)\/artist-reply-activity\//,
       /^src\/(?:client|config)\/artist-reply-activity\.ts$/,
       /^src\/app\/(?:artist\/(?:\[slug\]\/)?replies|api\/artist\/\[slug\]\/replies)\//,
-      /^tests\/unit\/(?:activity|artist-reply-activity)-/,
+      /^tests\/unit\/(?:activity-(?!rewards-)|artist-reply-activity-)/,
       /^tests\/e2e\/activity(?:\/|-unconfigured\.spec\.ts$)/,
       /^scripts\/activity-local-/,
       /^playwright\.activity\.config\.ts$/,

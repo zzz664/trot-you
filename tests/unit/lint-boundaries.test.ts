@@ -210,3 +210,28 @@ describe('attendance points UI boundaries', () => {
     },
   );
 });
+
+describe('activity rewards UI boundaries', () => {
+  it.each(['button', 'input', 'a'])(
+    'keeps %s in accessible primitives',
+    async (element) => {
+      expect(
+        await rules(
+          'src/components/activity-rewards/Probe.tsx',
+          `export const Probe = () => <${element} />;`,
+        ),
+      ).toContain('no-restricted-syntax');
+    },
+  );
+  it.each(['@/server/db/activity-rewards', '@/server/adapters/payment/toss'])(
+    'keeps data and external I/O out of UI: %s',
+    async (path) => {
+      expect(
+        await rules(
+          'src/components/activity-rewards/Probe.tsx',
+          `import value from '${path}'; export { value };`,
+        ),
+      ).toContain('no-restricted-imports');
+    },
+  );
+});

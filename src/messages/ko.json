@@ -2151,5 +2151,59 @@
       "SETUP_NOT_READY": "출석과 포인트 설정을 준비하고 있어요. 잠시 후 다시 확인해 주세요.",
       "UNAVAILABLE": "출석과 포인트를 불러오지 못했어요. 잠시 후 다시 확인해 주세요."
     }
+  },
+  "activityRewards": {
+    "title": "활동 포인트 안내",
+    "description": "글과 댓글을 작성한 뒤 기록된 포인트와 현재 기준을 확인해요. 이 화면에서는 포인트를 신청하거나 지급하지 않아요.",
+    "entryOpen": "활동 포인트와 기준 보기",
+    "backPoints": "출석·포인트로 돌아가기",
+    "refresh": "다시 확인",
+    "loading": "활동 포인트를 불러오는 중…",
+    "kstDay": "한국 날짜 · {date}",
+    "snapshotNotice": "조회한 시점의 기준과 기록이에요. 남은 횟수가 있어도 이후 활동의 적립을 보장하지는 않아요.",
+    "policyTitle": "글·댓글 적립 기준",
+    "policyVersion": "적용 중인 기준 · {version}",
+    "policyUnavailable": "승인된 글·댓글 적립 기준이 아직 준비되지 않았어요. 기준이 없는 동안 새로 작성한 글·댓글에는 포인트 기록이 생기지 않으며, 나중에 적립된다고 약속하지 않아요.",
+    "configuredAward": "1회 적립 기준 · {amount}P",
+    "dailyCap": "하루 적립 대상 한도 · {count}회",
+    "unlimitedCap": "하루 적립 대상 한도 · 제한 없음",
+    "recordedCount": "오늘 기록된 작성 · {count}회",
+    "awardedCount": "오늘 포인트가 더해진 작성 · {count}회",
+    "remainingCount": "현재 기준으로 남은 적립 대상 · {count}회",
+    "unlimitedRemaining": "현재 기준으로 남은 적립 대상 · 제한 없음",
+    "retainedHistory": "삭제되거나 숨겨진 글·댓글도 이미 남은 포인트 기록은 유지돼요. 자동 회수된 것으로 표시하지 않아요.",
+    "pendingTitle": "아직 준비 중인 기준",
+    "shareTitle": "공유 포인트",
+    "shareUnavailable": "공유 완료를 확인할 수 있는 승인된 기준이 아직 없어요. 공유 버튼을 누르거나 링크를 여는 것만으로 포인트가 적립되지는 않아요.",
+    "missionsTitle": "미션 포인트",
+    "missionsUnavailable": "미션 내용과 완료 기준이 아직 승인되지 않았어요. 참여하거나 완료했다고 표시할 미션이 없어요.",
+    "gradeTitle": "활동 등급",
+    "gradeUnavailable": "활동 점수 계산 방법과 등급 기준이 아직 승인되지 않았어요. 포인트 잔액으로 등급을 임의로 정하지 않아요.",
+    "historyTitle": "내 글·댓글 포인트 기록",
+    "historyPrivacy": "본인에게만 보이는 기록이에요. 글·댓글 원문이나 다른 사람의 정보는 표시하지 않아요.",
+    "emptyHistory": "아직 기록된 글·댓글 포인트가 없어요.",
+    "loadMore": "이전 활동 기록 더 보기",
+    "entryAmount": "기록된 포인트 · {amount}P",
+    "earnedDate": "활동 날짜 · {date}",
+    "recordedDate": "기록 시각 · {date}",
+    "reasons": {
+      "post": "글 작성",
+      "comment": "댓글 작성"
+    },
+    "outcomes": {
+      "awarded": "이 작성에서 포인트가 더해졌어요.",
+      "zero_amount": "당시 적립 기준이 0P여서 포인트가 더해지지 않았어요.",
+      "daily_cap": "당시 하루 한도에 도달해 포인트가 더해지지 않았어요.",
+      "legacy": "이전 방식으로 남긴 기록이에요. 상세 적립 사유는 별도로 기록되지 않았어요."
+    },
+    "errors": {
+      "INVALID_INPUT": "활동 포인트 조회 요청을 확인해 주세요.",
+      "UNAUTHENTICATED": "로그인 상태를 확인한 뒤 다시 이용해 주세요.",
+      "FORBIDDEN": "현재 계정에서는 활동 포인트 기록을 확인할 수 없어요.",
+      "CONFLICT": "활동 포인트 조회 상태가 달라졌어요. 다시 확인해 주세요.",
+      "BALANCE_LIMIT": "활동 포인트 기록의 값을 안전하게 확인할 수 없어요.",
+      "SETUP_NOT_READY": "활동 포인트 조회가 아직 준비되지 않았어요. 잠시 후 다시 확인해 주세요.",
+      "UNAVAILABLE": "활동 포인트 기록을 불러오지 못했어요. 잠시 후 다시 확인해 주세요."
+    }
   }
 }

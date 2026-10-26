@@ -9,14 +9,14 @@ lint/format, typecheck, all unit tests, contrast, production build, all local fi
 checks, and the keyless browser suite still run.
 
 For a code PR targeting `develop`, the complete database job still runs: DB lint,
-both consecutive pgTAP passes, all 33 concurrency scripts, all nine populated
+both consecutive pgTAP passes, all 34 concurrency scripts, all ten populated
 upgrades, real generated schema types, typecheck, and committed-type drift checks.
 Only a nonempty change set containing `README.md` and/or Markdown files under
-`docs/` may intentionally skip the database and all 24 isolated feature browsers.
+`docs/` may intentionally skip the database and all 25 isolated feature browsers.
 
 Feature-browser selection is **enabled**, not permanent shadow mode. It applies to
 the entire PR, not merely its newest commit. A localized schedule UI change selects
-7 of 24 feature browsers; a leaf admin-settings change selects 5 of 24. These are
+7 of 25 feature browsers; a leaf admin-settings change selects 5 of 25. These are
 job counts, not measured duration or billing savings.
 
 ## Selection registry
@@ -186,3 +186,17 @@ DB modules, SQL, shared configuration, translations, shell entries and unknown
 paths remain full fallback. Selection tests cover both boundaries. No historical
 step hash or existing gate changes. The database job retains its 30-minute limit;
 the prior approximately 26m34 run makes added-gate runtime a monitored risk.
+
+## Activity reward integration
+
+Activity reward leaf paths select auth, attendance and activity-reward browsers.
+Attendance leaves also select the activity browser because it shares validated
+cursor transport and the private points entry surface. The new browser belongs
+to the stable aggregate; an unexplained skip, failure or cancellation fails CI.
+SQL, database adapters, configuration, shared entry components, CI changes and
+unknown paths still require full fallback. The route invalidation helper
+`src/lib/schedule-navigation.ts` now explicitly runs full because its consumers
+span calendar, community, attendance and activity history. Both pgTAP passes and all 34 race
+scripts/ten populated upgrades remain mandatory. The database timeout is now
+35 minutes, explicitly accommodating new gates after the previous verified
+28m05 run approached the old 30-minute limit; no legacy step is removed.

@@ -37,9 +37,9 @@ jobs:
     needs: impact
     if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['database'] }}
     runs-on: ubuntu-latest
-    # Verified feature31 database run approached 20min. Preserve every repeat,
-    # race and populated upgrade while adding schedule notice migration gates.
-    timeout-minutes: 30
+    # Feature37 verified DB run reached 28m05. Keep every historical gate and
+    # add headroom for activity outcomes/races and the tenth populated upgrade.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -99,6 +99,8 @@ jobs:
       - run: node scripts/test-community-moderation-upgrade.mjs
       - run: npm run test:db:attendance-points-concurrency
       - run: node scripts/test-attendance-points-upgrade.mjs
+      - run: npm run test:db:activity-rewards-concurrency
+      - run: node scripts/test-activity-rewards-upgrade.mjs
       - run: npm run db:types
       - uses: actions/upload-artifact@v4
         if: success()
@@ -152,6 +154,7 @@ jobs:
       - run: npm run test:community-interactions-fixture
       - run: npm run test:community-moderation-fixture
       - run: npm run test:attendance-points-fixture
+      - run: npm run test:activity-rewards-fixture
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
@@ -1000,6 +1003,40 @@ jobs:
           retention-days: 7
       - run: npm run db:stop -- --no-backup
         if: always()
+  activity-rewards-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['activity-rewards-browser'] }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/activity-rewards-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Fictional local Auth/contribution/outcome fixtures and actual database RPCs only.
+      # No real rewards, share verification, mission or grade activation.
+      - run: npm run test:e2e:activity-rewards
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: activity-rewards-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
   # Require this stable check in branch rules before relying on selective CI.
   # always() is essential: upstream failure/cancellation/skips must be inspected.
   ci-required:
@@ -1032,6 +1069,7 @@ jobs:
       - community-interactions-browser
       - community-moderation-browser
       - attendance-points-browser
+      - activity-rewards-browser
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -1,0 +1,22 @@
+.screen {
+  overflow-wrap: anywhere;
+}
+.stack,
+.list,
+.panel {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+}
+.list {
+  list-style: none;
+  padding: 0;
+}
+.list > li {
+  min-width: 0;
+}
+.panel {
+  border: var(--border-width) solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  padding: calc(var(--space-unit) * 2);
+}

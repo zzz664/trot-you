@@ -419,3 +419,26 @@ test('attendance points browser may skip only on a plan that explicitly excludes
   delete needs['attendance-points-browser'];
   assert.throws(() => validateResults(plan, needs, SHA));
 });
+
+for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+  test(`activity rewards browser ${String(result)} fails its selected aggregate`, () => {
+    const plan = fullPlan();
+    const needs = results(plan);
+    needs['activity-rewards-browser'].result = result;
+    assert.throws(
+      () => validateResults(plan, needs, SHA),
+      /activity-rewards-browser: expected success/,
+    );
+  });
+}
+test('activity rewards browser may skip only on a plan that explicitly excludes it', () => {
+  const plan = docsPlan();
+  const needs = results(plan);
+  assert.equal(needs['activity-rewards-browser'].result, 'skipped');
+  assert.match(
+    validateResults(plan, needs, SHA),
+    /Every required job succeeded/,
+  );
+  delete needs['activity-rewards-browser'];
+  assert.throws(() => validateResults(plan, needs, SHA));
+});

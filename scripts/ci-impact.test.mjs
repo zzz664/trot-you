@@ -18,7 +18,7 @@ const has = (paths, ...jobs) => {
 
 describe('conservative dependency registry', () => {
   it('has one stable job inventory and unique, valid dependency groups', () => {
-    assert.equal(BROWSER_JOBS.length, 24);
+    assert.equal(BROWSER_JOBS.length, 25);
     assert.equal(new Set(CONDITIONAL_JOBS).size, CONDITIONAL_JOBS.length);
     const rules = [...FULL_RULES, ...FEATURE_RULES];
     assert.equal(new Set(rules.map(({ id }) => id)).size, rules.length);
@@ -76,6 +76,7 @@ describe('conservative dependency registry', () => {
     'src/config/new-shared-schema.ts',
     'src/messages/ko.json',
     'src/worker/sw.ts',
+    'src/lib/schedule-navigation.ts',
     'src/types/database.ts',
     '.github/workflows/ci.yml',
     'scripts/ci-impact-registry.mjs',
@@ -143,7 +144,7 @@ describe('conservative dependency registry', () => {
     assert.equal(plan.jobs.database, true);
   });
 
-  it('selects five browsers for leaf admin settings instead of all twenty-four', () => {
+  it('selects five browsers for leaf admin settings instead of all twenty-five', () => {
     const plan = has(
       ['src/components/admin-settings/AdminSettingsScreen.tsx'],
       'auth',
@@ -269,7 +270,7 @@ describe('conservative dependency registry', () => {
     for (const known of ['docs/readme.md', 'src/client/schedules.ts']) {
       const plan = selectImpact([known, 'src/server/new-feature/index.ts']);
       assert.equal(plan.mode, 'full');
-      assert.equal(selected(plan).length, 24);
+      assert.equal(selected(plan).length, 25);
     }
   });
 
@@ -292,7 +293,7 @@ describe('conservative dependency registry', () => {
     assert.equal(plan.mode, 'full');
     assert.equal(plan.paths, null);
     assert.equal(plan.pathCount, 1500);
-    assert.equal(selected(plan).length, 24);
+    assert.equal(selected(plan).length, 25);
   });
 });
 
@@ -350,7 +351,7 @@ it('keeps community board consumers linked to shared media, navigation and polic
     has([path], 'community-posts', 'community-interactions');
 });
 
-it('selects attendance and auth on isolated attendance leaf changes while keeping its database and shared files full', () => {
+it('selects attendance, activity rewards and auth on isolated attendance leaf changes while keeping its database and shared files full', () => {
   for (const path of [
     'src/components/attendance-points/AttendancePointsScreen.tsx',
     'src/client/attendance-points.ts',
@@ -363,9 +364,9 @@ it('selects attendance and auth on isolated attendance leaf changes while keepin
     'scripts/attendance-points-local-config.mjs',
     'playwright.attendance-points.config.ts',
   ]) {
-    const plan = has([path], 'auth', 'attendance-points');
+    const plan = has([path], 'auth', 'attendance-points', 'activity-rewards');
     assert.equal(plan.mode, 'selective');
-    assert.equal(selected(plan).length, 2);
+    assert.equal(selected(plan).length, 3);
     assert.equal(plan.jobs.database, true);
   }
   for (const path of [
@@ -378,5 +379,37 @@ it('selects attendance and auth on isolated attendance leaf changes while keepin
   ]) {
     const plan = has([path], 'attendance-points');
     assert.equal(plan.mode, 'full');
+  }
+});
+
+it('selects private activity, attendance and auth on activity reward leaves while shared/database paths stay full', () => {
+  for (const path of [
+    'src/components/activity-rewards/ActivityRewardsScreen.tsx',
+    'src/client/activity-rewards.ts',
+    'src/server/services/activity-rewards/read.ts',
+    'src/server/activity-rewards/http.ts',
+    'src/app/points/activity/page.tsx',
+    'src/app/api/points/activity/route.ts',
+    'tests/unit/activity-rewards-ui.test.tsx',
+    'tests/e2e/activity-rewards/activity-rewards.spec.ts',
+    'scripts/activity-rewards-local-config.mjs',
+    'playwright.activity-rewards.config.ts',
+  ]) {
+    const plan = has([path], 'auth', 'attendance-points', 'activity-rewards');
+    assert.equal(plan.mode, 'selective');
+    assert.equal(selected(plan).length, 3);
+    assert.equal(plan.jobs.database, true);
+  }
+  for (const path of [
+    'supabase/migrations/20261026000037_activity_rewards.sql',
+    'src/server/db/activity-rewards.ts',
+    'src/config/activity-rewards.ts',
+    'src/components/activity-rewards/ActivityRewardsEntry.tsx',
+    'scripts/test-activity-rewards-concurrency.mjs',
+    'scripts/test-activity-rewards-upgrade.mjs',
+  ]) {
+    const plan = has([path], 'activity-rewards');
+    assert.equal(plan.mode, 'full');
+    assert.equal(selected(plan).length, 25);
   }
 });
