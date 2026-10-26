@@ -244,6 +244,39 @@ async function captureControl(
   await expect(control).toBeVisible();
   await control.screenshot({ path: info.outputPath(`${name}.png`) });
 }
+// A production worker owns full-document navigation after the initial page.
+// page.route cannot intercept that navigation, but authenticated APIs bypass
+// the worker. Observe the actual destination queue request instead, validating
+// the current actor and payload before forwarding the response to React.
+async function captureQueueArrival(page: Page, actor: Identity) {
+  let accept!: () => void, reject!: (reason: unknown) => void;
+  const result = new Promise<void>((done, fail) => {
+    accept = done;
+    reject = fail;
+  });
+  await page.route(
+    `**${moderationQueuePath()}`,
+    async (route) => {
+      try {
+        const request = route.request(),
+          url = new URL(request.url());
+        expect(request.method()).toBe('GET');
+        expect(url.pathname + url.search).toBe(moderationQueuePath());
+        expect(request.headers()['x-community-actor']).toBe(actor.id);
+        const response = await route.fetch();
+        const data = moderationQueueSchema.parse(await success(response));
+        expect(data.actor_id).toBe(actor.id);
+        await route.fulfill({ response });
+        accept();
+      } catch (error) {
+        reject(error);
+        await route.abort().catch(() => undefined);
+      }
+    },
+    { times: 1 },
+  );
+  return { result };
+}
 // Wait for the exact real RSC response before forwarding it, not for a prior
 // same-URL document or a URL change that can precede the hydrated destination.
 async function captureNavigation(page: Page, path: string) {
@@ -800,12 +833,19 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       await expect(panel(page)).toHaveCount(0);
 
       await world.admin.signIn(context);
-      const navigation = await captureNavigation(page, routes.adminModeration);
-      await page.goto(routes.adminModeration);
-      await navigation.result;
-      await expect(
-        page.getByTestId('community-moderation-content'),
-      ).toBeVisible();
+      await test.step(
+        'Navigate to admin and verify its current-actor queue before forwarding',
+        async () => {
+          const arrival = await captureQueueArrival(page, world.admin);
+          const response = await page.goto(routes.adminModeration);
+          expect(response?.status()).toBe(200);
+          await arrival.result;
+          await expect(
+            page.getByTestId('community-moderation-content'),
+          ).toBeVisible();
+        },
+        { timeout: 15_000 },
+      );
       await button(
         page.locator(`[data-moderation-target-id="${world.post.id}"]`).first(),
         copy.review,
@@ -1218,10 +1258,18 @@ test('a lost restriction response replays exactly, while canceled dialogs and Ba
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByTestId('community-moderation-content')).toBeVisible();
   expect(contentState(target(world, 'post')).deleted).toBe(false);
-  const navigation = await captureNavigation(page, routes.admin);
-  await page.getByRole('link', { name: copy.backAdmin, exact: true }).click();
-  await navigation.result;
-  await expect(page).toHaveURL(routes.admin);
+  await test.step(
+    'Return to admin through the verified RSC response',
+    async () => {
+      const navigation = await captureNavigation(page, routes.admin);
+      await page
+        .getByRole('link', { name: copy.backAdmin, exact: true })
+        .click();
+      await navigation.result;
+      await expect(page).toHaveURL(routes.admin);
+    },
+    { timeout: 15_000 },
+  );
   await page.goBack();
   await expect(page).toHaveURL(routes.adminModeration);
   await expect(page.getByTestId('community-moderation-content')).toBeVisible();

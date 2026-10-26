@@ -103,3 +103,27 @@ contrast and production/PWA build. All **189 CI contract tests plus 479 fixture
 checks** also passed. The new moderation browser and final-head pixel review are
 not claimed as run locally; the hosted final-head gates remain required before
 merge.
+
+## Final-head hosted navigation harness correction
+
+Run `40303249586` on remote `47848fd6d230401552f2857a08fee9dd4ea6997b`
+passed all SQL/type/upgrade gates and 751 existing/keyless browser scenarios. The
+first ten moderation API scenarios also passed. Four moderation visual flows then
+exhausted their existing 150-second scenario limit while the admin queue was already
+rendered, and the job reached its 25-minute limit after an additional 11-minute
+APT dependency download. Five later cases did not complete. This is not recorded
+as a successful moderation browser run.
+
+The concrete harness defect was observing a full-document navigation with
+`page.route` after the app's existing PWA worker controlled that document request.
+Playwright documents that interception boundary. The correction verifies the real
+navigation response plus the destination's current-actor queue GET before forwarding
+that API response to React. RSC link navigation retains response-before-forward
+verification. Both observer stages now have named 15-second diagnostic steps.
+No app/PWA behavior, policy, browser scenario, assertion, retry count or timeout
+was weakened or increased. Fixture guards now preserve this observer order and
+all 20 dedicated scenarios. The corrected hosted run is still required.
+
+Corrected-harness local validation passed the full `npm run check:all` again
+(9,097 units, lint/format, typecheck, contrast, production/PWA build), plus all
+669 script checks: 189 CI contracts and 480 fixture/discovery/observer checks.

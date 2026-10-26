@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import {
   COMMUNITY_MODERATION_CI_ENV,
   communityModerationLocalEnvironment,
@@ -170,9 +171,57 @@ test('opted-in discovery lists community-moderation tests without launching a br
     },
   );
   assert.match(listing, /community-moderation\.spec\.ts/);
-  assert.match(listing, /Total: [1-9][0-9]* tests in 1 file/);
+  assert.match(listing, /Total: 20 tests in 1 file/);
   assert.doesNotMatch(
     listing,
     /(?:auth-unconfigured|community-moderation-unconfigured|speech|media|replies)\.spec\.ts:/,
   );
+});
+
+test('document arrival verifies the actor-bound queue before forwarding instead of waiting for a worker-owned request', () => {
+  const source = readFileSync(
+    new URL(
+      '../tests/e2e/community-moderation/community-moderation.spec.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const observer = source
+    .split('async function captureQueueArrival(')[1]
+    ?.split('// Wait for the exact real RSC response')[0];
+  assert.ok(observer);
+  const checks = [
+    "expect(request.method()).toBe('GET')",
+    'expect(url.pathname + url.search).toBe(moderationQueuePath())',
+    "expect(request.headers()['x-community-actor']).toBe(actor.id)",
+    'const response = await route.fetch()',
+    'moderationQueueSchema.parse(await success(response))',
+    'expect(data.actor_id).toBe(actor.id)',
+    'await route.fulfill({ response })',
+    'accept()',
+  ];
+  let previous = -1;
+  for (const check of checks) {
+    const index = observer.indexOf(check);
+    assert.ok(
+      index > previous,
+      `Queue verification missing or reordered: ${check}`,
+    );
+    previous = index;
+  }
+  assert.ok(
+    source.includes(
+      'const arrival = await captureQueueArrival(page, world.admin)',
+    ),
+  );
+  assert.ok(
+    source.includes('const response = await page.goto(routes.adminModeration)'),
+  );
+  assert.ok(source.includes('expect(response?.status()).toBe(200)'));
+  assert.ok(source.includes('await arrival.result'));
+  assert.ok(
+    !source.includes('captureNavigation(page, routes.adminModeration)'),
+  );
+  assert.ok(source.includes('captureNavigation(page, routes.admin)'));
+  assert.equal((source.match(/\{ timeout: 15_000 \}/g) ?? []).length, 2);
 });
