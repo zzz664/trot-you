@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "id": "legal-document-pages",
+  "base": "fb5c6654d51e427e0956ae5e07cfeab4847b6099",
+  "covers": [
+    "ci/scopes/legal-document-pages.json",
+    "docs/work-log/2026-10-26-legal-document-pages.md",
+    "supabase/migrations/20261026000041_legal_document_pages.sql",
+    "supabase/tests/legal_document_pages.test.sql"
+  ],
+  "reason": "Read-only legal document current-pointer schema checkpoint. Official Supabase types must be generated from the minimal view before the application checkpoint.",
+  "selection": {
+    "unit": [],
+    "fixtures": [],
+    "sql": ["supabase/tests/legal_document_pages.test.sql"],
+    "races": [],
+    "upgrades": [],
+    "typecheck": true,
+    "browser": {}
+  },
+  "reasons": {
+    "sql": "Only 29 direct projection/security assertions for the new current view and existing exact-version immutable disclosure boundary; transaction rolled back.",
+    "unit": "No application change in this schema checkpoint.",
+    "fixtures": "No runner or fixture code change.",
+    "races": "Read-only projection adds no state transition.",
+    "upgrades": "No existing data/storage/state transition changes; migrations apply to the genuine disposable database for official generation.",
+    "browser": "No UI in this schema checkpoint.",
+    "typecheck": "Dependency-graph compilation plus official generated type gate, not regression suite."
+  },
+  "exclusions": [
+    "No historical suites, full/cumulative check, broad browser invocation, races, upgrades, production deployment, policy activation or legal text seed.",
+    "Approved production terms/privacy and support identity remain pending."
+  ]
+}
