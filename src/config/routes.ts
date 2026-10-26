@@ -1,5 +1,8 @@
 export const routes = {
   home: '/',
+  points: '/points',
+  pointsApi: '/api/points',
+  pointsAttendanceApi: '/api/points/attendance',
   communityReports: '/me/reports',
   communityModerationApi: '/api/community/moderation',
   adminModeration: '/admin/moderation',
@@ -360,4 +363,10 @@ export function moderationNoticesPath(cursor?: string | null) {
 }
 export function moderationAdminActionPath(action: 'resolve' | 'restrict') {
   return `${routes.adminModerationApi}/${action}`;
+}
+
+export function pointsHistoryPath(cursor?: string | null) {
+  return cursor
+    ? `${routes.pointsApi}?${new URLSearchParams({ cursor })}`
+    : routes.pointsApi;
 }

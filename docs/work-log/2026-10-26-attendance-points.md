@@ -35,3 +35,57 @@ Exact checkpoint hashes, local results and hosted results will be recorded as th
   9,152 unit tests in 293 files, contrast, and production/PWA build. Generated
   schema remains the unchanged genuine predecessor artifact until hosted CI
   generates the two new RPC names. Actual pgTAP/races/upgrades remain pending CI.
+
+## Application checkpoint before official schema artifact
+
+- Implemented strict private snapshot/receipt schemas, actor-bound client and
+  HTTP/service/database boundaries, explicit attendance, private balance/history,
+  a fan-home entry, and optional consent-gated analytics keyed by ledger entry.
+- Unknown write recovery survives transient snapshot loss and subsequent setup
+  or other non-authority retry errors. Recovery retains the same operation until
+  a bound receipt or definitive account/authority reset establishes the outcome.
+  Known receipts display their actual earned date, including prior-day recovery.
+- Complete local unit regression passed: **9,517 tests in 302 files**. Repository
+  lint/format, **196 CI selector/workflow/aggregate contracts**, and **513 fixture/
+  discovery checks** passed. The final focused recovery regression adds four
+  cases beyond the first 9,513-test run.
+- Typecheck currently reports exactly the two new RPC names missing from the
+  unchanged predecessor-generated `database.ts`; its SHA-256 remains
+  `0c3fc6f3b6bada63e9c6ecbc571e11be364f6e31f0ae66f632635d92e4358bf8`.
+  No type placeholder/cast or manually generated schema edit is introduced.
+  Full application `check:all`/build await the official hosted artifact.
+- Isolated browser coverage contains 20 real local Auth/RPC scenarios and one
+  keyless scenario, with 75 planned screenshots at 360/1280 and all three font
+  sizes. It covers policy missing/zero, replay, prior-day receipt, private tied
+  timestamp pagination, uncertain outcomes, account/auth changes, RSC/cache
+  privacy and consent analytics. These scenarios/screenshots have not run locally;
+  hosted execution and pixel review remain mandatory.
+
+## Official schema generation
+
+DB checkpoint local `ade75395323f68ee5e285d6ff5422d6e18ad24be` was published
+as remote `51fc3a30c3fe467c2f192eaa0bdb093ff658cb9f` with the identical tree
+`45f518c55717178e98121f28c50ab3909675fca0`. Hosted run `40314437903` passed
+all functional database gates, including the new attendance races/populated
+upgrade and generated-schema typecheck. The expected committed-schema drift gate
+failed before import; this bootstrap is not represented as a fully green run.
+
+Official artifact `12647935444` supplies the genuine `database.ts`: **96,118 bytes**,
+SHA-256 `1a8e95f84df293c5cfb8dcd029eff1de995f51d8a091409c05a1b599cff78a82`.
+Its verified ZIP is 9,420 bytes with SHA-256
+`964d36e22a89ee4d1939eb2f5c2b898b4c49009a6e8fddec366889a0a8f99409` and valid
+CRC. The type file was imported unchanged; its diff contains exactly the two new
+JSON-returning attendance RPC definitions.
+
+The actual hosted DB logs record **4,779 pgTAP assertions in 64 files on each of
+two passes**, **514 semantic concurrency scenarios across 33 scripts** (512 raw
+PASS lines plus the two unchanged legacy combined cases), and **nine populated
+upgrades**. Attendance contributes 17 races. The DB stage spans
+11:21:33.841–11:47:28.077 UTC, **25m54.236s**; the existing 30-minute timeout
+remains intact with no regression gate removed.
+
+After importing the genuine schema, the complete application `npm run check:all`
+passed: repository lint/format, typecheck, **9,517 units in 302 files**, contrast,
+and production/PWA build. The final 196 CI contracts and 513 fixture/discovery
+checks also passed. The new attendance browser, all existing browsers, and final
+pixel review remain hosted final-head gates; no local browser success is claimed.

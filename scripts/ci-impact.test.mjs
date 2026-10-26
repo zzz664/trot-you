@@ -18,7 +18,7 @@ const has = (paths, ...jobs) => {
 
 describe('conservative dependency registry', () => {
   it('has one stable job inventory and unique, valid dependency groups', () => {
-    assert.equal(BROWSER_JOBS.length, 23);
+    assert.equal(BROWSER_JOBS.length, 24);
     assert.equal(new Set(CONDITIONAL_JOBS).size, CONDITIONAL_JOBS.length);
     const rules = [...FULL_RULES, ...FEATURE_RULES];
     assert.equal(new Set(rules.map(({ id }) => id)).size, rules.length);
@@ -143,7 +143,7 @@ describe('conservative dependency registry', () => {
     assert.equal(plan.jobs.database, true);
   });
 
-  it('selects five browsers for leaf admin settings instead of all twenty-three', () => {
+  it('selects five browsers for leaf admin settings instead of all twenty-four', () => {
     const plan = has(
       ['src/components/admin-settings/AdminSettingsScreen.tsx'],
       'auth',
@@ -269,7 +269,7 @@ describe('conservative dependency registry', () => {
     for (const known of ['docs/readme.md', 'src/client/schedules.ts']) {
       const plan = selectImpact([known, 'src/server/new-feature/index.ts']);
       assert.equal(plan.mode, 'full');
-      assert.equal(selected(plan).length, 23);
+      assert.equal(selected(plan).length, 24);
     }
   });
 
@@ -292,7 +292,7 @@ describe('conservative dependency registry', () => {
     assert.equal(plan.mode, 'full');
     assert.equal(plan.paths, null);
     assert.equal(plan.pathCount, 1500);
-    assert.equal(selected(plan).length, 23);
+    assert.equal(selected(plan).length, 24);
   });
 });
 
@@ -348,4 +348,35 @@ it('keeps community board consumers linked to shared media, navigation and polic
     'src/components/admin-artists/AdminArtistsScreen.tsx',
   ])
     has([path], 'community-posts', 'community-interactions');
+});
+
+it('selects attendance and auth on isolated attendance leaf changes while keeping its database and shared files full', () => {
+  for (const path of [
+    'src/components/attendance-points/AttendancePointsScreen.tsx',
+    'src/client/attendance-points.ts',
+    'src/server/services/attendance-points/manage.ts',
+    'src/server/attendance-points/http.ts',
+    'src/app/points/page.tsx',
+    'src/app/api/points/attendance/route.ts',
+    'tests/unit/attendance-points-ui.test.tsx',
+    'tests/e2e/attendance-points/attendance-points.spec.ts',
+    'scripts/attendance-points-local-config.mjs',
+    'playwright.attendance-points.config.ts',
+  ]) {
+    const plan = has([path], 'auth', 'attendance-points');
+    assert.equal(plan.mode, 'selective');
+    assert.equal(selected(plan).length, 2);
+    assert.equal(plan.jobs.database, true);
+  }
+  for (const path of [
+    'supabase/migrations/20261026000036_attendance_points.sql',
+    'src/server/db/attendance-points.ts',
+    'src/config/attendance-points.ts',
+    'src/components/attendance-points/AttendancePointsEntry.tsx',
+    'scripts/test-attendance-points-concurrency.mjs',
+    'scripts/test-attendance-points-upgrade.mjs',
+  ]) {
+    const plan = has([path], 'attendance-points');
+    assert.equal(plan.mode, 'full');
+  }
 });

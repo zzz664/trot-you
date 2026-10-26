@@ -2105,5 +2105,51 @@
     "noticeDate": "안내: {date}",
     "noticePrivacy": "처리 결과만 안내하며 삭제되거나 숨겨진 원문은 다시 표시하지 않아요.",
     "restrictionExpired": "설정된 이용 제한의 종료 시각이 지났어요."
+  },
+  "attendancePoints": {
+    "title": "출석과 포인트",
+    "description": "매일 출석을 기록하고 내 포인트 내역을 확인하세요.",
+    "backHome": "홈으로 돌아가기",
+    "entryTitle": "출석과 포인트",
+    "entryDescription": "오늘 출석하고 나만 볼 수 있는 포인트 내역을 확인해요.",
+    "entryOpen": "출석과 포인트 보기",
+    "refresh": "최신 내역 확인",
+    "loading": "출석과 포인트를 확인하고 있어요.",
+    "balanceTitle": "내 포인트",
+    "balanceValue": "{amount}P",
+    "balanceDescription": "기록된 적립과 조정을 합한 포인트예요. 현금 잔액이 아니에요.",
+    "attendanceTitle": "오늘의 출석",
+    "kstDay": "한국 날짜 · {date}",
+    "attendanceRule": "한국 시간 자정부터 다음 자정까지 하루에 한 번 기록돼요.",
+    "configuredAward": "현재 출석 포인트 · {amount}P",
+    "policyUnavailable": "출석 포인트 정책을 준비하고 있어요. 승인된 정책이 준비되면 출석할 수 있어요.",
+    "checkAttendance": "오늘 출석하기",
+    "checkedAttendance": "오늘 출석 완료",
+    "historyTitle": "내 포인트 내역",
+    "historyPrivacy": "내 기록만 보여요. 다른 사람의 정보나 관리자 내부 메모는 표시하지 않아요.",
+    "emptyHistory": "아직 포인트 내역이 없어요.",
+    "loadMore": "이전 내역 더 보기",
+    "entryAmount": "{amount}P",
+    "earnedDate": "기준 날짜 · {date}",
+    "recordedDate": "기록 시간 · {date} (한국 시간)",
+    "reasons": {
+      "attendance": "출석",
+      "post": "게시글 활동",
+      "comment": "댓글 활동",
+      "admin_adjust": "포인트 조정"
+    },
+    "uncertainTitle": "출석 결과를 확인해 주세요",
+    "uncertainDescription": "응답을 받지 못했지만 출석이 기록됐을 수 있어요. 같은 요청으로 결과를 확인하며 중복 적립하지 않아요.",
+    "recoverAttendance": "출석 결과 다시 확인",
+    "savedReceipt": "출석 기록을 확인했어요. {date} · {amount}P",
+    "errors": {
+      "INVALID_INPUT": "요청 정보를 확인하지 못했어요. 최신 내역을 다시 확인해 주세요.",
+      "UNAUTHENTICATED": "로그인이 필요해요. 홈에서 다시 로그인해 주세요.",
+      "FORBIDDEN": "현재 계정으로 이 정보를 볼 수 없어요. 홈에서 이용 상태를 확인해 주세요.",
+      "CONFLICT": "이 요청을 처리하지 못했어요. 최신 내역을 다시 확인해 주세요.",
+      "BALANCE_LIMIT": "포인트 기록 한도 때문에 출석을 처리하지 못했어요. 고객 지원에 문의해 주세요.",
+      "SETUP_NOT_READY": "출석과 포인트 설정을 준비하고 있어요. 잠시 후 다시 확인해 주세요.",
+      "UNAVAILABLE": "출석과 포인트를 불러오지 못했어요. 잠시 후 다시 확인해 주세요."
+    }
   }
 }

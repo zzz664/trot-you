@@ -1,3 +1,4 @@
+import { AttendancePointsEntry } from '@/components/attendance-points/AttendancePointsEntry';
 import { ModerationEntry } from '@/components/community-moderation/ModerationEntry';
 import { CommunityEntry } from '@/components/community-posts/CommunityEntry';
 import { ContentCalendarEntry } from '@/components/content-calendar/ContentCalendarEntry';
@@ -58,6 +59,7 @@ export async function SessionPage({ path }: { path: string }) {
           <ScheduleEntry />
           <CommunityEntry />
           <ModerationEntry />
+          <AttendancePointsEntry />
         </>
       )}
       <SubscriptionEntry />

@@ -9,14 +9,14 @@ lint/format, typecheck, all unit tests, contrast, production build, all local fi
 checks, and the keyless browser suite still run.
 
 For a code PR targeting `develop`, the complete database job still runs: DB lint,
-both consecutive pgTAP passes, all 31 concurrency scripts, all seven populated
+both consecutive pgTAP passes, all 33 concurrency scripts, all nine populated
 upgrades, real generated schema types, typecheck, and committed-type drift checks.
 Only a nonempty change set containing `README.md` and/or Markdown files under
-`docs/` may intentionally skip the database and all 22 isolated feature browsers.
+`docs/` may intentionally skip the database and all 24 isolated feature browsers.
 
 Feature-browser selection is **enabled**, not permanent shadow mode. It applies to
 the entire PR, not merely its newest commit. A localized schedule UI change selects
-6 of 22 feature browsers; a leaf admin-settings change selects 4 of 22. These are
+7 of 24 feature browsers; a leaf admin-settings change selects 5 of 24. These are
 job counts, not measured duration or billing savings.
 
 ## Selection registry
@@ -149,7 +149,7 @@ again. Do not replace populated upgrade tests with fresh-schema-only checks.
 Database selection is intentionally not optimized by SQL filenames. The schedule
 notice migration's first checkpoint passed its new tests while breaking existing
 message-dispatch tests through a shared notification wrapper. Every migration
-therefore retains all DB regressions. All 40 race/upgrade scripts perform whole
+therefore retains all DB regressions. All 42 race/upgrade scripts perform whole
 local-database resets: running them concurrently against one Supabase instance
 would be unsafe. A separate, measured improvement may shard the unchanged suites
 onto isolated runners; this PR does not do that. Browser selection reduces work
@@ -177,3 +177,12 @@ Moderation leaf paths remain full fallback; shared reply/activity, community-pol
 media/navigation and schedule consumers conservatively include the new browser.
 No historical step hash is replaced. The serial database timeout remains 30 minutes
 pending measurement of the added gates on the hosted runner.
+
+Feature 37 adds `attendance-points-browser`, its always-on fixture checks, 17 new
+independent-session race scenarios and a populated migration35-to-36 upgrade.
+The new job is required by the aggregate whenever selected. Isolated attendance
+UI/client/service/API/test paths select Auth plus attendance (2 of 24); all point
+DB modules, SQL, shared configuration, translations, shell entries and unknown
+paths remain full fallback. Selection tests cover both boundaries. No historical
+step hash or existing gate changes. The database job retains its 30-minute limit;
+the prior approximately 26m34 run makes added-gate runtime a monitored risk.

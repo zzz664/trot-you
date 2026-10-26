@@ -2579,6 +2579,18 @@ export type Database = {
           ref_id: string;
         }[];
       };
+      point_ui_check_attendance: {
+        Args: { p_operation_id: string };
+        Returns: Json;
+      };
+      point_ui_snapshot: {
+        Args: {
+          p_before_created_at?: string;
+          p_before_id?: string;
+          p_limit?: number;
+        };
+        Returns: Json;
+      };
       reconciliation_admin_list: {
         Args: { p_limit?: number; p_page?: number };
         Returns: Json;

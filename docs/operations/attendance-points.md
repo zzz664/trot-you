@@ -46,3 +46,20 @@ existing 30-minute timeout is not silently relaxed; runtime headroom is monitore
 Browser fixtures are synthetic and local-only, never evidence of live rewards or
 provider connectivity. No production data, active point policy, real attendance,
 provider, role assignment, deployment or recurring job is changed by development.
+
+## Application behavior
+
+The RSC page supplies only the current actor identity; balance/history load via
+private no-store APIs with a matching actor header. Writes require the configured
+same origin and a bounded, strict operation-id request. Responses, cursor ordering
+and identity are validated on both sides. Current authority failures clear private
+view state; transient reads do not discard a pending immutable attendance intent.
+An unknown write result is recovered by explicitly retrying the identical operation,
+not by fabricating success. A known receipt keeps its real earned date even if a
+subsequent summary refresh fails or the KST day changes.
+
+Optional attendance analytics use the already-existing source-validating server
+API after a verified receipt. The ledger entry UUID is both event identity and
+source, so different same-day operations do not double-count. Current consent and
+analytics policy still govern observation. Missing setup, consent or observation
+transport failure never undo or mislabel the committed attendance result.
