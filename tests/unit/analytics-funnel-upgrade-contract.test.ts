@@ -196,6 +196,30 @@ describe('analytics funnel immutable upgrade and independent-session race harnes
     expect(upgrade).toContain('before[key],');
     expect(upgrade).toContain("count(finalPage, 'voice_input_used'), 2");
   });
+  it('constructs historical capture fixtures without bypassing immutable profile timestamps', () => {
+    const capture = readFileSync(
+      'supabase/tests/analytics_capture.test.sql',
+      'utf8',
+    );
+    const identity = readFileSync(
+      'supabase/migrations/20261024000001_identity_artists.sql',
+      'utf8',
+    );
+    expect(identity).toContain('new.created_at := old.created_at;');
+    expect(capture).toContain(
+      'insert into public.profiles(id,call_name,created_at,onboarding_completed_at)',
+    );
+    expect(capture).toContain(
+      'created_at<=onboarding_completed_at and onboarding_completed_at<',
+    );
+    expect(capture.indexOf('insert into public.profiles(')).toBeLessThan(
+      capture.indexOf('insert into private.analytics_consents('),
+    );
+    expect(capture).not.toMatch(
+      /update public\.profiles set created_at|disable trigger|session_replication_role|drop constraint/i,
+    );
+  });
+
   it('observes exactly sixteen independent PostgreSQL blocking pairs using actual backend PIDs', () => {
     expect(races).toContain('const expectedCases = 16;');
     expect(races).toContain('public.analytics_capture_server(');

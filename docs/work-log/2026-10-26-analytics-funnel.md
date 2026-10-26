@@ -77,3 +77,28 @@ verification. No complete hosted or product-metric pass is claimed here.
 - New capture does not widen the two-name generic browser allowlist, create
   automatic source triggers, approve a policy, grant real consent, or contact a
   provider. The application phase will adopt the new wrappers explicitly.
+
+## Application phase
+
+DB-only local checkpoint `020c2ab6f576a4d7c675eb438187ea45196f3e2a` was
+published by the parent as remote
+`6ad460aec2380e02ee06f49fe2e807db06900aab`, with identical tree
+`c61ffd87b9f5019c862953c3c6114414fd57de54`. Draft PR 43 targets develop.
+The application phase began only after that immutable local checkpoint existed;
+publication, PR management and merge remain parent-controlled. Official generated
+types and actual hosted results are still pending at this point.
+
+### Hosted DB fixture correction
+
+The first hosted DB run stopped during `analytics_capture.test.sql` after six
+successful assertions, before the remainder of that file, the second pgTAP pass,
+races, populated upgrade or generated types. The actual error was
+`profiles_onboarding_time`: the rollback-only historical fan was backdated via
+UPDATE, but the real immutable profile trigger correctly preserved `created_at`.
+
+The correction constructs only that fictional profile with valid historical
+INSERT timestamps before any dependent fixture rows. It does not disable a
+trigger, weaken a constraint, change a production migration or alter the intended
+old-source/no-backfill assertion. An executable chronology assertion and a
+structural regression guard were added. Local focused contracts passed52/52;
+real PostgreSQL verification still requires the next hosted run.

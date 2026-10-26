@@ -13,7 +13,14 @@ select ok((select bool_and(has_function_privilege('service_role',oid,'EXECUTE') 
  'public.analytics_capture_charge(uuid)'::regprocedure,'public.analytics_record_cancellation(uuid,uuid)'::regprocedure)),'only actual service role may call capture wrappers');
 select ok((select bool_and(not has_function_privilege(r,oid,'EXECUTE')) from pg_proc cross join unnest(array['anon','authenticated','service_role'])r where pronamespace='private'::regnamespace and proname like 'analytics_capture_%'),'capture private helpers have no application execute grants');
 insert into auth.users(id,email,raw_user_meta_data) select pg_temp.id(n),'capture-'||n||'@example.invalid','{}' from generate_series(1,3)n;
-update public.profiles set created_at=clock_timestamp()-interval '2 days',call_name='허구수집팬',onboarding_completed_at=clock_timestamp() where id in(pg_temp.id(1),pg_temp.id(2));
+-- profiles_updated_at deliberately preserves OLD.created_at. Construct the
+-- historical rollback-only profile by INSERT before dependent fixture rows;
+-- never disable the real immutable timestamp trigger or weaken its constraint.
+delete from public.profiles where id=pg_temp.id(2);
+insert into public.profiles(id,call_name,created_at,onboarding_completed_at)
+ values(pg_temp.id(2),'허구수집팬',clock_timestamp()-interval '2 days',clock_timestamp()-interval '1 day');
+update public.profiles set call_name='허구수집팬',onboarding_completed_at=clock_timestamp() where id=pg_temp.id(1);
+select ok((select created_at<=onboarding_completed_at and onboarding_completed_at<(select instrumentation_from from private.analytics_dashboard_coverage where singleton) from public.profiles where id=pg_temp.id(2)),'historical signup fixture satisfies real immutable profile chronology before the capture marker');
 update public.profiles set role='artist' where id=pg_temp.id(3);
 set local role authenticated;
 select set_config('request.jwt.claim.sub',pg_temp.id(1)::text,true);
@@ -31,7 +38,6 @@ select throws_ok($$select public.analytics_capture_server(pg_temp.id(1),pg_temp.
 reset role;
 insert into private.onboarding_documents(version,kind,title,body,approved_at,published_at) values
 (pg_temp.id(301),'analytics','Fictional capture document','Rollback-only synthetic policy',now(),now());
-update public.profiles set onboarding_completed_at=clock_timestamp()-interval '1 day' where id=pg_temp.id(2);
 set local role service_role;
 select throws_ok($$select public.analytics_capture_server(pg_temp.id(2),pg_temp.id(102),'signup_complete')$$,'55000','ANALYTICS_CAPTURE_SOURCE_BEFORE_START','old signup read retry is not prospective event backfill');
 select throws_ok($$select public.analytics_capture_server(pg_temp.id(3),pg_temp.id(103),'signup_complete')$$,'42501','ANALYTICS_ACTOR_FORBIDDEN','artist cannot be fan capture actor');
