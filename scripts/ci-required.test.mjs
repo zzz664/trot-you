@@ -325,3 +325,24 @@ test('aggregate CLI accepts exact scoped results and rejects selected failure wi
   );
   assert.equal(readFileSync(summaryPath, 'utf8'), summary);
 });
+
+test('the new settlement-reports browser gate cannot skip selected work or run for unrelated work', () => {
+  const plan = scopedPlan('settlement-reports-browser');
+  const needs = results(plan);
+  assert.match(
+    validateResults(plan, needs, SHA),
+    /Every required job succeeded/,
+  );
+  needs['settlement-reports-browser'].result = 'skipped';
+  assert.throws(
+    () => validateResults(plan, needs, SHA),
+    /settlement-reports-browser: expected success/,
+  );
+  const unrelated = scopedPlan();
+  const unrelatedNeeds = results(unrelated);
+  unrelatedNeeds['settlement-reports-browser'].result = 'success';
+  assert.throws(
+    () => validateResults(unrelated, unrelatedNeeds, SHA),
+    /settlement-reports-browser: expected skipped/,
+  );
+});

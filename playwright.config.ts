@@ -29,6 +29,7 @@ export default defineConfig({
     '**/attendance-points/**',
     '**/activity-rewards/**',
     '**/analytics-funnel/**',
+    '**/settlement-reports/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

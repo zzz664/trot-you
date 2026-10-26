@@ -86,6 +86,10 @@ export const routes = {
   artistReplyActivityMenu: '/artist/replies',
   artistComposeApi: '/api/artist',
   admin: '/admin',
+  adminSettlements: '/admin/settlements',
+  adminSettlementsApi: '/api/admin/settlements',
+  artistSettlements: '/artist/settlements',
+  artistSettlementsApi: '/api/artist/settlements',
   adminArtists: '/admin/artists',
   adminSettings: '/admin/settings',
   adminSubscriptions: '/admin/subscriptions',
@@ -388,4 +392,30 @@ export function analyticsFunnelPath(
 ) {
   const params = new URLSearchParams({ from: query.from, to: query.to });
   return `${api ? routes.analyticsFunnelApi : routes.analyticsFunnel}?${params.toString()}`;
+}
+
+export function settlementReportsPath(
+  query?: { artistId: string; month?: string } | null,
+  artist = false,
+  api = false,
+) {
+  const base = artist
+    ? api
+      ? routes.artistSettlementsApi
+      : routes.artistSettlements
+    : api
+      ? routes.adminSettlementsApi
+      : routes.adminSettlements;
+  if (!query) return base;
+  const params = new URLSearchParams({ artist_id: query.artistId });
+  if (query.month) params.set('month', query.month);
+  return `${base}?${params.toString()}`;
+}
+
+export function settlementReportActionPath(action: 'calculate' | 'confirm') {
+  return `${routes.adminSettlementsApi}/${action}`;
+}
+
+export function settlementReportExportPath(reportId: string, revision: string) {
+  return `${routes.adminSettlementsApi}/${encodeURIComponent(reportId)}/export?${new URLSearchParams({ revision })}`;
 }

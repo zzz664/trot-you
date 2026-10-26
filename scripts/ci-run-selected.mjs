@@ -69,6 +69,10 @@ export const BROWSER_CONFIGS = Object.freeze({
     'playwright.analytics-funnel.config.ts',
     'analytics-funnel',
   ],
+  'settlement-reports-browser': [
+    'playwright.settlement-reports.config.ts',
+    'settlement-reports',
+  ],
 });
 const MODES = [
   'unit',

@@ -648,3 +648,19 @@ test('runtime fails closed on unsupported unit inventory names rather than missi
     directory.dispose();
   }
 });
+
+test('settlement-reports selection cannot execute an analytics or other historical browser file', () => {
+  assert.deepEqual(BROWSER_CONFIGS['settlement-reports-browser'], [
+    'playwright.settlement-reports.config.ts',
+    'settlement-reports',
+  ]);
+  assert.throws(() =>
+    buildSelectedCommands(
+      selected({
+        browser: { 'settlement-reports-browser': [{ file: browser }] },
+      }),
+      'browser',
+      { browserJob: 'settlement-reports-browser' },
+    ),
+  );
+});

@@ -3,32 +3,132 @@
   "id": "settlement-reports",
   "base": "656c6f1292ba408df339521c8d982acd1fdbb305",
   "covers": [
+    ".github/workflows/ci.yml",
     "ci/scopes/settlement-reports.json",
+    "docs/operations/settlement-reports.md",
     "docs/work-log/2026-10-26-settlement-reports.md",
+    "playwright.config.ts",
+    "playwright.settlement-reports.config.ts",
+    "scripts/ci-impact-registry.mjs",
+    "scripts/ci-impact.test.mjs",
+    "scripts/ci-required.test.mjs",
+    "scripts/ci-run-selected.mjs",
+    "scripts/ci-run-selected.test.mjs",
+    "scripts/settlement-reports-local-ci.mjs",
+    "scripts/settlement-reports-local-config.d.mts",
+    "scripts/settlement-reports-local-config.mjs",
+    "scripts/settlement-reports-local-config.test.mjs",
+    "scripts/test-settlement-report-concurrency.mjs",
+    "scripts/test-settlement-report-upgrade.mjs",
+    "src/app/admin/settlements/page.tsx",
+    "src/app/api/admin/settlements/[reportId]/export/route.ts",
+    "src/app/api/admin/settlements/calculate/route.ts",
+    "src/app/api/admin/settlements/confirm/route.ts",
+    "src/app/api/admin/settlements/route.ts",
+    "src/app/api/artist/settlements/route.ts",
+    "src/app/artist/page.tsx",
+    "src/app/artist/settlements/page.tsx",
+    "src/client/settlement-reports.ts",
+    "src/components/auth/SessionPage.tsx",
+    "src/components/settlement-reports/SettlementReportsEntry.tsx",
+    "src/components/settlement-reports/SettlementReportsErrorScreen.tsx",
+    "src/components/settlement-reports/SettlementReportsScreen.tsx",
+    "src/components/settlement-reports/settlement-reports.module.css",
+    "src/components/settlement-reports/useSettlementReports.ts",
+    "src/config/routes.ts",
+    "src/config/settlement-reports.ts",
+    "src/config/settlement-workbook.ts",
+    "src/messages/ko.json",
+    "src/server/adapters/settlement-workbook.ts",
+    "src/server/db/settlement-reports.ts",
+    "src/server/services/settlement-reports/manage.ts",
+    "src/server/services/settlement-reports/workbook.ts",
+    "src/server/settlement-reports/http.ts",
+    "src/server/settlement-reports/page.ts",
+    "src/server/settlement-reports/security.ts",
+    "src/types/database.ts",
     "supabase/migrations/20261026000040_settlement_report_workflow.sql",
-    "supabase/tests/settlement_report_workflow.test.sql"
+    "supabase/tests/settlement_report_precision.test.sql",
+    "supabase/tests/settlement_report_repeatable_read.test.sql",
+    "supabase/tests/settlement_report_serializable.test.sql",
+    "supabase/tests/settlement_report_workflow.test.sql",
+    "tests/e2e/settlement-reports-unconfigured.spec.ts",
+    "tests/e2e/settlement-reports/fixtures.ts",
+    "tests/e2e/settlement-reports/settlement-reports.spec.ts",
+    "tests/e2e/settlement-reports/source-fixture.ts",
+    "tests/e2e/settlement-reports/workbook-inspection.ts",
+    "tests/unit/settlement-report-db-contract.test.ts",
+    "tests/unit/settlement-reports-client.test.ts",
+    "tests/unit/settlement-reports-db.test.ts",
+    "tests/unit/settlement-reports-http.test.ts",
+    "tests/unit/settlement-reports-page.test.ts",
+    "tests/unit/settlement-reports-pages.test.tsx",
+    "tests/unit/settlement-reports-routes.test.ts",
+    "tests/unit/settlement-reports-security.test.ts",
+    "tests/unit/settlement-reports-service.test.ts",
+    "tests/unit/settlement-reports-snapshot.test.ts",
+    "tests/unit/settlement-reports-ui-fixtures.ts",
+    "tests/unit/settlement-reports-ui.test.tsx",
+    "tests/unit/settlement-workbook.test.ts"
   ],
-  "reason": "Feature41 schema checkpoint: coherent actor-bound saved report/read/export and revision-bound draft workflow. No historical test selection.",
+  "reason": "Feature41 saved settlement report review, draft CAS, locked confirmation, current-member artist visibility and precise two-sheet Excel only; exact merge-base plan, no historical suite permission.",
   "selection": {
-    "unit": [],
-    "fixtures": [],
-    "sql": ["supabase/tests/settlement_report_workflow.test.sql"],
-    "races": [],
-    "upgrades": [],
-    "typecheck": false,
-    "browser": {}
+    "unit": [
+      "tests/unit/settlement-report-db-contract.test.ts",
+      "tests/unit/settlement-reports-client.test.ts",
+      "tests/unit/settlement-reports-db.test.ts",
+      "tests/unit/settlement-reports-http.test.ts",
+      "tests/unit/settlement-reports-page.test.ts",
+      "tests/unit/settlement-reports-pages.test.tsx",
+      "tests/unit/settlement-reports-routes.test.ts",
+      "tests/unit/settlement-reports-security.test.ts",
+      "tests/unit/settlement-reports-service.test.ts",
+      "tests/unit/settlement-reports-snapshot.test.ts",
+      "tests/unit/settlement-reports-ui.test.tsx",
+      "tests/unit/settlement-workbook.test.ts"
+    ],
+    "fixtures": [
+      "scripts/settlement-reports-local-config.test.mjs",
+      "scripts/ci-impact.test.mjs",
+      "scripts/ci-required.test.mjs",
+      "scripts/ci-run-selected.test.mjs",
+      "scripts/ci-workflow.test.mjs"
+    ],
+    "sql": [
+      "supabase/tests/settlement_report_workflow.test.sql",
+      "supabase/tests/settlement_report_repeatable_read.test.sql",
+      "supabase/tests/settlement_report_serializable.test.sql",
+      "supabase/tests/settlement_report_precision.test.sql"
+    ],
+    "races": ["scripts/test-settlement-report-concurrency.mjs"],
+    "upgrades": ["scripts/test-settlement-report-upgrade.mjs"],
+    "typecheck": true,
+    "browser": {
+      "quality": [
+        {
+          "file": "tests/e2e/settlement-reports-unconfigured.spec.ts"
+        }
+      ],
+      "settlement-reports-browser": [
+        {
+          "file": "tests/e2e/settlement-reports/settlement-reports.spec.ts"
+        }
+      ]
+    }
   },
   "reasons": {
-    "sql": "Only new report workflow assertions for current authority/consent, exact snapshot, draft CAS, confirmed lock and source privacy.",
-    "unit": "Schema checkpoint only; application contracts follow in this same feature.",
-    "fixtures": "No fixture code committed in this checkpoint.",
-    "races": "Selected new concurrency tests follow; no historical race suites.",
-    "upgrades": "Selected populated39-to40 upgrade follows; no historical upgrade chain.",
-    "browser": "No UI code committed in this checkpoint.",
-    "typecheck": "Official generated schema artifact checkpoint; no hand-edited types."
+    "unit": "Only newly added report schema/service/exact snapshot/DB/HTTP/body/page/route/UI/client/XLSX and database-harness contract tests. The changed admin/artist navigation is verified by new report browser flows; historical feature tests remain dormant.",
+    "fixtures": "Only new isolated-report environment guard plus four existing direct registry/runner/required/workflow contracts affected by one new browser job. No historical provider/feature fixture matrix.",
+    "sql": "Exactly four new report files:60 workflow,4 repeatable-read,4 serializable and7 tiny large-gross precision assertions. Prior calculation/report foundation suites remain dormant.",
+    "races": "Only ten new independent-session report CAS, coherent revision export commit/rollback, confirm idempotency, current actor/consent/membership and NOWAIT source order scenarios.",
+    "upgrades": "Only populated39-to40 preservation and actual SQL report/export JSON through current exact app validation, including tiny two-charge/refund precision fixture. No previous upgrade chain.",
+    "browser": "Exactly27 new report authenticated cases and1 new keyless case. Includes12 visual captures admin/artist ×3 text scales ×2 widths; no historical browser file or case selected.",
+    "typecheck": "Dependency graph compile and genuine generated-schema drift validation, not authorization for cumulative regression."
   },
   "exclusions": [
-    "No whole or cumulative unit/SQL/browser/race/upgrade/check:all run.",
-    "No actual payouts, production deployment, policy activation, roles, credentials or provider operations."
+    "No check:all, full/cumulative unit,SQL,browser,race,upgrade run or unknown-impact fallback.",
+    "No prior calculation,analytics,provider,media,calendar,moderation,rewards or other unchanged feature suites.",
+    "No production deployment or designated predeployment full run.",
+    "No actual payout,provider or bank operation,policy activation,role approval,credentials,scheduler or external notices."
   ]
 }

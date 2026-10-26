@@ -6,6 +6,7 @@ import { AuthForm } from '@/components/auth/AuthForm';
 import { Card } from '@/components/ui/Card';
 import { ComposeErrorScreen } from '@/components/artist-compose-menu/ComposeErrorScreen';
 import {
+  settlementReportsPath,
   artistContentCalendarPath,
   artistComposeMenuPath,
   artistComposePath,
@@ -27,6 +28,7 @@ export default async function ArtistPage({
   const activity = await getTranslations('artistReplyActivity');
   const account = await getTranslations('adminArtists');
   const calendar = await getTranslations('contentCalendar');
+  const settlement = await getTranslations('settlementReports');
   return (
     <main className="app-shell">
       <h1>{auth('artistTitle')}</h1>
@@ -52,6 +54,13 @@ export default async function ArtistPage({
         ) : (
           result.data.artists.map((artist) => (
             <div key={artist.id} className={calendarStyles.stack}>
+              <Link
+                href={settlementReportsPath({ artistId: artist.id }, true)}
+                prefetch={false}
+                className="ui-button ui-button--secondary"
+              >
+                {settlement('artistEntry', { name: artist.name })}
+              </Link>
               <Link
                 href={artistComposePath(artist.slug)}
                 prefetch={false}
