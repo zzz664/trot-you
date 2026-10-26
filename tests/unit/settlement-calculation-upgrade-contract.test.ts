@@ -203,6 +203,28 @@ describe('settlement calculation selected DB harness contracts', () => {
       expect(races).toContain(scenario);
     expect(races).toContain("for (const finalize of ['commit', 'rollback'])");
   });
+  it('identifies blocked sessions by actual backend PID even when diagnostic labels exceed PostgreSQL limits', () => {
+    const commitLabel =
+      'settlement-calculation-concurrency-refund-before-commit-second';
+    const rollbackLabel =
+      'settlement-calculation-concurrency-refund-before-rollback-second';
+    expect(Buffer.byteLength(commitLabel)).toBe(62);
+    expect(Buffer.byteLength(rollbackLabel)).toBe(64);
+    expect(races).toContain(
+      "this.pid = Number(await this.query('select pg_backend_pid();'))",
+    );
+    expect(races).toContain('Number.isSafeInteger(this.pid) && this.pid > 0');
+    const observation = races.slice(
+      races.indexOf('async function waitForBlock'),
+      races.indexOf('// Selected feature40 tests only.'),
+    );
+    expect(observation).toContain('waiting.pid = ${waiting.pid}');
+    expect(observation).toContain('blocking.pid = ${blocking.pid}');
+    expect(observation).toContain(
+      'blocking.pid = any(pg_blocking_pids(waiting.pid))',
+    );
+    expect(observation).not.toContain('application_name');
+  });
   it('keeps destructive test setup local and restores it without any full-suite invocation', () => {
     for (const harness of [races, upgrade]) {
       expect(harness).toContain("['--context', 'default']");

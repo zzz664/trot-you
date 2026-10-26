@@ -125,6 +125,10 @@ class Session {
       set lock_timeout = '${timeoutMs}ms';
       set timezone = 'UTC';
     `);
+    // application_name is truncated by PostgreSQL at NAMEDATALEN-1 bytes.
+    // Labels remain diagnostics only; real backend PIDs identify lock owners.
+    this.pid = Number(await this.query('select pg_backend_pid();'));
+    assert.ok(Number.isSafeInteger(this.pid) && this.pid > 0);
     return this;
   }
 
@@ -144,8 +148,8 @@ async function waitForBlock(observer, waiting, blocking) {
     const result = await observer.query(`
       select exists (
         select 1 from pg_stat_activity waiting, pg_stat_activity blocking
-        where waiting.application_name = '${waiting.label}'
-          and blocking.application_name = '${blocking.label}'
+        where waiting.pid = ${waiting.pid}
+          and blocking.pid = ${blocking.pid}
           and waiting.wait_event_type = 'Lock'
           and blocking.pid = any(pg_blocking_pids(waiting.pid))
       );

@@ -118,3 +118,27 @@ migration 적용은 허용되지만 선택 SQL만 실행한다. 공식 생성 �
 - 후속 exact-head hosted 검증은 SQL 62개를 두 번, 새 경합 11개, 새 upgrade
   하나, genuine drift 및 선택 unit/lint만 실행한다. 선택 실패를 실패로 유지하고
   모든 실제 gate가 관측되기 전 병합 완료라고 표현하지 않는다.
+
+## 실제 selected 경합의 관측 식별자 수정
+
+- 원격 app head `1f7da2aedd2c414428cd581e423abe6d116af2f5`, tree
+  `d0a4736f91cf73196cb4b84935e51392d43c29db`가 로컬 checkpoint와 같음을
+  fetch로 확인하고 로컬 tip을 archive/bundle에 보존한 뒤 정렬했다.
+- [CI 40379176745](https://github.com/zzz664/trot-you/actions/runs/40379176745)는
+  새 unit 6 files / 146개와 실제 선택 SQL 4 files / 62개 두 번을 통과했다.
+  경합의 첫 refund-commit은 통과했지만 rollback waiter를 관측하지 못해
+  실패했다. 이후 populated upgrade/type 단계는 실행되지 않았고 성공으로
+  표시하지 않는다.
+- 원인은 test harness의 `application_name` 문자열 조회다. commit waiter는
+  62 bytes지만 rollback waiter는 64 bytes이며 PostgreSQL은 이름을 통상
+  63 bytes로 절단한다. pg_stat_activity에 저장되지 않는 64-byte 원문과
+  비교해서 실제 잠금을 찾을 수 없었다. timeout 확대나 assertion 제거로
+  숨기지 않았다.
+- 각 실제 session에서 `pg_backend_pid()`를 읽고 positive safe integer인지
+  확인한 후 observer가 두 PID를 정확히 조회하도록 수정했다. `Lock` 상태와
+  실제 `pg_blocking_pids(waiting.pid)` 관계 증거는 그대로 요구한다. diagnostic
+  이름 길이는 잠금 검증에 더 이상 영향을 주지 않는다. 모든 11 cases 유지.
+- 변경 harness-contract unit 파일 하나의 **25 tests**와 변경 두 파일 ESLint,
+  Prettier, concurrency script syntax, git whitespace 검사가 통과했다.
+  이번 수정에서 제품 코드/SQL/타입/기존 tests는 변경하지 않았고 전체 검사를
+  실행하지 않았다. 새 exact-head hosted selected 경합·upgrade 결과는 대기다.
