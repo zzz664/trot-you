@@ -53,3 +53,68 @@ migration 적용은 허용되지만 선택 SQL만 실행한다. 공식 생성 �
 - hosted selected SQL/official DB types/drift gate는 대기다. 첫 실행은 새 함수에
   대한 genuine 타입 artifact를 얻는 checkpoint이며 타입 drift 실패를 성공으로
   표시하지 않는다. 공개 타입은 수동 보정하지 않았다.
+
+## 앱 계산과 선택 검증
+
+- 부모가 게시한 draft PR #44의 첫 원격 head
+  `fb2420358a95bcd3432d0e060d712bab4b72bc00` tree는 로컬 DB checkpoint
+  `2de91c5d1399411ca9980a80cd467d7deda46ab9`의
+  `819a5472e7ea9da4684b09480f94f5053206153b`와 동일하다. 로컬 tip을 archive와
+  bundle에 보존하고 soft 정렬하여 작업 중 파일을 그대로 유지했다.
+- config의 strict 입력/응답 schema, 정수 유리수 연산, KST 주간 clipping과
+  정확한 요구량, 순수 calculate, actor/artist/month 바인딩 service, actor DB
+  adapter를 추가했다. money/rate/source version은 문자열이며 JS Number로
+  계산하지 않는다. 마지막 KRW만 half-up하고 30자리 표시 소수는 별도로
+  exact=false임을 표시하여 계산·감사 원본 분수와 혼동하지 않는다.
+- 새 계산/주간/유리수 unit 79개와 새 DB/service boundary 43개, 정확히
+  **5 files / 122 tests**를 함께 실행해 통과했다. 내부 oracle 64 조합,
+  표시 정밀도보다 작은 약 2e-34 차이의 half 경계, 큰 금액, 마이크로초,
+  실패/미확정 attempt 거절과 정책 복사·반복 읽기 권한 철회를 포함한다.
+- 초기 경계 unit 실행은 공유 schema export 작업 전 실행하여 실패했고,
+  export 완료 후 같은 선택 파일이 통과했다. compile에서 bigint 리터럴
+  추론을 명시 bigint 타입으로 바로잡았다. 현재 pre-types compile의 유일한
+  오류는 아직 genuine 타입에 없는 새 RPC 이름이다. 타입을 위조하지 않는다.
+- 변경된 앱 파일만 ESLint 통과했다. 기존 feature의 tests는 실행하지 않았다.
+  독립 read-only 검토는 수식/잠금/정책/actor 경계에서 차단 결함을 발견하지
+  않았다. 실제 DB DTO와 계산의 연결, 실제 blocked session 경합, 두 source
+  cap의 전체 거절은 별도 선택 검증으로 보강한다.
+
+## genuine 타입과 실제 초기 SQL 증거
+
+- PR #44 exact head `fb2420358a95bcd3432d0e060d712bab4b72bc00`의
+  [CI 40378109128](https://github.com/zzz664/trot-you/actions/runs/40378109128)는
+  실제 Supabase PG17에서 선택 SQL 3개 **57 assertions를 두 번** 통과했다.
+  전체 SQL·기존 analytics·기존 race/upgrade/browser는 실행하지 않았다.
+- 해당 run의 예상된 유일한 실패는 committed type drift다. 공식 artifact
+  `12676986599` ZIP digest를 부모 검증자가 검증했고 그 `database.ts`를
+  **97,116 bytes**, SHA-256
+  `a6ad66c3de2b08a4d9a9899eac33261d4ce0b168e717e87ac5448210dda43a81`
+  그대로 반영했다. 원본 artifact와 cmp byte-identical을 확인했다.
+- 타입 변경은 `settlement_calculation_input` 함수 Args/JSON 반환 계약 추가뿐이다.
+  genuine 반영 후 dependency graph typecheck가 통과했다. 전체 build나 누적
+  테스트를 typecheck의 일부로 실행하지 않았다.
+- 별도 새 limit SQL은 supplemental PG18에서 정확히 **5 assertions** 통과했다.
+  메시지와 검증 원장 각각 50,000 전체 입력을 허용하고 50,001에서 계산 자체를
+  거절하며 report를 만들지 않는다. 최종 hosted scoped run에서 실제 PG17 재검증한다.
+- 독립 harness review가 지적한 precision 검증 공백을 수정했다: upgrade의
+  predecessor JSON은 Number로 parse한 값이 아니라 canonical raw JSON 문자열로
+  byte-exact 비교한다. SQL 분수의 정수 `.000000` suffix는 엄격히 0만 허용해
+  제거하며 Number 변환 없이 BigInt 교차곱으로 검사한다. 실제 RPC envelope를
+  실제 strict schema로 검증한 뒤 계산기와 SQL의 7개 exact component를 비교한다.
+
+## 최종 앱 checkpoint 선택 결과
+
+- 전체 PR 변경 24개 경로가 이번 baseline manifest 한 개로 매핑된다.
+  정확한 선택은 새 unit 6 files / **146 tests**, 새 SQL 4 files / **62 assertions**,
+  새 독립-session 경합 script 1개 / **11 cases**, populated 38→39 upgrade 1개다.
+  browser/fixture 선택은 빈 목록이며 기존 테스트는 모두 보존·비활성이다.
+- scoped runner로 새 unit 146개와 변경 24개 경로의 ESLint/Prettier가 통과했다.
+  두 신규 DB harness의 `node --check`, `git diff --check`, genuine 반영
+  `npm run typecheck`가 통과했다. 전체 단위/SQL/경합/upgrade/브라우저,
+  `check:all`, production build는 실행하지 않았다.
+- supplemental PG18의 추가 source-cap 5개 및 populated38→39 + 실제 JSON을
+  strict envelope·순수 계산기에 통과시킨 7 exact component parity가 통과했다.
+  이 증거는 실제 Supabase PG17 populated upgrade/병렬 경합을 대신하지 않는다.
+- 후속 exact-head hosted 검증은 SQL 62개를 두 번, 새 경합 11개, 새 upgrade
+  하나, genuine drift 및 선택 unit/lint만 실행한다. 선택 실패를 실패로 유지하고
+  모든 실제 gate가 관측되기 전 병합 완료라고 표현하지 않는다.

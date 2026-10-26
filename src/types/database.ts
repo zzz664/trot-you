@@ -2954,6 +2954,10 @@ export type Database = {
         Args: { p_artist_id: string; p_month: string };
         Returns: string;
       };
+      settlement_calculation_input: {
+        Args: { p_artist_id: string; p_month: string };
+        Returns: Json;
+      };
       settlement_confirm: {
         Args: { p_expected_revision: string; p_report_id: string };
         Returns: undefined;

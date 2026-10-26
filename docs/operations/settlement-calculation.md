@@ -20,9 +20,13 @@ not expose a new browser/API route. Report UX and export remain separate work.
   joined to its verification evidence. `charge` and `refund` are ledger kinds;
   initial/renewal/retry classify payment attempts, not extra revenue. Failed,
   unknown, or pending attempts cannot become settlement revenue.
+- The supported technical calendar range is 2000-01 through 9998-12; this
+  avoids historical timezone-offset and extended-year ambiguity. It does not
+  imply that any contract or policy exists for that range.
 - Rate and amount JSON values are strings. The application never round-trips
-  money through a JavaScript floating-point number. A source bound fails closed
-  rather than returning a partial month.
+  money through a JavaScript floating-point number. More than 50,000 ledger
+  events or 50,000 sent messages fails closed rather than returning a partial
+  month.
 
 ## Deterministic calculation
 
