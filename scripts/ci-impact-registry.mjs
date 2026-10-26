@@ -27,6 +27,7 @@ export const BROWSER_JOBS = Object.freeze([
   'attendance-points-browser',
   'activity-rewards-browser',
   'analytics-funnel-browser',
+  'settlement-reports-browser',
 ]);
 
 export const CONDITIONAL_JOBS = Object.freeze(['database', ...BROWSER_JOBS]);

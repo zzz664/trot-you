@@ -1041,6 +1041,41 @@ jobs:
           retention-days: 7
       - run: npm run db:stop -- --no-backup
         if: always()
+  settlement-reports-browser:
+    needs: impact
+    if: ${{ needs.impact.result == 'success' && fromJSON(needs.impact.outputs.plan).jobs['settlement-reports-browser'] }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      CI_IMPACT_PLAN: ${{ needs.impact.outputs.plan }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/auth-local-ci.mjs configure
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: node scripts/auth-local-ci.mjs environment
+      - run: node scripts/settlement-reports-local-ci.mjs environment
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # Fictional local Auth/verified ledger/report fixtures and actual database RPCs only.
+      # No payout, live policy approval, provider traffic or scheduler.
+      - run: node scripts/ci-run-selected.mjs browser settlement-reports-browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: settlement-reports-browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - run: npm run db:stop -- --no-backup
+        if: always()
   # Require this stable check in branch rules before relying on selective CI.
   # always() is essential: upstream failure/cancellation/skips must be inspected.
   ci-required:
@@ -1075,6 +1110,7 @@ jobs:
       - attendance-points-browser
       - activity-rewards-browser
       - analytics-funnel-browser
+      - settlement-reports-browser
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

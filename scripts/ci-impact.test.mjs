@@ -41,8 +41,8 @@ const plan = (paths = [path], scopes = [scope()]) =>
 
 describe('explicit scoped development plans', () => {
   it('retains stable complete job inventory without a full-run mode', () => {
-    assert.equal(BROWSER_JOBS.length, 26);
-    assert.equal(new Set(CONDITIONAL_JOBS).size, 27);
+    assert.equal(BROWSER_JOBS.length, 27);
+    assert.equal(new Set(CONDITIONAL_JOBS).size, 28);
     assert.deepEqual(CONDITIONAL_JOBS, ['database', ...BROWSER_JOBS]);
     assert.deepEqual(REQUIRED_JOB_IDS, [
       'impact',
@@ -345,4 +345,27 @@ describe('NUL-delimited diff evidence', () => {
       assert.throws(() => parseNameStatus(Buffer.from(input))));
   it('rejects invalid UTF-8 instead of replacing path bytes', () =>
     assert.throws(() => parseNameStatus(Buffer.from([77, 0, 255, 0]))));
+});
+
+it('settlement-report work selects exactly its own registered browser job, not historical browser groups', () => {
+  const changed = 'tests/e2e/settlement-reports/settlement-reports.spec.ts';
+  const result = plan(
+    [changed],
+    [
+      scope({
+        id: 'settlement-reports',
+        covers: [changed],
+        selection: {
+          ...emptySelection(),
+          browser: { 'settlement-reports-browser': [{ file: changed }] },
+        },
+      }),
+    ],
+  );
+  assert.deepEqual(
+    BROWSER_JOBS.filter((job) => result.jobs[job]),
+    ['settlement-reports-browser'],
+  );
+  assert.equal(result.jobs.database, false);
+  assert.deepEqual(result.selection.unit, []);
 });

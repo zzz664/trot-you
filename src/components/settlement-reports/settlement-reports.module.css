@@ -1,0 +1,56 @@
+.screen {
+  overflow-wrap: anywhere;
+}
+.stack,
+.list,
+.notice,
+.details,
+.details > div {
+  display: grid;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+}
+.list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+.list > li,
+.notice {
+  min-width: 0;
+  border: var(--border-width) solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  padding: calc(var(--space-unit) * 2);
+}
+.details {
+  margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+.details > div {
+  gap: var(--space-unit);
+}
+.details dt {
+  color: var(--color-muted);
+}
+.details dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-unit);
+}
+.actions > * {
+  max-width: 100%;
+}
+.screen input {
+  min-width: 0;
+  max-width: 100%;
+}
+.exact {
+  font-size: var(--fs-caption);
+  overflow-wrap: anywhere;
+}

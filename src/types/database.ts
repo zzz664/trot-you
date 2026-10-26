@@ -2977,6 +2977,30 @@ export type Database = {
         Args: { p_event_id: string; p_target_month: string };
         Returns: undefined;
       };
+      settlement_report_calculate: {
+        Args: {
+          p_artist_id: string;
+          p_expected_revision?: string;
+          p_month: string;
+        };
+        Returns: Json;
+      };
+      settlement_report_confirm: {
+        Args: { p_expected_revision: string; p_report_id: string };
+        Returns: Json;
+      };
+      settlement_report_export: {
+        Args: { p_expected_revision: string; p_report_id: string };
+        Returns: Json;
+      };
+      settlement_report_read: {
+        Args: {
+          p_artist_id: string;
+          p_include_sources?: boolean;
+          p_month: string;
+        };
+        Returns: Json;
+      };
       settlement_report_sources: {
         Args: { p_report_id: string };
         Returns: {
