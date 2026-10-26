@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import {
   adminSettingsGroupSchema,
+  adminSettingsSaveSchema,
   adminSettingsListSchema,
   type AdminSettingsGroup,
   type AdminSettingsGroupKey,
@@ -368,10 +369,56 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       ).toBe(30);
       const reviewed = await prepareReview(page, 'display', 'page_size', 36);
       await reviewed.getByLabel(copy.confirm, { exact: true }).check();
-      await button(reviewed, copy.save).dblclick();
+      const submit = button(reviewed, copy.save);
+      await submit.scrollIntoViewIfNeeded();
+      const submitBox = await submit.boundingBox();
+      expect(submitBox).not.toBeNull();
+      let saveRequests = 0;
+      page.on('request', (request) => {
+        if (
+          new URL(request.url()).pathname === routes.adminSettingsApi &&
+          request.method() === 'POST'
+        )
+          saveRequests += 1;
+      });
+      const acceptedWrite = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === routes.adminSettingsApi &&
+          response.request().method() === 'POST',
+      );
+      // Keep the actual, unheld fast double-click regression. Its second
+      // pointer event must not hit navigation after the first save settles.
+      await submit.dblclick();
+      const accepted = await acceptedWrite;
+      expect(accepted.status()).toBe(200);
+      const acceptedBody = await accepted.json();
+      expect(acceptedBody.ok).toBe(true);
+      adminSettingsGroupSchema.parse(acceptedBody.data);
+      const change = adminSettingsSaveSchema.parse(
+        accepted.request().postDataJSON(),
+      );
       await expect(
         main(page).getByRole('status').filter({ hasText: copy.saved }),
       ).toBeVisible();
+      await expect(page).toHaveURL(routes.adminSettings);
+      // Also prove a delayed continuation at the original physical point after
+      // the post-save read, without sleeping or depending on response speed.
+      await page.mouse.move(
+        submitBox!.x + submitBox!.width / 2,
+        submitBox!.y + submitBox!.height / 2,
+      );
+      await page.mouse.down({ clickCount: 2 });
+      await page.mouse.up({ clickCount: 2 });
+      await expect(page).toHaveURL(routes.adminSettings);
+      await expect(
+        main(page).getByRole('status').filter({ hasText: copy.saved }),
+      ).toBeVisible();
+      expect(saveRequests).toBe(1);
+      expect(
+        (await snapshot(context.request)).audit.filter(
+          (entry) => entry.operation_id === change.operation_id,
+        ),
+      ).toHaveLength(1);
       await expect(editor(page, 'display')).toHaveCount(0);
       expect(
         (await current(context.request, 'display')).values?.page_size,
@@ -530,6 +577,122 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       ).toBeVisible();
       await expect(page).toHaveURL(routes.start);
     });
+
+test('physical double-click keeps the pending review inert through accepted write and verification read', async ({
+  world,
+  context,
+  page,
+}, info) => {
+  setFont(world.admin, 'large');
+  await world.admin.signIn(context);
+  await page.setViewportSize({ width: 360, height: 900 });
+  await open(page);
+  const confirmation = await prepareReview(page, 'display', 'page_size', 38);
+  await confirmation.getByLabel(copy.confirm, { exact: true }).check();
+  const reviewNode = await confirmation.elementHandle();
+  expect(reviewNode).not.toBeNull();
+  let writes = 0;
+  let releaseWrite!: () => void;
+  let releaseRead!: () => void;
+  let acceptedWrite!: (input: AdminSettingsSaveInput) => void;
+  let rejectWrite!: (error: unknown) => void;
+  let acceptedRead!: () => void;
+  let rejectRead!: (error: unknown) => void;
+  const writeHeld = new Promise<void>((resolve) => {
+    releaseWrite = resolve;
+  });
+  const readHeld = new Promise<void>((resolve) => {
+    releaseRead = resolve;
+  });
+  const writeAccepted = new Promise<AdminSettingsSaveInput>(
+    (resolve, reject) => {
+      acceptedWrite = resolve;
+      rejectWrite = reject;
+    },
+  );
+  const readAccepted = new Promise<void>((resolve, reject) => {
+    acceptedRead = resolve;
+    rejectRead = reject;
+  });
+  // Attach rejection handlers before either gated request can fail.
+  void writeAccepted.catch(() => undefined);
+  void readAccepted.catch(() => undefined);
+  await page.route(`**${routes.adminSettingsApi}`, async (route) => {
+    const writing = route.request().method() === 'POST';
+    if (!writing && route.request().method() !== 'GET') return route.continue();
+    try {
+      if (writing) writes += 1;
+      const response = await route.fetch();
+      expect(response.status()).toBe(200);
+      const body = await response.json();
+      expect(body.ok).toBe(true);
+      if (writing) {
+        adminSettingsGroupSchema.parse(body.data);
+        acceptedWrite(
+          adminSettingsSaveSchema.parse(route.request().postDataJSON()),
+        );
+        await writeHeld;
+      } else {
+        adminSettingsListSchema.parse(body.data);
+        acceptedRead();
+        await readHeld;
+      }
+      await route.fulfill({ response });
+    } catch (error) {
+      if (writing) rejectWrite(error);
+      else rejectRead(error);
+      throw error;
+    }
+  });
+  try {
+    await button(confirmation, copy.save).dblclick();
+    const change = await writeAccepted;
+    expect(writes).toBe(1);
+    expect(await reviewNode!.evaluate((node) => node.isConnected)).toBe(true);
+    await expect(
+      main(page).locator('[data-admin-settings-content]'),
+    ).toHaveAttribute('inert', '');
+    await expect(button(confirmation, copy.save)).toBeDisabled();
+    await expect(page).toHaveURL(routes.adminSettings);
+    await captureElement(
+      page,
+      confirmation,
+      info,
+      'settings-submit-pending-large-360',
+      'large',
+    );
+    releaseWrite();
+    await readAccepted;
+    expect(await reviewNode!.evaluate((node) => node.isConnected)).toBe(true);
+    await expect(
+      main(page).locator('[data-admin-settings-content]'),
+    ).toHaveAttribute('inert', '');
+    await expect(button(confirmation, copy.save)).toBeDisabled();
+    await expect(
+      main(page).getByRole('status').filter({ hasText: copy.saved }),
+    ).toHaveCount(0);
+    releaseRead();
+    await expect(
+      main(page).getByRole('status').filter({ hasText: copy.saved }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(routes.adminSettings);
+    expect(writes).toBe(1);
+    const latest = await snapshot(context.request);
+    expect(
+      latest.groups.find((row) => row.key === 'display')!.values?.page_size,
+    ).toBe(38);
+    expect(
+      latest.audit.filter(
+        (entry) => entry.operation_id === change.operation_id,
+      ),
+    ).toHaveLength(1);
+  } finally {
+    releaseWrite();
+    releaseRead();
+    await page.unroute(`**${routes.adminSettingsApi}`);
+    await reviewNode?.dispose();
+  }
+});
 
 test('accepted write with lost response refreshes without replay and canceled navigation ignores a late response', async ({
   world,

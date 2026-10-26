@@ -89,3 +89,64 @@ passed: repository lint/format, typecheck, **9,517 units in 302 files**, contras
 and production/PWA build. The final 196 CI contracts and 513 fixture/discovery
 checks also passed. The new attendance browser, all existing browsers, and final
 pixel review remain hosted final-head gates; no local browser success is claimed.
+
+## Hosted attendance UI and pixel verification
+
+On remote app head `ea85af1f6a8139eb55026271291e33764eeae64c` (same tree
+`5013a46636dfd8fc485992bef1981289729ca2f0` as local `ae6a711`), run
+`40318400054` passed all **20 attendance browser scenarios in 51.3 seconds**.
+Verified artifact `12649030013` contains all **75 planned PNGs**; ZIP size is
+9,887,363 bytes and SHA-256
+`9fcf8564c68fc29edcb9859deced1ce2cd0be881459f6853717768e643aee7b6`.
+Size, SHA and ZIP CRC were checked before inspection.
+
+All 75 actual screenshots were visually reviewed: 36 at 360px, 36 at 1280px,
+and three authority/recovery screens. The review covers all three text scales,
+every vertical region of long history pages (up to 12,630px), and offscreen home,
+recovery and load-more controls. No overlap, clipping, unreadable text or truncated
+controls were found. This is synthetic CI evidence, not production activation.
+
+The same full run exposed an existing admin-settings large/360 physical-double-
+click failure: the page was already at policies before the intended navigation.
+Source and installed Playwright pointer semantics identify synchronous save-time
+layout collapse as a click-through risk. That separate regression is not recorded
+as passed; a narrow fix and final-head repeat are required before merge.
+
+## Admin-settings physical-click regression repair
+
+The failing hosted test was not retried blindly or weakened to a single click.
+A focused unit regression first demonstrated that the original implementation
+removed the reviewed form as soon as Save began. The narrow repair retains the
+already authorized review and values as an inert, busy region through the write
+and its verification read. It does not insert a loading block above that retained
+region. After a successful verification the form is replaced normally; a scoped
+click-sequence boundary prevents a continuation (`detail > 1`) from activating a
+newly exposed link. Fresh pointer clicks and keyboard activation remain usable.
+No timer or arbitrary delay is involved.
+
+Ordinary reload, errors/denials, navigation, pagehide and hidden-document
+invalidation still purge private data and abort/ignore stale responses. Pending
+and verification failures have explicit unit assertions. The original physical
+fast `dblclick` remains in all six font/viewport browser cases, now with exact
+one-POST/one-audit and no-unintended-navigation assertions. A settled second
+pointer event at the old submit coordinates is also tested. A new held-response
+case verifies the actual accepted server response before forwarding it, proves
+that the same inert review survives both pending stages, and captures the pending
+review. This is evidence for the tested browser pointer sequence, not a claim
+about every device-specific click-count behavior.
+
+The focused admin-settings suite passes **340 tests** after the reproduced
+failure. The **196 CI selector/workflow/aggregate contracts** and **513 fixture/
+discovery guards** also pass. There are no database, generated-type, workflow,
+timeout or policy-approval changes in this repair. The full local gate and exact
+new-head hosted browser/visual verification are recorded separately when they
+finish; no local browser or database execution was attempted.
+
+The repair's complete local `npm run check:all` passes: lint/format, typecheck,
+**9,525 units in 302 files**, contrast and production/PWA build. The original
+app run `40318400054` also finished with all database gates green, including
+committed-schema drift, in **25m50.495s**. Its separate quality job was canceled
+at the 15-minute limit while APT was fetching browser system packages; those
+quality-browser tests never ran. That infrastructure failure and the diagnosed
+admin-settings failure are not waived: the repaired immutable head still needs
+its complete hosted run and actual browser/pixel review before merge.
