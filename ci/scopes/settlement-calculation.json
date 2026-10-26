@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "id": "settlement-calculation",
+  "base": "e0a8f8be79d5b4f3792eb84128865c4ef84e2f3c",
+  "covers": [
+    "ci/scopes/settlement-calculation.json",
+    "docs/operations/settlement-calculation.md",
+    "docs/work-log/2026-10-26-settlement-calculation.md",
+    "src/types/database.ts",
+    "supabase/migrations/20261026000039_settlement_calculation.sql",
+    "supabase/tests/settlement_calculation.test.sql",
+    "supabase/tests/settlement_calculation_repeatable_read.test.sql",
+    "supabase/tests/settlement_calculation_serializable.test.sql"
+  ],
+  "reason": "Feature40 early read-only settlement database checkpoint only; baseline-bound explicit new SQL. App/units/races/upgrade selections are added only when their files are committed.",
+  "selection": {
+    "unit": [],
+    "fixtures": [],
+    "sql": [
+      "supabase/tests/settlement_calculation.test.sql",
+      "supabase/tests/settlement_calculation_repeatable_read.test.sql",
+      "supabase/tests/settlement_calculation_serializable.test.sql"
+    ],
+    "races": [],
+    "upgrades": [],
+    "typecheck": true,
+    "browser": {}
+  },
+  "reasons": {
+    "unit": "Application files and their unit tests are not part of this early DB checkpoint.",
+    "fixtures": "No fixture, planner or workflow changed.",
+    "sql": "Only three new read-only settlement snapshot SQL files, including READ COMMITTED isolation restrictions.",
+    "races": "New selected race script is still being implemented, not claimed executed or passed in this checkpoint.",
+    "upgrades": "New populated38→39 script is still being implemented, not claimed executed or passed in this checkpoint.",
+    "browser": "No UI/client/routing changes and no browser selection.",
+    "typecheck": "Compile baseline code and generate genuine schema types; not cumulative tests."
+  },
+  "exclusions": [
+    "No check:all, full unit/SQL/browser/race/upgrade run, or fallback on shared/schema files.",
+    "No UI or product workflow changes; existing artist activity UI and related browser matrix remain unchanged.",
+    "Existing settlement report create/confirm/export remains feature41 and is not invoked by this read-only service.",
+    "No deployment, real policy activation, role grants, credentials, scheduler, payment provider, or payout."
+  ]
+}

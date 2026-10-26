@@ -1,0 +1,12 @@
+begin isolation level serializable;
+create extension if not exists pgtap with schema extensions;
+set local search_path=public,extensions;
+select no_plan();
+insert into auth.users(id,email,raw_user_meta_data) values('d4090000-0000-4000-8000-000000000001','calculation-isolation@example.invalid','{}');
+update public.profiles set role='admin' where id='d4090000-0000-4000-8000-000000000001';
+set local role authenticated;
+select set_config('request.jwt.claim.sub','d4090000-0000-4000-8000-000000000001',true);
+select throws_ok($$select public.settlement_calculation_input(gen_random_uuid(),'2026-01-01')$$,'25001','SETTLEMENT_READ_COMMITTED_REQUIRED','serializable cannot reuse a stale pre-fence source snapshot');
+reset role;
+select * from finish();
+rollback;
