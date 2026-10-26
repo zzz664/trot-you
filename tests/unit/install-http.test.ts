@@ -8,8 +8,15 @@ import { success, failure } from '@/lib/result';
 import { installPost } from '@/server/install/http';
 
 const mocks = vi.hoisted(() => ({
+  observation: vi.fn(),
   context: vi.fn(),
   install: { read: vi.fn(), acknowledge: vi.fn(), complete: vi.fn() },
+}));
+vi.mock('@/server/analytics/capture', () => ({
+  getAnalyticsCapturePort: () => ({
+    server: mocks.observation,
+    cancellation: mocks.observation,
+  }),
 }));
 vi.mock('@/server/auth/context', () => ({ createAuthContext: mocks.context }));
 vi.mock('@/server/db/install', () => ({
@@ -58,6 +65,7 @@ function request(
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.observation.mockResolvedValue({ ok: true, data: null });
   mocks.context.mockReturnValue(context());
   mocks.install.acknowledge.mockResolvedValue({ ok: true, data: null });
 });
@@ -243,4 +251,52 @@ it('allows a lost-response completion retry to revalidate through the transactio
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ ok: true, next: routes.home });
   expect(mocks.install.complete).toHaveBeenCalledOnce();
+});
+
+describe('prospective signup source hook', () => {
+  it('records only successful completion with actor-stable identity and no profile text', async () => {
+    mocks.install.complete.mockResolvedValue({
+      ok: true,
+      data: '2026-10-26T00:00:00Z',
+    });
+    const req = request({ action: 'complete' });
+    const response = await installPost(req);
+    expect(response.status).toBe(200);
+    expect(mocks.observation).toHaveBeenCalledExactlyOnceWith(
+      {
+        actor_id: profile.id,
+        event: {
+          name: 'signup_complete',
+          event_key: profile.id,
+          properties: {},
+        },
+      },
+      req.signal,
+    );
+  });
+  it('does not call signup capture for acknowledgement alone', async () => {
+    await installPost(request());
+    expect(mocks.observation).not.toHaveBeenCalled();
+  });
+  it('does not record failed completion', async () => {
+    mocks.install.complete.mockResolvedValue({
+      ok: false,
+      code: 'UNAVAILABLE',
+    });
+    expect((await installPost(request({ action: 'complete' }))).status).toBe(
+      503,
+    );
+    expect(mocks.observation).not.toHaveBeenCalled();
+  });
+  it('keeps completion success after unknown optional capture outcome', async () => {
+    mocks.install.complete.mockResolvedValue({
+      ok: true,
+      data: '2026-10-26T00:00:00Z',
+    });
+    mocks.observation.mockRejectedValue(new Error('offline'));
+    const response = await installPost(request({ action: 'complete' }));
+    expect(response.status).toBe(200);
+    expect(mocks.install.complete).toHaveBeenCalledOnce();
+    expect(mocks.observation).toHaveBeenCalledOnce();
+  });
 });

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -16,14 +17,33 @@ import { test } from 'node:test';
 import { planForEvent, validatePlan } from './ci-impact.mjs';
 import { CONDITIONAL_JOBS } from './ci-impact-registry.mjs';
 
-const SCHEDULE = 'src/components/schedules/SchedulesScreen.tsx';
-const SETTINGS = 'src/components/admin-settings/AdminSettingsScreen.tsx';
+const FIRST = 'src/server/services/analytics/capture.ts';
+const SECOND = 'src/components/analytics-funnel/AnalyticsFunnelScreen.tsx';
 const SHARED = 'src/server/db/client.ts';
-
+const selection = () => ({
+  typecheck: false,
+  unit: ['tests/unit/analytics-capture.test.ts'],
+  fixtures: [],
+  sql: [],
+  races: [],
+  upgrades: [],
+  browser: {},
+});
+const scopes = (base, covers) => [
+  {
+    version: 1,
+    id: 'fixture-scope',
+    base,
+    covers,
+    reason: 'Exact changed paths in disposable history.',
+    selection: selection(),
+  },
+];
 function repository(t, files = {}) {
   const root = mkdtempSync(join(tmpdir(), 'trot-ci-impact-'));
   const cwd = join(root, 'source');
   mkdirSync(cwd);
+  mkdirSync(join(cwd, 'ci/scopes'), { recursive: true });
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const env = {
     ...process.env,
@@ -76,147 +96,135 @@ function repository(t, files = {}) {
   return { root, cwd, env, git, write, commit, initial, merge };
 }
 
-function full(plan, reason) {
-  assert.equal(plan.mode, 'full');
-  if (reason) assert.equal(plan.reason, reason);
-  assert.ok(CONDITIONAL_JOBS.every((job) => plan.jobs[job] === true));
-  validatePlan(plan);
-}
+const planned = (repo, event, covers, base = repo.initial) =>
+  validatePlan(planForEvent(event, repo.cwd, scopes(base, covers)));
 
-test('whole multi-commit PR is selected from merge base, not its final commit', (t) => {
+test('complete multi-commit PR scope is computed from merge base, not final commit', (t) => {
   const repo = repository(t);
-  repo.write(SCHEDULE, 'schedule first commit\n');
-  repo.commit('Schedule change');
-  repo.write(SETTINGS, 'settings second commit\n');
-  repo.commit('Settings change');
+  repo.write(FIRST, 'first source change\n');
+  repo.commit('First change');
+  repo.write(SECOND, 'second source change\n');
+  repo.commit('Second change');
   const event = repo.merge();
-  const plan = validatePlan(planForEvent(event, repo.cwd));
-  assert.equal(plan.mode, 'selective');
-  assert.deepEqual(plan.paths, [SETTINGS, SCHEDULE]);
+  const plan = planned(repo, event, [FIRST, SECOND]);
+  assert.equal(plan.mode, 'scoped');
+  assert.deepEqual(plan.changedPaths, [FIRST, SECOND].sort());
   assert.equal(plan.provenance.mergeBase, repo.initial);
   assert.equal(plan.provenance.testSha, event.sha);
-  assert.equal(plan.jobs.database, true);
-  assert.equal(plan.jobs['schedules-browser'], true);
-  assert.equal(plan.jobs['schedule-notices-browser'], true);
-  assert.equal(plan.jobs['admin-settings-browser'], true);
-  assert.equal(plan.jobs['enrollment-browser'], false);
+  assert.deepEqual(plan.selection.unit, selection().unit);
+  assert.ok(CONDITIONAL_JOBS.every((job) => !plan.jobs[job]));
+  assert.throws(() => planned(repo, event, [SECOND]));
 });
 
-test('advanced base is distinguished from PR changes in a divergent fork-like history', (t) => {
+test('advanced base stays distinct from fork-like PR merge-base changes', (t) => {
   const repo = repository(t);
-  repo.write(SCHEDULE, 'fork contribution\n');
-  const head = repo.commit('Fork feature commit');
+  repo.write(FIRST, 'fork contribution\n');
+  const head = repo.commit('Fork source');
   repo.git('checkout', '--quiet', 'develop');
-  repo.write('docs/base-only.md', 'Already on the base branch.\n');
-  const base = repo.commit('Independent base commit');
+  repo.write('docs/base-only.md', 'Already merged on base.\n');
+  const base = repo.commit('Base advance');
   repo.git('checkout', '--quiet', 'feature');
   const event = repo.merge();
   event.event.pull_request.head.repo = { full_name: 'contributor/fork' };
-  event.event.pull_request.base.repo = { full_name: 'owner/repository' };
-  const plan = validatePlan(planForEvent(event, repo.cwd));
-  assert.equal(plan.mode, 'selective');
-  assert.deepEqual(plan.paths, [SCHEDULE]);
+  const plan = planned(repo, event, [FIRST]);
+  assert.deepEqual(plan.changedPaths, [FIRST]);
   assert.equal(plan.provenance.base, base);
   assert.equal(plan.provenance.head, head);
   assert.equal(plan.provenance.mergeBase, repo.initial);
-  assert.notEqual(plan.provenance.mergeBase, base);
+  assert.throws(() => planned(repo, event, [FIRST], base));
 });
 
-test('rename across feature families includes both previous and current owners', (t) => {
-  const repo = repository(t, { [SCHEDULE]: 'identical rename content\n' });
-  mkdirSync(dirname(join(repo.cwd, SETTINGS)), { recursive: true });
-  renameSync(join(repo.cwd, SCHEDULE), join(repo.cwd, SETTINGS));
-  repo.commit('Rename across features');
-  const plan = validatePlan(planForEvent(repo.merge(), repo.cwd));
-  assert.equal(plan.mode, 'selective');
-  assert.deepEqual(plan.paths, [SETTINGS, SCHEDULE]);
-  assert.equal(plan.jobs['schedules-browser'], true);
-  assert.equal(plan.jobs['admin-settings-browser'], true);
-});
-
-test('deleting a feature file retains its old dependency mapping', (t) => {
-  const repo = repository(t, {
-    [SCHEDULE]: 'remove this schedule component\n',
-  });
-  rmSync(join(repo.cwd, SCHEDULE));
-  repo.commit('Delete schedule component');
-  const plan = validatePlan(planForEvent(repo.merge(), repo.cwd));
-  assert.equal(plan.mode, 'selective');
-  assert.deepEqual(plan.paths, [SCHEDULE]);
-  assert.equal(plan.jobs['schedules-browser'], true);
-  assert.equal(plan.jobs.database, true);
-});
-
-test('deleting a shared file forces full instead of ignoring its absent path', (t) => {
-  const repo = repository(t, { [SHARED]: 'shared client\n' });
-  rmSync(join(repo.cwd, SHARED));
-  repo.commit('Delete shared client');
-  const plan = planForEvent(repo.merge(), repo.cwd);
-  full(plan, 'full-impact-path');
-  assert.deepEqual(plan.paths, [SHARED]);
-});
-
-test('renaming a shared file into docs does not disguise shared impact', (t) => {
-  const repo = repository(t, { [SHARED]: 'same content across rename\n' });
-  const target = 'docs/renamed-client.md';
-  mkdirSync(dirname(join(repo.cwd, target)), { recursive: true });
-  renameSync(join(repo.cwd, SHARED), join(repo.cwd, target));
-  repo.commit('Rename shared client into documentation');
-  const plan = planForEvent(repo.merge(), repo.cwd);
-  full(plan, 'full-impact-path');
-  assert.deepEqual(plan.paths, [target, SHARED]);
-});
-
-test('NUL Git diff preserves spaces, newline, Unicode and shell-looking names as data', (t) => {
-  const repo = repository(t);
-  const unusual =
-    'src/components/schedules/한글 [a] $HOME;\n`touch injected`.tsx';
-  repo.write(unusual, 'No shell interpretation.\n');
-  repo.commit('Unusual path fixture');
-  const plan = validatePlan(planForEvent(repo.merge(), repo.cwd));
-  assert.equal(plan.mode, 'selective');
-  assert.deepEqual(plan.paths, [unusual]);
-  assert.equal(plan.jobs['schedules-browser'], true);
-  assert.deepEqual(repo.git('status', '--porcelain'), '');
-});
-
-test('large PR diff is not limited to a first page of changed filenames', (t) => {
-  const repo = repository(t);
-  const paths = Array.from(
-    { length: 350 },
-    (_, index) => `docs/${String(index).padStart(3, '0')}.md`,
+test('rename requires coverage of both old and new exact paths', (t) => {
+  const repo = repository(t, { [FIRST]: 'unchanged rename content\n' });
+  mkdirSync(dirname(join(repo.cwd, SECOND)), { recursive: true });
+  renameSync(join(repo.cwd, FIRST), join(repo.cwd, SECOND));
+  repo.commit('Rename source');
+  const event = repo.merge();
+  assert.deepEqual(
+    planned(repo, event, [FIRST, SECOND]).changedPaths,
+    [FIRST, SECOND].sort(),
   );
-  for (const path of paths) repo.write(path, `${path}\n`);
-  repo.write(SHARED, 'late shared change must not be missed\n');
-  repo.commit('Large PR fixture');
-  const plan = planForEvent(repo.merge(), repo.cwd);
-  full(plan, 'full-impact-path');
+  assert.throws(() => planned(repo, event, [SECOND]));
+});
+
+test('deletion requires scope for removed source and never ignores its absence', (t) => {
+  const repo = repository(t, { [SHARED]: 'removed shared source\n' });
+  rmSync(join(repo.cwd, SHARED));
+  repo.commit('Delete shared source');
+  const event = repo.merge();
+  assert.throws(() => planForEvent(event, repo.cwd, []));
+  const plan = planned(repo, event, [SHARED]);
+  assert.deepEqual(plan.changedPaths, [SHARED]);
+  assert.equal(plan.mode, 'scoped');
+  assert.equal(plan.jobs.database, false);
+});
+
+test('moving executable source into docs cannot disguise its removed path', (t) => {
+  const repo = repository(t, { [SHARED]: 'same content\n' });
+  const destination = 'docs/renamed-client.md';
+  mkdirSync(dirname(join(repo.cwd, destination)), { recursive: true });
+  renameSync(join(repo.cwd, SHARED), join(repo.cwd, destination));
+  repo.commit('Move source into docs');
+  const event = repo.merge();
+  assert.throws(() => planForEvent(event, repo.cwd, []));
+  assert.deepEqual(
+    planned(repo, event, [SHARED]).changedPaths,
+    [destination, SHARED].sort(),
+  );
+});
+
+test('type changes require an explicit exact-path scope without cumulative fallback', (t) => {
+  const repo = repository(t, { [FIRST]: 'regular file\n' });
+  rmSync(join(repo.cwd, FIRST));
+  symlinkSync('Other.ts', join(repo.cwd, FIRST));
+  repo.commit('Change source type');
+  const event = repo.merge();
+  assert.throws(() => planForEvent(event, repo.cwd, []));
+  assert.equal(planned(repo, event, [FIRST]).mode, 'scoped');
+});
+
+test('untrusted filename remains data and missing scope fails without executing shell', (t) => {
+  const repo = repository(t);
+  const unusual = 'src/한글 [a] $HOME;\n`touch injected`.tsx';
+  repo.write(unusual, 'Only filename bytes.\n');
+  repo.commit('Untrusted filename');
+  assert.throws(() => planForEvent(repo.merge(), repo.cwd, []));
+  assert.equal(existsSync(join(repo.cwd, 'injected')), false);
+  assert.equal(repo.git('status', '--porcelain'), '');
+});
+
+test('large complete PR diff preserves late shared change rather than truncating evidence', (t) => {
+  const repo = repository(t);
+  const docs = Array.from(
+    { length: 350 },
+    (_, i) => `docs/${String(i).padStart(3, '0')}.md`,
+  );
+  for (const path of docs) repo.write(path, `${path}\n`);
+  repo.write(SHARED, 'late shared path\n');
+  repo.commit('Large diff');
+  const event = repo.merge();
+  assert.throws(() => planForEvent(event, repo.cwd, []));
+  const plan = planned(repo, event, [SHARED]);
   assert.equal(plan.pathCount, 351);
-  assert.deepEqual(plan.paths, [...paths, SHARED]);
+  assert.deepEqual(plan.changedPaths, [...docs, SHARED].sort());
 });
 
-test('a docs-only PR has an explicit verified skip plan', (t) => {
+test('docs and instruction-only PR uses verified empty selection', (t) => {
   const repo = repository(t);
-  repo.write('docs/ci-notes.md', 'Documentation only.\n');
-  repo.commit('Documentation fixture');
-  const plan = validatePlan(planForEvent(repo.merge(), repo.cwd));
+  repo.write('docs/notes.md', 'Docs only.\n');
+  repo.write('AGENTS.md', 'Instructions only.\n');
+  repo.commit('Documentation');
+  const plan = validatePlan(planForEvent(repo.merge(), repo.cwd, []));
   assert.equal(plan.mode, 'docs-only');
-  assert.ok(CONDITIONAL_JOBS.every((job) => plan.jobs[job] === false));
-  assert.equal(plan.pathCount, 1);
+  assert.deepEqual(plan.selection.unit, []);
+  assert.equal(plan.selection.typecheck, false);
+  assert.ok(CONDITIONAL_JOBS.every((job) => !plan.jobs[job]));
 });
 
-test('file type changes force full even under a normally selective feature path', (t) => {
-  const repo = repository(t, { [SCHEDULE]: 'ordinary source file\n' });
-  rmSync(join(repo.cwd, SCHEDULE));
-  symlinkSync('Other.tsx', join(repo.cwd, SCHEDULE));
-  repo.commit('File type fixture');
-  full(planForEvent(repo.merge(), repo.cwd), 'file-type-change');
-});
-
-test('shallow checkout with missing parent objects falls back to full', (t) => {
+test('shallow checkout missing history throws rather than scheduling all tests', (t) => {
   const repo = repository(t);
-  repo.write(SCHEDULE, 'schedule\n');
-  repo.commit('Feature fixture');
+  repo.write(FIRST, 'change\n');
+  repo.commit('Change');
   const event = repo.merge();
   const shallow = join(repo.root, 'shallow');
   repo.git(
@@ -227,88 +235,78 @@ test('shallow checkout with missing parent objects falls back to full', (t) => {
     pathToFileURL(repo.cwd).href,
     shallow,
   );
-  full(planForEvent(event, shallow), 'diff-unavailable');
+  assert.throws(() =>
+    planForEvent(event, shallow, scopes(repo.initial, [FIRST])),
+  );
 });
 
-test('unavailable event commit object cannot become an empty green selection', (t) => {
+test('missing commit and wrong merge parents fail closed', (t) => {
   const repo = repository(t);
-  repo.write(SCHEDULE, 'schedule\n');
-  repo.commit('Feature fixture');
+  repo.write(FIRST, 'change\n');
+  const head = repo.commit('Change');
   const event = repo.merge();
-  event.event.pull_request.head.sha = 'f'.repeat(40);
-  full(planForEvent(event, repo.cwd), 'diff-unavailable');
-});
-
-test('event head checkout instead of the tested merge commit forces full', (t) => {
-  const repo = repository(t);
-  repo.write(SCHEDULE, 'schedule\n');
-  const head = repo.commit('Feature fixture');
-  const event = repo.merge();
+  const missing = structuredClone(event);
+  missing.event.pull_request.head.sha = 'f'.repeat(40);
+  assert.throws(() => planned(repo, missing, [FIRST]));
   repo.git('checkout', '--quiet', '--detach', head);
-  event.sha = head;
-  full(planForEvent(event, repo.cwd), 'merge-parent-mismatch');
+  assert.throws(() => planned(repo, { ...event, sha: head }, [FIRST]));
 });
 
-test('a stale event base cannot selectively describe a different merge commit', (t) => {
+test('stale event base cannot describe the tested merge', (t) => {
   const repo = repository(t);
-  repo.write(SCHEDULE, 'schedule\n');
-  repo.commit('Feature fixture');
+  repo.write(FIRST, 'change\n');
+  repo.commit('Change');
   repo.git('checkout', '--quiet', 'develop');
-  repo.write('docs/new-base.md', 'base advance\n');
-  repo.commit('Advanced base');
+  repo.write('docs/base.md', 'advance\n');
+  repo.commit('Advance');
   repo.git('checkout', '--quiet', 'feature');
   const event = repo.merge();
   event.event.pull_request.base.sha = repo.initial;
-  full(planForEvent(event, repo.cwd), 'merge-parent-mismatch');
+  assert.throws(() => planned(repo, event, [FIRST]));
 });
 
-test('checkout identity mismatch fails rather than trusting the requested SHA', (t) => {
+test('checkout mismatch and unsafe SHA never become a runnable plan', (t) => {
   const repo = repository(t);
-  repo.write(SCHEDULE, 'schedule\n');
-  repo.commit('Feature fixture');
+  repo.write(FIRST, 'change\n');
+  repo.commit('Change');
   const event = repo.merge();
-  event.sha = repo.initial;
-  assert.throws(() => planForEvent(event, repo.cwd), /Checkout does not match/);
-  event.sha = 'refs/heads/develop; echo unsafe';
-  assert.throws(() => planForEvent(event, repo.cwd), /invalid workflow SHA/);
+  assert.throws(() => planned(repo, { ...event, sha: repo.initial }, [FIRST]));
+  assert.throws(() =>
+    planned(repo, { ...event, sha: 'refs/heads/develop; echo unsafe' }, [
+      FIRST,
+    ]),
+  );
 });
 
-for (const baseRef of [
-  'main',
-  'release/2026-10',
-  'releases/2026-10',
-  'unknown',
-  undefined,
-]) {
-  test(`PR base ${String(baseRef)} always runs full`, (t) => {
+for (const baseRef of ['main', 'release/2026-10', 'unknown', undefined])
+  test(`base ${String(baseRef)} is not an authorized scoped development PR`, (t) => {
     const repo = repository(t);
-    repo.write(SCHEDULE, 'schedule\n');
-    repo.commit('Feature fixture');
+    repo.write(FIRST, 'change\n');
+    repo.commit('Change');
     const event = repo.merge();
     event.event.pull_request.base.ref = baseRef;
-    full(planForEvent(event, repo.cwd), 'protected-or-unknown-base');
+    assert.throws(() => planned(repo, event, [FIRST]));
   });
-}
-
 for (const eventName of [
   'workflow_dispatch',
   'push',
   'merge_group',
   'release',
   'unrecognized',
-]) {
-  test(`${eventName} cannot request a selective run`, (t) => {
+])
+  test(`${eventName} fails instead of selecting a cumulative run`, (t) => {
     const repo = repository(t);
     const sha = repo.git('rev-parse', 'HEAD');
-    full(planForEvent({ eventName, event: {}, sha }, repo.cwd), 'full-event');
+    assert.throws(() =>
+      planForEvent({ eventName, event: {}, sha }, repo.cwd, []),
+    );
   });
-}
 
-test('missing or malformed PR commit metadata broadens the run', (t) => {
+test('malformed metadata and empty diff fail closed', (t) => {
   const repo = repository(t);
   const sha = repo.git('rev-parse', 'HEAD');
-  for (const head of [undefined, {}, { sha: 'not-a-commit' }]) {
-    full(
+  for (const head of [undefined, {}, { sha: 'not-a-commit' }])
+    assert.throws(() =>
       planForEvent(
         {
           eventName: 'pull_request',
@@ -316,21 +314,21 @@ test('missing or malformed PR commit metadata broadens the run', (t) => {
           sha,
         },
         repo.cwd,
+        [],
       ),
-      'missing-pr-commits',
     );
-  }
+  repo.git('commit', '--quiet', '--allow-empty', '-m', 'Empty change');
+  assert.throws(() => planForEvent(repo.merge(), repo.cwd, []));
+  assert.throws(() =>
+    planForEvent(
+      { eventName: 'pull_request', event: {}, sha },
+      join(repo.root, 'not-a-repository'),
+      [],
+    ),
+  );
 });
 
-test('an empty tree diff is a full run, not a documentation-only skip', (t) => {
-  const repo = repository(t);
-  repo.git('commit', '--quiet', '--allow-empty', '-m', 'Empty feature commit');
-  const plan = planForEvent(repo.merge(), repo.cwd);
-  full(plan, 'empty-diff');
-  assert.deepEqual(plan.paths, []);
-});
-
-test('criss-cross history with two merge bases broadens rather than picking one', (t) => {
+test('criss-cross merge-base ambiguity is rejected without choosing a narrower history', (t) => {
   const repo = repository(t);
   const tree = repo.git('rev-parse', 'HEAD^{tree}');
   const first = repo.git(
@@ -339,7 +337,7 @@ test('criss-cross history with two merge bases broadens rather than picking one'
     '-p',
     repo.initial,
     '-m',
-    'First branch',
+    'First',
   );
   const second = repo.git(
     'commit-tree',
@@ -347,7 +345,7 @@ test('criss-cross history with two merge bases broadens rather than picking one'
     '-p',
     repo.initial,
     '-m',
-    'Second branch',
+    'Second',
   );
   const base = repo.git(
     'commit-tree',
@@ -357,7 +355,7 @@ test('criss-cross history with two merge bases broadens rather than picking one'
     '-p',
     second,
     '-m',
-    'First merge',
+    'Merge A',
   );
   const head = repo.git(
     'commit-tree',
@@ -367,7 +365,7 @@ test('criss-cross history with two merge bases broadens rather than picking one'
     '-p',
     first,
     '-m',
-    'Second merge',
+    'Merge B',
   );
   const sha = repo.git(
     'commit-tree',
@@ -384,7 +382,7 @@ test('criss-cross history with two merge bases broadens rather than picking one'
     repo.git('merge-base', '--all', base, head).split('\n').length,
     2,
   );
-  full(
+  assert.throws(() =>
     planForEvent(
       {
         eventName: 'pull_request',
@@ -397,16 +395,16 @@ test('criss-cross history with two merge bases broadens rather than picking one'
         sha,
       },
       repo.cwd,
+      [],
     ),
-    'ambiguous-merge-base',
   );
 });
 
-test('unrelated commit histories cannot produce an empty selective plan', (t) => {
+test('unrelated histories cannot produce a runnable empty scope', (t) => {
   const repo = repository(t);
   const tree = repo.git('rev-parse', 'HEAD^{tree}');
   const base = repo.initial;
-  const head = repo.git('commit-tree', tree, '-m', 'Unrelated feature root');
+  const head = repo.git('commit-tree', tree, '-m', 'Unrelated');
   const sha = repo.git(
     'commit-tree',
     tree,
@@ -415,10 +413,10 @@ test('unrelated commit histories cannot produce an empty selective plan', (t) =>
     '-p',
     head,
     '-m',
-    'Unrelated PR merge',
+    'Merge',
   );
   repo.git('checkout', '--quiet', '--detach', sha);
-  full(
+  assert.throws(() =>
     planForEvent(
       {
         eventName: 'pull_request',
@@ -431,49 +429,48 @@ test('unrelated commit histories cannot produce an empty selective plan', (t) =>
         sha,
       },
       repo.cwd,
+      [],
     ),
-    'diff-unavailable',
   );
 });
 
-test('selector CLI emits a single-line verified docs-only plan and run summary', (t) => {
+test('selector CLI emits one verified docs plan and refuses non-PR execution without outputs', (t) => {
   const repo = repository(t);
-  repo.write('docs/cli-smoke.md', 'Documentation-only CLI fixture.\n');
-  repo.commit('CLI documentation fixture');
+  repo.write('docs/cli.md', 'Only docs.\n');
+  repo.commit('Docs');
   const event = repo.merge();
   const eventPath = join(repo.root, 'event.json');
-  const outputPath = join(repo.root, 'output.txt');
-  const summaryPath = join(repo.root, 'summary.md');
+  const output = join(repo.root, 'output.txt');
+  const summary = join(repo.root, 'summary.md');
   writeFileSync(eventPath, JSON.stringify(event.event));
-  const stdout = execFileSync(
-    process.execPath,
-    [fileURLToPath(new URL('./ci-impact.mjs', import.meta.url))],
-    {
-      cwd: repo.cwd,
-      env: {
-        ...repo.env,
-        GITHUB_EVENT_NAME: event.eventName,
-        GITHUB_EVENT_PATH: eventPath,
-        GITHUB_SHA: event.sha,
-        GITHUB_OUTPUT: outputPath,
-        GITHUB_STEP_SUMMARY: summaryPath,
-      },
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  );
-  const output = readFileSync(outputPath, 'utf8');
-  assert.match(output, /^plan=[^\n]+\n$/);
-  const plan = validatePlan(JSON.parse(output.slice('plan='.length).trim()));
+  const script = fileURLToPath(new URL('./ci-impact.mjs', import.meta.url));
+  const env = {
+    ...repo.env,
+    GITHUB_EVENT_NAME: event.eventName,
+    GITHUB_EVENT_PATH: eventPath,
+    GITHUB_SHA: event.sha,
+    GITHUB_OUTPUT: output,
+    GITHUB_STEP_SUMMARY: summary,
+  };
+  execFileSync(process.execPath, [script], {
+    cwd: repo.cwd,
+    env,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const text = readFileSync(output, 'utf8');
+  assert.match(text, /^plan=[^\n]+\n$/);
+  const plan = validatePlan(JSON.parse(text.slice('plan='.length).trim()));
   assert.equal(plan.mode, 'docs-only');
-  assert.equal(plan.provenance.testSha, event.sha);
-  assert.deepEqual(plan.paths, ['docs/cli-smoke.md']);
-  assert.ok(CONDITIONAL_JOBS.every((job) => plan.jobs[job] === false));
-  assert.equal(JSON.parse(stdout).mode, 'docs-only');
-  const summary = readFileSync(summaryPath, 'utf8');
-  assert.match(summary, /CI impact plan/);
-  assert.match(summary, /documentation-only skip/);
-  assert.match(summary, /docs\/cli-smoke\.md/);
+  assert.deepEqual(plan.changedPaths, ['docs/cli.md']);
+  assert.match(readFileSync(summary, 'utf8'), /CI plan/);
+  const failedOutput = join(repo.root, 'failed-output.txt');
+  const failed = spawnSync(process.execPath, [script], {
+    cwd: repo.cwd,
+    env: { ...env, GITHUB_EVENT_NAME: 'push', GITHUB_OUTPUT: failedOutput },
+    encoding: 'utf8',
+  });
+  assert.equal(failed.status, 1);
+  assert.equal(existsSync(failedOutput), false);
   assert.equal(repo.git('status', '--porcelain'), '');
-  assert.equal(repo.git('rev-parse', 'HEAD'), event.sha);
 });

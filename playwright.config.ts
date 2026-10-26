@@ -28,6 +28,7 @@ export default defineConfig({
     '**/community-moderation/**',
     '**/attendance-points/**',
     '**/activity-rewards/**',
+    '**/analytics-funnel/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

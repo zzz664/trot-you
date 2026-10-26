@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { AnalyticsEvent, analyticsPropertySchemas } from './analytics-events';
 
-// This feature exposes voice observation only. Other event routes need their own
-// integration and must not use the inclusive event vocabulary as an allowlist.
+// The generic browser endpoint accepts only the documented client observations.
+// Preview rendering has a separate fixed-purpose endpoint, never a business-event allowlist.
 export const voiceInputEventSchema = z.strictObject({
   event_key: z.uuid(),
   name: z.literal(AnalyticsEvent.VOICE_INPUT_USED),
@@ -28,3 +28,15 @@ export const ANALYTICS_ERROR_STATUS = {
 export type AnalyticsError = keyof typeof ANALYTICS_ERROR_STATUS;
 export type AnalyticsResult<T> =
   { ok: true; data: T } | { ok: false; code: AnalyticsError };
+
+// A fixed-purpose observation is not proof of human viewing. No arbitrary name,
+// actor, timestamp, transcript, provider details or browser metadata is accepted.
+export const previewAnalyticsSchema = z.strictObject({
+  event_key: z.uuid(),
+  source_id: z.uuid(),
+});
+export const ANALYTICS_PREVIEW_SOURCE_ATTRIBUTE =
+  'data-analytics-preview-source';
+
+export const ANALYTICS_PREVIEW_ACTOR_HEADER = 'X-Preview-Observation-Actor';
+export const previewAnalyticsActorSchema = z.uuid();

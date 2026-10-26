@@ -7,12 +7,17 @@ import { chatMessagesPath, chatReadPath } from '@/config/routes';
 import { chatMessagesGet, chatReadPost } from '@/server/chat/http';
 
 const mock = vi.hoisted(() => ({
+  observation: vi.fn(),
+  analyticsPort: vi.fn(),
   context: vi.fn(),
   serviceClient: vi.fn(),
   pagePort: vi.fn(),
   readPort: vi.fn(),
   page: vi.fn(),
   mark: vi.fn(),
+}));
+vi.mock('@/server/db/analytics', () => ({
+  createAnalyticsPort: mock.analyticsPort,
 }));
 vi.mock('@/server/auth/context', () => ({ createAuthContext: mock.context }));
 vi.mock('@/server/db/chat-client', () => ({
@@ -88,6 +93,8 @@ function post(
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  mock.analyticsPort.mockReturnValue({ record: mock.observation });
+  mock.observation.mockResolvedValue({ ok: true, data: null });
   mock.context.mockReturnValue(context());
   mock.serviceClient.mockReturnValue({ serviceCapability: true });
   mock.pagePort.mockReturnValue({ trustedPage: true });
@@ -342,3 +349,55 @@ describe.each(['get', 'read'] as const)(
     );
   },
 );
+
+describe('same-request actor-bound message observation', () => {
+  it('uses the exact authenticated read capability and stable message key without a second browser request', async () => {
+    const auth = context();
+    mock.context.mockReturnValue(auth);
+    const request = post();
+    const response = await chatReadPost(request, slug, messageId);
+    expect(response.status).toBe(200);
+    expect(mock.analyticsPort).toHaveBeenCalledExactlyOnceWith(auth.client);
+    expect(mock.observation).toHaveBeenCalledExactlyOnceWith(
+      {
+        event_key: messageId,
+        name: 'message_open',
+        properties: { source_id: messageId },
+      },
+      request.signal,
+    );
+  });
+  it('never collects a refused read', async () => {
+    mock.mark.mockResolvedValue({ ok: false, code: 'FORBIDDEN' });
+    expect((await chatReadPost(post(), slug, messageId)).status).toBe(403);
+    expect(mock.observation).not.toHaveBeenCalled();
+  });
+  it('preserves successful read when observation refuses or throws without retry', async () => {
+    mock.observation.mockRejectedValue(new Error('offline'));
+    expect((await chatReadPost(post(), slug, messageId)).status).toBe(200);
+    expect(mock.mark).toHaveBeenCalledOnce();
+    expect(mock.observation).toHaveBeenCalledOnce();
+  });
+  it('retains request A capability if another request switches to B while read is pending', async () => {
+    let resolve: (value: unknown) => void = () => {};
+    mock.mark.mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    const first = { ...context(), client: { actorCapability: 'A' } };
+    mock.context.mockReturnValue(first);
+    const pending = chatReadPost(post(), slug, messageId);
+    await vi.waitFor(() => expect(mock.mark).toHaveBeenCalledOnce());
+    mock.context.mockReturnValue({
+      ...context(),
+      client: { actorCapability: 'B' },
+    });
+    resolve({
+      ok: true,
+      data: { messageId, readAt: '2026-10-26T00:00:00Z', readCount: 1 },
+    });
+    expect((await pending).status).toBe(200);
+    expect(mock.analyticsPort).toHaveBeenCalledExactlyOnceWith(first.client);
+  });
+});

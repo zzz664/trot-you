@@ -1,4 +1,6 @@
 import 'server-only';
+import { createAnalyticsCapturePort } from '@/server/db/analytics-capture';
+import { observeRenewal } from '@/server/services/analytics/payment-observations';
 import { randomUUID } from 'node:crypto';
 import { getServerEnv } from '@/config/env.server';
 import type { CheckoutProvider } from '@/config/checkout';
@@ -19,7 +21,10 @@ export function createRenewalDependencies(): RenewalDependencies | null {
   if (!client || !transport) return null;
   const env = parsed.data;
   return {
-    db: createRenewalDbPort(client),
+    db: observeRenewal(
+      createRenewalDbPort(client),
+      createAnalyticsCapturePort(client),
+    ),
     // Expiry and query recovery must still work when an encryption key has
     // been removed. Only a new charge requires successful vault decryption.
     vault: createPaymentVault(env),

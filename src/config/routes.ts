@@ -35,6 +35,9 @@ export const routes = {
   artists: '/artists',
   artistMessages: '/api/artists',
   analytics: '/api/analytics',
+  analyticsPreview: '/api/analytics/preview',
+  analyticsFunnel: '/admin/analytics',
+  analyticsFunnelApi: '/api/admin/analytics',
   notifications: '/settings/notifications',
   billingNotices: '/me/billing-notices',
   billingNoticeStatus: '/api/billing-notices',
@@ -377,4 +380,12 @@ export function activityRewardsHistoryPath(cursor?: string | null) {
   return cursor
     ? `${routes.activityRewardsApi}?${new URLSearchParams({ cursor })}`
     : routes.activityRewardsApi;
+}
+
+export function analyticsFunnelPath(
+  query: { from: string; to: string },
+  api = false,
+) {
+  const params = new URLSearchParams({ from: query.from, to: query.to });
+  return `${api ? routes.analyticsFunnelApi : routes.analyticsFunnel}?${params.toString()}`;
 }

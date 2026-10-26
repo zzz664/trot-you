@@ -1,4 +1,6 @@
 import 'server-only';
+import { createAnalyticsCapturePort } from '@/server/db/analytics-capture';
+import { observeReconciliation } from '@/server/services/analytics/payment-observations';
 import { randomUUID } from 'node:crypto';
 import { getServerEnv } from '@/config/env.server';
 import { requireIntegrationConfiguration } from '@/server/configuration';
@@ -25,7 +27,10 @@ export function createReconciliationDependencies(): ReconciliationDependencies |
   const tossRefund = createTossRefundAdapter(env, refundTransport);
   const kakaoRefund = createKakaoRefundAdapter(env, refundTransport);
   return {
-    db: createReconciliationDbPort(client),
+    db: observeReconciliation(
+      createReconciliationDbPort(client),
+      createAnalyticsCapturePort(client),
+    ),
     // Strip mutating capabilities at composition, not just in the type.
     toss: {
       charge: { query: tossCharge.query },

@@ -114,7 +114,7 @@ export default defineConfig([
   {
     files: [
       'src/app/**/*.{ts,tsx}',
-      'src/components/{fan,artist,artists,artist-compose,artist-compose-menu,artist-dispatch,artist-reply-activity,webpush,billing-notices,admin,admin-artists,admin-settings,admin-subscriptions,schedules,content-calendar,community-posts,community-interactions,community-moderation,attendance-points,activity-rewards,onboarding,checkout,subscription}/**/*.{ts,tsx}',
+      'src/components/{fan,artist,artists,artist-compose,artist-compose-menu,artist-dispatch,artist-reply-activity,webpush,billing-notices,admin,admin-artists,admin-settings,admin-subscriptions,schedules,content-calendar,community-posts,community-interactions,community-moderation,attendance-points,activity-rewards,analytics-funnel,onboarding,checkout,subscription}/**/*.{ts,tsx}',
     ],
     rules: {
       'no-restricted-imports': [

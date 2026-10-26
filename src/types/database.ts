@@ -1322,6 +1322,10 @@ export type Database = {
       };
     };
     Functions: {
+      admin_analytics_dashboard: {
+        Args: { p_from: string; p_to: string };
+        Returns: Json;
+      };
       admin_artist_cancel_invite: {
         Args: {
           p_confirmed: boolean;
@@ -1397,6 +1401,20 @@ export type Database = {
         };
         Returns: Json;
       };
+      analytics_capture_charge: {
+        Args: { p_event_id: string };
+        Returns: string;
+      };
+      analytics_capture_server: {
+        Args: {
+          p_actor_id: string;
+          p_event_key: string;
+          p_font_scale?: Database['public']['Enums']['font_scale'];
+          p_name: Database['public']['Enums']['analytics_event_name'];
+          p_source_id?: string;
+        };
+        Returns: string;
+      };
       analytics_daily_counts: {
         Args: { p_from: string; p_until: string };
         Returns: {
@@ -1414,6 +1432,10 @@ export type Database = {
         }[];
       };
       analytics_purge_expired: { Args: { p_limit?: number }; Returns: number };
+      analytics_record_cancellation: {
+        Args: { p_actor_id: string; p_subscription_id: string };
+        Returns: string;
+      };
       analytics_record_charge: {
         Args: { p_event_id: string };
         Returns: string;

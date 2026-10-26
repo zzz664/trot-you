@@ -105,3 +105,37 @@ change. All automated test fixtures are fictional. Production funnel fidelity
 remains blocked on the four metric definitions and actual approved collection
 policy. Local static checks are not database/browser execution; exact hosted
 pgTAP, race, populated-upgrade and visual results belong in the dated work log.
+
+## Explicit application producers
+
+The application adopts the stricter prospective wrappers only after successful
+source operations. Optional analytics errors/timeouts do not replace those source
+results and never cause a provider/business retry.
+
+| Event                         | Current application observation and stable identity                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `signup_complete`             | Successful installation/onboarding completion; verified actor key and persisted completion time                                             |
+| `font_size_selected`          | New capture unavailable: current value has no trustworthy occurrence timestamp; no retroactive collection                                   |
+| `preview_view`                | Mounted visible preview message, not an HTML/RSC request or prefetch; one key per committed target lifecycle                                |
+| `subscribe_start`             | Persisted enrollment start; enrollment session key (not the reused subscription ID)                                                         |
+| `subscribe_complete`, `renew` | Successful trusted finalization/reconciliation; immutable verified payment-event key; classification comes from DB evidence                 |
+| `subscribe_fail`              | Definitive verified initial-charge failure; private attempt key, never an unverified provider response                                      |
+| `message_open`                | Successful visible-message read receipt; same request-bound authenticated capability and message key, not a second cookie-swappable request |
+| `reply_sent`                  | Successfully stored unblocked reply; immutable reply key                                                                                    |
+| `voice_input_used`            | Existing accepted voice recognition observation; one recognition-session key, no transcript                                                 |
+| `cancel`                      | Current observed immutable cancellation-history epoch; repeated subscription IDs do not collapse separate epochs                            |
+| `post_create`, `attendance`   | Existing committed creation/attendance hooks retain their stable source/operation keys                                                      |
+
+The generic browser endpoint accepts only `message_open` and `voice_input_used`.
+Preview uses a fixed-purpose same-origin endpoint with only the event/source keys
+in its body. Its own-actor header must match the newly authenticated session; the
+header is an assertion, never authority. Hidden/unmounted/navigated targets abort
+and do not retry. No client observation proves human viewing or speech use.
+
+The identity-only administrator page does not serialize aggregate snapshots in
+reusable RSC payloads. Private GET responses are no-store and must echo the
+current actor and exact requested range. Navigation, actor/range replacement,
+pagehide, visibility loss and stale responses cannot restore previous data.
+Each successful response validates all thirteen names, unique sparse daily
+buckets and exact totals with safe integer arithmetic; the UI pages the daily
+rows without inventing a business calculation.

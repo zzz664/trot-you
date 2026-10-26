@@ -7,30 +7,64 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { selectImpact } from './ci-impact.mjs';
 import { validateResults } from './ci-required.mjs';
-import { CONDITIONAL_JOBS, REQUIRED_JOB_IDS } from './ci-impact-registry.mjs';
+import {
+  BROWSER_JOBS,
+  CONDITIONAL_JOBS,
+  REQUIRED_JOB_IDS,
+} from './ci-impact-registry.mjs';
 
 const SHA = '1'.repeat(40);
+const base = '2'.repeat(40);
 const provenance = {
   event: 'pull_request',
   testSha: SHA,
   baseRef: 'develop',
-  base: '2'.repeat(40),
+  base,
   head: '3'.repeat(40),
-  mergeBase: '2'.repeat(40),
+  mergeBase: base,
 };
-const selectivePlan = () =>
-  selectImpact(['src/components/schedules/SchedulesScreen.tsx'], {
+const path = 'src/components/analytics-funnel/AnalyticsFunnelScreen.tsx';
+const emptySelection = () => ({
+  typecheck: false,
+  unit: [],
+  fixtures: [],
+  sql: [],
+  races: [],
+  upgrades: [],
+  browser: {},
+});
+const scopedPlan = (browser = 'analytics-funnel-browser', database = true) =>
+  selectImpact([path], {
     provenance: { ...provenance },
+    scopes: [
+      {
+        version: 1,
+        id: 'analytics-funnel',
+        base,
+        covers: [path],
+        reason: 'Only selected analytics boundary checks.',
+        selection: {
+          ...emptySelection(),
+          unit: ['tests/unit/analytics-funnel-ui.test.tsx'],
+          sql: database ? ['supabase/tests/analytics_funnel.test.sql'] : [],
+          browser: browser
+            ? {
+                [browser]: [
+                  {
+                    file: 'tests/e2e/analytics-funnel/analytics-funnel.spec.ts',
+                    grep: 'current authority',
+                  },
+                ],
+              }
+            : {},
+        },
+      },
+    ],
   });
 const docsPlan = () =>
-  selectImpact(['docs/ci.md'], { provenance: { ...provenance } });
-const fullPlan = () =>
-  selectImpact(['supabase/migrations/change.sql'], {
-    provenance: { ...provenance },
-  });
-
-function results(plan) {
-  return Object.fromEntries(
+  selectImpact(['docs/ci.md'], { provenance: { ...provenance }, scopes: [] });
+const results = (plan) =>
+  Object.fromEntries(
     REQUIRED_JOB_IDS.map((job) => [
       job,
       {
@@ -41,14 +75,13 @@ function results(plan) {
       },
     ]),
   );
-}
 
 for (const [name, factory] of [
-  ['full', fullPlan],
-  ['selective', selectivePlan],
+  ['scoped', scopedPlan],
   ['docs-only', docsPlan],
+  ['unit-only', () => scopedPlan(null, false)],
 ]) {
-  test(`${name} accepts only successful required jobs and explicit planned skips`, () => {
+  test(`${name} requires selected successes and explicitly justified skips`, () => {
     const plan = factory();
     assert.match(
       validateResults(plan, results(plan), SHA),
@@ -66,37 +99,34 @@ for (const result of [
   undefined,
   '',
 ]) {
-  test(`selected browser result ${String(result)} fails the aggregate`, () => {
-    const plan = selectivePlan();
+  test(`selected browser ${String(result)} fails closed`, () => {
+    const plan = scopedPlan();
     const needs = results(plan);
-    needs['schedules-browser'].result = result;
+    needs['analytics-funnel-browser'].result = result;
     assert.throws(
       () => validateResults(plan, needs, SHA),
-      /schedules-browser: expected success/,
+      /analytics-funnel-browser: expected success/,
     );
   });
 }
-
-for (const job of ['impact', 'quality', 'database']) {
+for (const job of ['impact', 'quality', 'database'])
   for (const result of ['failure', 'cancelled', 'skipped']) {
-    test(`${job} ${result} cannot be hidden by downstream skips`, () => {
-      const plan = selectivePlan();
+    test(`${job} ${result} cannot be hidden by intentional downstream skips`, () => {
+      const plan = scopedPlan();
       const needs = results(plan);
       needs[job].result = result;
       assert.throws(() => validateResults(plan, needs, SHA));
     });
   }
-}
-
 for (const result of [
+  'success',
   'failure',
   'cancelled',
-  'success',
   'neutral',
   undefined,
 ]) {
-  test(`unselected browser result ${String(result)} is not an intentional skip`, () => {
-    const plan = selectivePlan();
+  test(`unselected browser ${String(result)} is not an intentional skip`, () => {
+    const plan = scopedPlan();
     const needs = results(plan);
     needs['enrollment-browser'].result = result;
     assert.throws(
@@ -106,120 +136,44 @@ for (const result of [
   });
 }
 
-test('docs-only may skip DB, but never quality or selector validation', () => {
+test('docs-only skips database and browsers but never quality or impact validation', () => {
   const plan = docsPlan();
-  const needs = results(plan);
-  assert.equal(needs.database.result, 'skipped');
   for (const job of ['quality', 'impact']) {
-    const changed = structuredClone(needs);
-    changed[job].result = 'skipped';
-    assert.throws(() => validateResults(plan, changed, SHA));
+    const needs = results(plan);
+    needs[job].result = 'skipped';
+    assert.throws(() => validateResults(plan, needs, SHA));
   }
+  assert.ok(
+    CONDITIONAL_JOBS.every((job) => results(plan)[job].result === 'skipped'),
+  );
 });
 
-test('new calendar failures and stale inventories cannot pass the aggregate', () => {
-  const plan = fullPlan();
-  for (const result of ['failure', 'cancelled', 'skipped']) {
+for (const job of BROWSER_JOBS)
+  test(`${job} remains in fail-closed aggregate inventory without running its suite`, () => {
+    const plan = scopedPlan(job);
     const needs = results(plan);
-    needs['content-calendar-browser'].result = result;
+    needs[job].result = 'failure';
     assert.throws(
       () => validateResults(plan, needs, SHA),
-      /content-calendar-browser: expected success/,
+      new RegExp(`${job}: expected success`),
     );
-  }
-  const missing = results(plan);
-  delete missing['content-calendar-browser'];
-  assert.throws(() => validateResults(plan, missing, SHA), /inventory/);
-  delete plan.jobs['content-calendar-browser'];
-  assert.throws(
-    () => validateResults(plan, results(plan), SHA),
-    /job inventory/,
-  );
-});
+    delete needs[job];
+    assert.throws(() => validateResults(plan, needs, SHA), /inventory/);
+  });
 
-test('new board failures and stale inventories cannot pass the aggregate', () => {
-  const plan = fullPlan();
-  for (const result of ['failure', 'cancelled', 'skipped']) {
-    const needs = results(plan);
-    needs['community-posts-browser'].result = result;
-    assert.throws(
-      () => validateResults(plan, needs, SHA),
-      /community-posts-browser: expected success/,
-    );
-  }
-  const missing = results(plan);
-  delete missing['community-posts-browser'];
-  assert.throws(() => validateResults(plan, missing, SHA), /inventory/);
-  delete plan.jobs['community-posts-browser'];
-  assert.throws(
-    () => validateResults(plan, results(plan), SHA),
-    /job inventory/,
-  );
-});
-
-test('new interactions failures and stale inventories cannot pass the aggregate', () => {
-  const plan = fullPlan();
-  for (const result of ['failure', 'cancelled', 'skipped']) {
-    const needs = results(plan);
-    needs['community-interactions-browser'].result = result;
-    assert.throws(
-      () => validateResults(plan, needs, SHA),
-      /community-interactions-browser: expected success/,
-    );
-  }
-  const missing = results(plan);
-  delete missing['community-interactions-browser'];
-  assert.throws(() => validateResults(plan, missing, SHA), /inventory/);
-  delete plan.jobs['community-interactions-browser'];
-  assert.throws(
-    () => validateResults(plan, results(plan), SHA),
-    /job inventory/,
-  );
-});
-
-test('new moderation failures and stale inventories cannot pass the aggregate', () => {
-  const plan = fullPlan();
-  for (const result of ['failure', 'cancelled', 'skipped']) {
-    const needs = results(plan);
-    needs['community-moderation-browser'].result = result;
-    assert.throws(
-      () => validateResults(plan, needs, SHA),
-      /community-moderation-browser: expected success/,
-    );
-  }
-  const missing = results(plan);
-  delete missing['community-moderation-browser'];
-  assert.throws(() => validateResults(plan, missing, SHA), /inventory/);
-  delete plan.jobs['community-moderation-browser'];
-  assert.throws(
-    () => validateResults(plan, results(plan), SHA),
-    /job inventory/,
-  );
-});
-
-test('selected DB failure is not accepted when every browser passed', () => {
-  const plan = fullPlan();
-  const needs = results(plan);
-  needs.database.result = 'failure';
-  assert.throws(
-    () => validateResults(plan, needs, SHA),
-    /database: expected success/,
-  );
-});
-
-test('missing expected job or unknown extra job fails inventory verification', () => {
-  const plan = selectivePlan();
+test('missing and additional jobs fail inventory verification', () => {
+  const plan = scopedPlan();
   for (const job of REQUIRED_JOB_IDS) {
     const needs = results(plan);
     delete needs[job];
     assert.throws(() => validateResults(plan, needs, SHA), undefined, job);
   }
   const needs = results(plan);
-  needs['new-unregistered-browser'] = { result: 'success' };
+  needs['unregistered-browser'] = { result: 'success' };
   assert.throws(() => validateResults(plan, needs, SHA), /inventory/);
 });
 
-test('missing needs and failed selector reject before trusting plan outputs', () => {
+test('failed selector never authorizes outputs or skipped jobs', () => {
   for (const needs of [null, undefined, {}, { impact: { result: 'failure' } }])
     assert.throws(
       () => validateResults(null, needs, SHA),
@@ -227,25 +181,24 @@ test('missing needs and failed selector reject before trusting plan outputs', ()
     );
 });
 
-test('null, empty, unknown version and unknown mode plans fail closed', () => {
-  const valid = selectivePlan();
-  const needs = results(valid);
+test('null plans, old versions and legacy modes cannot authorize a cumulative run', () => {
+  const valid = scopedPlan();
   for (const plan of [
     null,
     undefined,
     {},
     '',
-    { ...valid, version: 2 },
+    { ...valid, version: 1 },
+    { ...valid, version: 3 },
+    { ...valid, mode: 'full' },
+    { ...valid, mode: 'selective' },
     { ...valid, mode: 'skip' },
   ])
-    assert.throws(
-      () => validateResults(plan, needs, SHA),
-      /Invalid impact plan/,
-    );
+    assert.throws(() => validateResults(plan, results(valid), SHA));
 });
 
-test('a plan from another SHA cannot satisfy this workflow', () => {
-  const plan = selectivePlan();
+test('another workflow SHA or missing expected SHA is rejected', () => {
+  const plan = scopedPlan();
   assert.throws(
     () => validateResults(plan, results(plan), '4'.repeat(40)),
     /another workflow commit/,
@@ -256,112 +209,90 @@ test('a plan from another SHA cannot satisfy this workflow', () => {
   );
 });
 
-test('job map cannot turn a selected browser or DB into a justified skip', () => {
-  for (const job of ['schedules-browser', 'database']) {
-    const plan = selectivePlan();
+test('selected job cannot be rewritten into a justified skip', () => {
+  for (const job of ['database', 'analytics-funnel-browser']) {
+    const plan = scopedPlan();
     plan.jobs[job] = false;
-    assert.throws(
-      () => validateResults(plan, results(plan), SHA),
-      /job inventory/,
-    );
+    assert.throws(() => validateResults(plan, results(plan), SHA));
   }
 });
 
-test('job map must contain every conditional job exactly and use booleans', () => {
+test('conditional job map is complete and strictly boolean', () => {
   for (const value of ['true', 'false', 1, 0, null, undefined]) {
-    const plan = selectivePlan();
+    const plan = scopedPlan();
     plan.jobs.database = value;
-    assert.throws(
-      () => validateResults(plan, results(plan), SHA),
-      /job inventory/,
-    );
+    assert.throws(() => validateResults(plan, results(plan), SHA));
   }
-  const missing = selectivePlan();
+  const missing = scopedPlan();
   delete missing.jobs['enrollment-browser'];
-  assert.throws(
-    () => validateResults(missing, results(missing), SHA),
-    /job inventory/,
-  );
-  const extra = selectivePlan();
+  assert.throws(() => validateResults(missing, results(missing), SHA));
+  const extra = scopedPlan();
   extra.jobs['unknown-browser'] = false;
-  assert.throws(
-    () => validateResults(extra, results(extra), SHA),
-    /job inventory/,
-  );
+  assert.throws(() => validateResults(extra, results(extra), SHA));
 });
 
-test('tampered path evidence, digest, rules and count cannot authorize skipping', () => {
-  const changes = [
-    (plan) => {
-      plan.paths = ['docs/disguised.md'];
+test('aggregate recomputes changed paths, scopes, selection and evidence before accepting skips', () => {
+  const mutations = [
+    (p) => {
+      p.changedPaths = ['docs/disguised.md'];
     },
-    (plan) => {
-      plan.pathDigest = '0'.repeat(64);
+    (p) => {
+      p.pathDigest = '0'.repeat(64);
     },
-    (plan) => {
-      plan.pathCount = 0;
+    (p) => {
+      p.pathCount = 0;
     },
-    (plan) => {
-      plan.rules = [];
+    (p) => {
+      p.scopes = [];
     },
-    (plan) => {
-      plan.reason = 'documentation-only';
+    (p) => {
+      p.selection.unit = [];
     },
-    (plan) => {
-      plan.mode = 'docs-only';
+    (p) => {
+      p.selection.sql = [];
     },
-    (plan) => {
-      plan.paths = null;
+    (p) => {
+      p.selection.browser = {};
+    },
+    (p) => {
+      p.scopes[0].selection.sql = [];
+    },
+    (p) => {
+      p.scopes[0].base = '4'.repeat(40);
+    },
+    (p) => {
+      p.mode = 'docs-only';
     },
   ];
-  for (const change of changes) {
-    const plan = selectivePlan();
-    change(plan);
+  for (const mutate of mutations) {
+    const plan = structuredClone(scopedPlan());
+    mutate(plan);
     assert.throws(() => validateResults(plan, results(plan), SHA));
   }
 });
 
-test('selective plans require pull_request/develop and verified commit evidence', () => {
-  const changes = [
-    (plan) => {
-      plan.provenance.event = 'workflow_dispatch';
-    },
-    (plan) => {
-      plan.provenance.baseRef = 'main';
-    },
-    (plan) => {
-      plan.provenance.base = undefined;
-    },
-    (plan) => {
-      plan.provenance.head = 'branch-name';
-    },
-    (plan) => {
-      plan.provenance.mergeBase = undefined;
-    },
-    (plan) => {
-      plan.provenance.testSha = undefined;
-    },
-  ];
-  for (const change of changes) {
-    const plan = selectivePlan();
-    change(plan);
-    assert.throws(() => validateResults(plan, results(plan), SHA));
-  }
+test('scoped and docs plans require complete pull_request/develop provenance', () => {
+  for (const factory of [scopedPlan, docsPlan])
+    for (const mutation of [
+      { event: 'push' },
+      { baseRef: 'main' },
+      { base: undefined },
+      { head: 'branch' },
+      { mergeBase: undefined },
+      { testSha: undefined },
+    ]) {
+      const plan = factory();
+      Object.assign(plan.provenance, mutation);
+      assert.throws(() => validateResults(plan, results(plan), SHA));
+    }
 });
 
-test('full fallback cannot be narrowed by forged rule IDs', () => {
-  const plan = fullPlan();
-  plan.jobs['schedules-browser'] = false;
-  plan.rules = ['schedules-and-notices'];
-  assert.throws(() => validateResults(plan, results(plan), SHA));
-});
-
-test('aggregate CLI accepts the planned results and exits nonzero on selected failure', (t) => {
+test('aggregate CLI accepts exact scoped results and rejects selected failure without changing summary', (t) => {
   const cwd = mkdtempSync(join(tmpdir(), 'trot-ci-required-'));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const summaryPath = join(cwd, 'summary.md');
   const script = fileURLToPath(new URL('./ci-required.mjs', import.meta.url));
-  const plan = selectivePlan();
+  const plan = scopedPlan();
   const needs = results(plan);
   const env = {
     ...process.env,
@@ -379,66 +310,18 @@ test('aggregate CLI accepts the planned results and exits nonzero on selected fa
   assert.match(stdout, /Every required job succeeded/);
   const summary = readFileSync(summaryPath, 'utf8');
   assert.match(summary, /Required CI result/);
-  assert.match(summary, /every skip is explicitly justified/);
-  needs['schedules-browser'].result = 'failure';
+  needs['analytics-funnel-browser'].result = 'failure';
   const failed = spawnSync(process.execPath, [script], {
     cwd,
     env: { ...env, CI_NEEDS: JSON.stringify(needs) },
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  assert.equal(failed.error, undefined);
   assert.equal(failed.status, 1);
+  assert.equal(failed.stdout, '');
   assert.match(
     failed.stderr,
-    /schedules-browser: expected success, received failure/,
+    /analytics-funnel-browser: expected success, received failure/,
   );
-  assert.equal(failed.stdout, '');
   assert.equal(readFileSync(summaryPath, 'utf8'), summary);
-});
-
-for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
-  test(`attendance points browser ${String(result)} fails its selected aggregate`, () => {
-    const plan = fullPlan();
-    const needs = results(plan);
-    needs['attendance-points-browser'].result = result;
-    assert.throws(
-      () => validateResults(plan, needs, SHA),
-      /attendance-points-browser: expected success/,
-    );
-  });
-}
-test('attendance points browser may skip only on a plan that explicitly excludes it', () => {
-  const plan = docsPlan();
-  const needs = results(plan);
-  assert.equal(needs['attendance-points-browser'].result, 'skipped');
-  assert.match(
-    validateResults(plan, needs, SHA),
-    /Every required job succeeded/,
-  );
-  delete needs['attendance-points-browser'];
-  assert.throws(() => validateResults(plan, needs, SHA));
-});
-
-for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
-  test(`activity rewards browser ${String(result)} fails its selected aggregate`, () => {
-    const plan = fullPlan();
-    const needs = results(plan);
-    needs['activity-rewards-browser'].result = result;
-    assert.throws(
-      () => validateResults(plan, needs, SHA),
-      /activity-rewards-browser: expected success/,
-    );
-  });
-}
-test('activity rewards browser may skip only on a plan that explicitly excludes it', () => {
-  const plan = docsPlan();
-  const needs = results(plan);
-  assert.equal(needs['activity-rewards-browser'].result, 'skipped');
-  assert.match(
-    validateResults(plan, needs, SHA),
-    /Every required job succeeded/,
-  );
-  delete needs['activity-rewards-browser'];
-  assert.throws(() => validateResults(plan, needs, SHA));
 });

@@ -198,6 +198,7 @@ describe('personalized preview page independent authority checks', () => {
         messages: [{ text: '별님의 허구 맛보기' }],
       },
     });
+    if (result.ok) expect(result.data).not.toHaveProperty('observationActorId');
     for (const forbidden of [
       'privileged',
       'actor-cookie',
@@ -214,7 +215,7 @@ describe('personalized preview page independent authority checks', () => {
     });
     expect(await getArtistPreviewPage(artist.slug)).toMatchObject({
       ok: true,
-      data: { onboarding: false },
+      data: { onboarding: false, observationActorId: id },
     });
     expect(mocks.profileRead).toHaveBeenCalledOnce();
     expect(mocks.interest).toHaveBeenCalledOnce();

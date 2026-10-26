@@ -1,3 +1,4 @@
+import { AnalyticsFunnelEntry } from '@/components/analytics-funnel/AnalyticsFunnelEntry';
 import { AttendancePointsEntry } from '@/components/attendance-points/AttendancePointsEntry';
 import { ModerationEntry } from '@/components/community-moderation/ModerationEntry';
 import { CommunityEntry } from '@/components/community-posts/CommunityEntry';
@@ -29,6 +30,7 @@ export async function SessionPage({ path }: { path: string }) {
   const artistCopy = await getTranslations('adminArtists');
   const settingsCopy = await getTranslations('adminSettings');
   const subscriptionsCopy = await getTranslations('adminSubscriptions');
+  const analyticsCopy = await getTranslations('analyticsFunnel');
   const calendarCopy = await getTranslations('contentCalendar');
   const title =
     path === routes.restricted
@@ -77,6 +79,11 @@ export async function SessionPage({ path }: { path: string }) {
             title={settingsCopy('entryTitle')}
             description={settingsCopy('entryDescription')}
             label={settingsCopy('entryOpen')}
+          />
+          <AnalyticsFunnelEntry
+            title={analyticsCopy('title')}
+            description={analyticsCopy('entryDescription')}
+            label={analyticsCopy('entryOpen')}
           />
           <AdminSubscriptionsEntry
             title={subscriptionsCopy('title')}

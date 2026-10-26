@@ -106,7 +106,9 @@
     "test:db:activity-rewards-concurrency": "node scripts/test-activity-rewards-concurrency.mjs",
     "test:activity-rewards-fixture": "node --test scripts/activity-rewards-local-config.test.mjs",
     "test:e2e:activity-rewards": "playwright test --config playwright.activity-rewards.config.ts",
-    "test:db:analytics-funnel-concurrency": "node scripts/test-analytics-funnel-concurrency.mjs"
+    "test:db:analytics-funnel-concurrency": "node scripts/test-analytics-funnel-concurrency.mjs",
+    "test:analytics-funnel-fixture": "node --test scripts/analytics-funnel-local-config.test.mjs",
+    "test:e2e:analytics-funnel": "playwright test --config playwright.analytics-funnel.config.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.3.1",

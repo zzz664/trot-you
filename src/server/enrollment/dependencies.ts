@@ -12,6 +12,8 @@ import { createEnrollmentTransport } from '@/server/adapters/payment/ci-transpor
 import { createTossEnrollmentAdapter } from '@/server/adapters/payment/enrollment-toss';
 import { createKakaoEnrollmentAdapter } from '@/server/adapters/payment/enrollment-kakaopay';
 import { prepareTossBillingAuth } from '@/server/adapters/payment/toss';
+import { createAnalyticsCapturePort } from '@/server/db/analytics-capture';
+import { observeEnrollment } from '@/server/services/analytics/payment-observations';
 import type { EnrollmentDependencies } from '@/server/services/enrollment/flow';
 
 export function enrollmentLaunchAvailable() {
@@ -33,7 +35,10 @@ export function createEnrollmentDependencies(): EnrollmentDependencies | null {
   const vault = createPaymentVault(env);
   if (!vault) return null;
   return {
-    db: createEnrollmentDbPort(client),
+    db: observeEnrollment(
+      createEnrollmentDbPort(client),
+      createAnalyticsCapturePort(client),
+    ),
     checkout: createCheckoutSessionPort(client),
     vault,
     toss: createTossEnrollmentAdapter(env, transport),
@@ -58,5 +63,12 @@ export function createEnrollmentDependencies(): EnrollmentDependencies | null {
 // Disabling credentials must not hide a pending/unknown operation from its owner.
 export function createEnrollmentDatabaseDependencies() {
   const client = createCheckoutServiceClient();
-  return client ? { db: createEnrollmentDbPort(client) } : null;
+  return client
+    ? {
+        db: observeEnrollment(
+          createEnrollmentDbPort(client),
+          createAnalyticsCapturePort(client),
+        ),
+      }
+    : null;
 }

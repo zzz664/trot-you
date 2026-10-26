@@ -1,4 +1,6 @@
 import 'server-only';
+import { createAnalyticsCapturePort } from '@/server/db/analytics-capture';
+import { observeReconciliation } from '@/server/services/analytics/payment-observations';
 import { randomUUID } from 'node:crypto';
 import type { ServerEnv } from '@/config/env.server';
 import type { CheckoutServiceClient } from '@/server/db/checkout-client';
@@ -28,7 +30,10 @@ export function createInitialPaymentRecovery(
     },
   };
   const deps: InitialRecoveryDependencies = {
-    db: createReconciliationDbPort(client),
+    db: observeReconciliation(
+      createReconciliationDbPort(client),
+      createAnalyticsCapturePort(client),
+    ),
     ...createEnrollmentReconciliationCasePort(client),
     toss: { charge: { query: toss.query }, refund: noRefund },
     kakao: { charge: { query: kakao.query }, refund: noRefund },
