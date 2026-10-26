@@ -41,3 +41,33 @@ Generated schema types must come from the official pinned CLI against the actual
 migrated Supabase database. A passing static contract or browser test discovery is
 not database/browser execution. Missing API keys or operational policy must be
 reported as setup unavailable, never as mock success.
+
+## Application behavior
+
+The existing post detail embeds a separate actor-bound interaction view. Each
+successful interaction read is tied to the exact freshly authorized parent
+snapshot. Revalidation hides stale comments before a new snapshot is accepted;
+current access denial also removes the parent post and protected image view.
+Comment pages replace rather than append old snapshots, and explicit first/next
+controls use the server cursor.
+
+All mutations send their immutable operation ID and exact original content or
+desired like state. The UI does not optimistically invent counts. A timeout,
+aborted response or unknown outcome freezes the original intent and exposes an
+explicit same-request recovery action, including after parent refresh. Switching
+the mounted account/target destroys the old private draft; a server-session swap
+cannot replay it under another identity because the original actor header must
+still match current authentication. No private drafts or receipts are persisted in
+RSC payloads, URLs, browser history or client storage.
+
+Comment deletion requires confirmation. Cancel, focus/navigation revalidation and
+Back/Forward dismiss transient editors/dialogs without an automatic write. After a
+confirmed mutation the parent detail refreshes too, because atomic counter updates
+also advance its revision. Existing post deletion/notice controls are blocked
+while an interaction intent is pending, preventing conflicting local actions.
+
+The new isolated browser suite uses fictional accounts, comments and likes only.
+It covers all three text scales at 360/1280 widths, full-page and offscreen controls,
+actual lost-response recovery, owner conflicts, authority/visibility changes,
+pagination and navigation. Real upstream mutation bodies are captured before
+forwarding; no synthetic successful response substitutes for integration.

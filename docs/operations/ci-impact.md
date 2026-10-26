@@ -12,11 +12,11 @@ For a code PR targeting `develop`, the complete database job still runs: DB lint
 both consecutive pgTAP passes, all 31 concurrency scripts, all seven populated
 upgrades, real generated schema types, typecheck, and committed-type drift checks.
 Only a nonempty change set containing `README.md` and/or Markdown files under
-`docs/` may intentionally skip the database and all 21 isolated feature browsers.
+`docs/` may intentionally skip the database and all 22 isolated feature browsers.
 
 Feature-browser selection is **enabled**, not permanent shadow mode. It applies to
 the entire PR, not merely its newest commit. A localized schedule UI change selects
-5 of 21 feature browsers; a leaf admin-settings change selects 3 of 21. These are
+6 of 22 feature browsers; a leaf admin-settings change selects 4 of 22. These are
 job counts, not measured duration or billing savings.
 
 ## Selection registry
@@ -26,16 +26,16 @@ win over feature rules, and every matching feature group is unioned. Any unknown
 path broadens the whole run to full. A newly introduced feature or shared helper
 therefore cannot silently receive no coverage.
 
-| Feature paths                                                                                        | Browser dependency group                                                                      |
-| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Schedules/notices UI, clients, HTTP/services, routes, schedule utilities and tests                   | Auth, schedules, schedule notices, content calendar, community posts                          |
-| Web Push/billing-notice UI, clients, HTTP/services, notification services, Web Push worker and tests | Auth, Web Push, billing notices, schedule notices, schedules                                  |
-| Checkout/enrollment/renewal/subscription/refund/reconciliation paths and billing-period utility      | Auth, enrollment, renewal, cancellation, reconciliation, billing notices, admin subscriptions |
-| Media/chat/replies/speech/compose/dispatch paths and message rendering                               | Auth, media, chat, reply, speech, compose, dispatch, activity, admin artists, community posts |
-| Artist reply activity                                                                                | Auth, activity, content calendar                                                              |
-| Admin artist/access management                                                                       | Communication group above, plus schedules and content calendar                                |
-| Leaf admin settings                                                                                  | Auth, admin settings, community posts                                                         |
-| Leaf admin subscriptions                                                                             | Auth, admin subscriptions                                                                     |
+| Feature paths                                                                                        | Browser dependency group                                                                                       |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Schedules/notices UI, clients, HTTP/services, routes, schedule utilities and tests                   | Auth, schedules, schedule notices, content calendar, community posts and interactions                          |
+| Web Push/billing-notice UI, clients, HTTP/services, notification services, Web Push worker and tests | Auth, Web Push, billing notices, schedule notices, schedules                                                   |
+| Checkout/enrollment/renewal/subscription/refund/reconciliation paths and billing-period utility      | Auth, enrollment, renewal, cancellation, reconciliation, billing notices, admin subscriptions                  |
+| Media/chat/replies/speech/compose/dispatch paths and message rendering                               | Auth, media, chat, reply, speech, compose, dispatch, activity, admin artists, community posts and interactions |
+| Artist reply activity                                                                                | Auth, activity, content calendar                                                                               |
+| Admin artist/access management                                                                       | Communication group above, plus schedules and content calendar                                                 |
+| Leaf admin settings                                                                                  | Auth, admin settings, community posts and interactions                                                         |
+| Leaf admin subscriptions                                                                             | Auth, admin subscriptions                                                                                      |
 
 The exact anchored patterns in the registry are authoritative. Unit tests,
 feature-specific Playwright configuration, E2E fixtures, and local CI helpers
@@ -164,3 +164,8 @@ historical step hashes; no baseline hash was rewritten.
 Feature 35 retains those same regression gates and adds community-interaction
 concurrency and populated-upgrade verification before official type generation.
 The exact two additions are checked without changing historical step hashes.
+
+The isolated `community-interactions-browser` is registered in the selector and
+required aggregate, including shared media/navigation/admin-policy dependencies.
+New interaction paths remain unknown/full fallback. The quality job also runs its
+fixture guard checks, while keyless routes stay in the normal browser suite.

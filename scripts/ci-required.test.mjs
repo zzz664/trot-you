@@ -157,6 +157,26 @@ test('new board failures and stale inventories cannot pass the aggregate', () =>
   );
 });
 
+test('new interactions failures and stale inventories cannot pass the aggregate', () => {
+  const plan = fullPlan();
+  for (const result of ['failure', 'cancelled', 'skipped']) {
+    const needs = results(plan);
+    needs['community-interactions-browser'].result = result;
+    assert.throws(
+      () => validateResults(plan, needs, SHA),
+      /community-interactions-browser: expected success/,
+    );
+  }
+  const missing = results(plan);
+  delete missing['community-interactions-browser'];
+  assert.throws(() => validateResults(plan, missing, SHA), /inventory/);
+  delete plan.jobs['community-interactions-browser'];
+  assert.throws(
+    () => validateResults(plan, results(plan), SHA),
+    /job inventory/,
+  );
+});
+
 test('selected DB failure is not accepted when every browser passed', () => {
   const plan = fullPlan();
   const needs = results(plan);

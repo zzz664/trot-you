@@ -19,6 +19,7 @@ import { Loading } from '@/components/ui/Loading';
 import { InlineError } from '@/components/ui/InlineError';
 import { useDialog } from '@/components/ui/DialogProvider';
 import { CommunityImage } from './CommunityImage';
+import { CommunityInteractions } from '@/components/community-interactions/CommunityInteractions';
 import { useCommunityResource } from './useCommunityResource';
 import styles from './community-posts.module.css';
 export function CommunityPostDetail({
@@ -39,6 +40,7 @@ export function CommunityPostDetail({
   const [uncertain, setUncertain] = useState<'delete' | 'notice' | null>(null);
   const [deleted, setDeleted] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [interactionsBusy, setInteractionsBusy] = useState(false);
   const pendingDelete = useRef<CommunityDeleteInput | null>(null);
   const pendingNotice = useRef<CommunityNoticeInput | null>(null);
   const running = useRef(false);
@@ -68,6 +70,14 @@ export function CommunityPostDetail({
   );
   const state = useCommunityResource(path, load);
   const data = state.data;
+  const invalidate = state.invalidate;
+  const invalidateInteractions = useCallback(
+    (code: Parameters<typeof invalidate>[0]) => {
+      erase();
+      invalidate(code);
+    },
+    [erase, invalidate],
+  );
   useEffect(() => {
     alive.current = true;
     const invalidate = () => {
@@ -264,7 +274,12 @@ export function CommunityPostDetail({
             <NoticeEditor
               key={`${data.post.id}:${data.post.revision}`}
               data={data}
-              disabled={state.busy || confirming || uncertain !== null}
+              disabled={
+                state.busy ||
+                confirming ||
+                uncertain !== null ||
+                interactionsBusy
+              }
               onSave={notice}
             />
           )}
@@ -272,7 +287,12 @@ export function CommunityPostDetail({
             (!data.post.is_notice || data.can_create_notice) && (
               <Button
                 variant="secondary"
-                disabled={state.busy || confirming || uncertain !== null}
+                disabled={
+                  state.busy ||
+                  confirming ||
+                  uncertain !== null ||
+                  interactionsBusy
+                }
                 onClick={() => void remove()}
               >
                 {t('deleteAction')}
@@ -280,6 +300,18 @@ export function CommunityPostDetail({
             )}
         </article>
       )}
+      <CommunityInteractions
+        slug={slug}
+        postId={postId}
+        actorKey={actorKey}
+        path={path}
+        parentSnapshot={deleted ? null : data}
+        parentError={state.error}
+        disabled={state.busy || confirming || uncertain !== null}
+        onAccessLost={invalidateInteractions}
+        onChanged={state.refresh}
+        onBusyChange={setInteractionsBusy}
+      />
     </main>
   );
 }

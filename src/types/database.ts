@@ -154,6 +154,7 @@ export type Database = {
           post_id: string;
           report_count: number;
           request_id: string;
+          revision: number;
           updated_at: string;
           user_id: string;
         };
@@ -167,6 +168,7 @@ export type Database = {
           post_id: string;
           report_count?: number;
           request_id: string;
+          revision?: number;
           updated_at?: string;
           user_id: string;
         };
@@ -179,6 +181,7 @@ export type Database = {
           post_id?: string;
           report_count?: number;
           request_id?: string;
+          revision?: number;
           updated_at?: string;
           user_id?: string;
         };
@@ -1900,6 +1903,57 @@ export type Database = {
       community_set_notice: {
         Args: { p_is_notice: boolean; p_is_pinned: boolean; p_post_id: string };
         Returns: undefined;
+      };
+      community_ui_create_comment: {
+        Args: {
+          p_artist_slug: string;
+          p_body: string;
+          p_comment_id: string;
+          p_operation_id: string;
+          p_post_id: string;
+        };
+        Returns: Json;
+      };
+      community_ui_delete_comment: {
+        Args: {
+          p_artist_slug: string;
+          p_comment_id: string;
+          p_confirmed: boolean;
+          p_expected_revision: number;
+          p_operation_id: string;
+          p_post_id: string;
+        };
+        Returns: Json;
+      };
+      community_ui_interactions: {
+        Args: {
+          p_after_created_at?: string;
+          p_after_id?: string;
+          p_artist_slug: string;
+          p_limit?: number;
+          p_post_id: string;
+        };
+        Returns: Json;
+      };
+      community_ui_set_like: {
+        Args: {
+          p_artist_slug: string;
+          p_liked: boolean;
+          p_operation_id: string;
+          p_post_id: string;
+        };
+        Returns: Json;
+      };
+      community_ui_update_comment: {
+        Args: {
+          p_artist_slug: string;
+          p_body: string;
+          p_comment_id: string;
+          p_expected_revision: number;
+          p_operation_id: string;
+          p_post_id: string;
+        };
+        Returns: Json;
       };
       community_update_comment: {
         Args: { p_body: string; p_comment_id: string };

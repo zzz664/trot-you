@@ -703,7 +703,7 @@ for (const scale of ['normal', 'large', 'xlarge'] as const)
       ).toBeVisible();
       await expect(main(page).locator('strong')).toHaveCount(0);
       await expect(
-        main(page).getByRole('button', { name: /댓글|좋아요|신고/ }),
+        main(page).getByRole('button', { name: /신고/ }),
       ).toHaveCount(0);
       await screenshot(page, info, `community-detail-${scale}-${width}`, scale);
       await button(main(page), copy.deleteAction).click();

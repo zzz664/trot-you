@@ -44,6 +44,9 @@ const mock = vi.hoisted(() => ({
   navigate: vi.fn(),
   refresh: vi.fn(),
 }));
+vi.mock('@/components/community-interactions/CommunityInteractions', () => ({
+  CommunityInteractions: () => null,
+}));
 vi.mock('@/client/community-posts', () => ({
   fetchCommunityPosts: mock.list,
   fetchCommunityPost: mock.detail,

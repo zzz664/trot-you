@@ -51,3 +51,63 @@ was performed.
 
 Application implementation and real hosted browser/pixel validation are separate
 remaining gates, not implied by this DB-first checkpoint.
+
+## Application implementation before generated-schema arrival
+
+- Added strict minimal DTOs, microsecond-safe pagination, no-store bounded client
+  transport, current-session/origin/route/body-bound API handlers, service logic,
+  and the typed authenticated database adapter. Existing board DTOs stay stable.
+- The post detail now provides current counts/liked state, comments with literal
+  text, owner revisioned editing/confirmed deletion, and first/next pages. Each
+  rendered interaction snapshot is bound to the exact verified parent snapshot;
+  stale comments do not reappear during the parent-to-child refresh gap.
+- Unknown outcomes retain their frozen original intent, with explicit exact retry
+  and account binding across parent refresh. Current access loss removes parent
+  body/images. Confirmed interaction writes refresh the parent CAS revision too.
+  Cancel, focus, navigation and history dismiss transient editors/dialogs.
+- Added 213 backend/client/API unit cases, 45 UI cases, and four additional lint
+  boundary cases. Existing isolated board UI tests mock only the new child; new
+  interaction tests also exercise the real parent/child integration.
+- The initial whole-suite run caught two tests inspecting content before the
+  intentionally gated refresh completed. Assertions now await the verified new
+  snapshot without weakening suppression checks. A fresh complete run passes all
+  8,578 tests in 283 files; contrast checks pass.
+- Full ESLint/Prettier passed. `check:all` reaches TypeScript and stops only because
+  the five new RPC names are absent from the untouched prior genuine schema; no
+  generated schema was handwritten. A full final `check:all` remains required
+  after official CI generation is imported.
+- All 182 selector/aggregate/workflow checks and all 447 fixture guards/discovery
+  checks pass. New interaction paths remain full fallback; the isolated browser is
+  included in shared navigation/media/admin-policy groups and the stable aggregate.
+  Historical setup/test/artifact/cleanup step hashes remain unchanged.
+- Added 27 isolated and one keyless browser scenario. Discovery is verified;
+  actual hosted execution and pixel review are still pending. Planned new visual
+  evidence is 67 PNGs: 48 full-page and 19 offscreen-control captures, with every
+  text scale at 360/1280 widths. Existing board detail captures also wait for the
+  new verified interaction view and retain their old feature coverage.
+
+## Genuine hosted database verification and schema import
+
+Checkpoint CI run `40240893992`, exact remote head
+`9a9c8bab1f95b536854cebc3b8d3f3e2d2cd2481` / tree
+`1df6abdc11e5c9bb1afe84d85c9dbb8fac920990`, passed DB lint, 4,564 pgTAP
+assertions in 58 files on each of two consecutive passes, all 31 race scripts
+(477 raw PASS lines / 479 scenarios including two retained legacy double cases),
+all seven populated upgrades, and generated-schema typecheck. The 44 new
+interaction races passed. Database execution took approximately 25m16s within the
+unchanged 30-minute budget. Its sole DB failure was expected committed-type drift.
+An unrelated reconciliation job failed before testing because local port 54322
+was occupied; the final application full run must supersede that checkpoint run.
+
+Official pinned-CLI artifact `12617591087` was matched to that exact head/run and
+its ZIP size, SHA-256 and CRC verified. Its 93,967-byte `database.ts` was copied
+byte-for-byte and independently compared with the artifact; SHA-256:
+`3228ca8b15ccb611019d6c538b3a52f789ed7e7f517403a916b4572e9b0d0159`.
+No generated schema was handwritten or inferred from SQL.
+
+With the official generated schema imported, the final local `npm run check:all`
+passed full ESLint/Prettier, Next/TypeScript, all 8,578 unit tests in 283 files,
+contrast and optimized Next/PWA builds. A final repeat of all 182 CI contracts and
+447 fixture/discovery guards also passed with no skips. Hosted execution of the
+new application browser scenarios and final pixel review remain separate pending
+gates; no local browser or database restriction was retried.
