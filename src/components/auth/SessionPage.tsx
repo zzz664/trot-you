@@ -1,3 +1,4 @@
+import { LegalDocumentLinks } from '@/components/legal-documents/LegalDocumentLinks';
 import { SettlementReportsEntry } from '@/components/settlement-reports/SettlementReportsEntry';
 import { AnalyticsFunnelEntry } from '@/components/analytics-funnel/AnalyticsFunnelEntry';
 import { AttendancePointsEntry } from '@/components/attendance-points/AttendancePointsEntry';
@@ -67,6 +68,7 @@ export async function SessionPage({ path }: { path: string }) {
         </>
       )}
       <SubscriptionEntry />
+      <LegalDocumentLinks from="account" />
       {path === routes.home && state.profile.role !== 'admin' && (
         <ArtistAccessEntry label={artistCopy('accessEntry')} />
       )}

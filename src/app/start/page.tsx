@@ -1,3 +1,4 @@
+import { LegalDocumentLinks } from '@/components/legal-documents/LegalDocumentLinks';
 import { getTranslations } from 'next-intl/server';
 import { ArtistCatalogEntry } from '@/components/artists/ArtistCatalogEntry';
 import { AuthForm } from '@/components/auth/AuthForm';
@@ -34,6 +35,7 @@ export default async function StartPage({
         {...(!configured ? { describedBy: 'login-help' } : {})}
       />
       <ArtistCatalogEntry />
+      <LegalDocumentLinks />
       {state.status === 'unavailable' && (
         <AuthForm
           action={routes.authLogout}

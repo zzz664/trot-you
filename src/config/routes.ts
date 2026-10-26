@@ -26,6 +26,8 @@ export const routes = {
   adminSchedules: '/admin/schedules',
   adminSchedulesApi: '/api/admin/schedules',
   start: '/start',
+  legalTerms: '/legal/terms',
+  legalPrivacy: '/legal/privacy',
   onboarding: '/onboarding',
   onboardingFont: '/onboarding/font',
   onboardingName: '/onboarding/name',
@@ -418,4 +420,14 @@ export function settlementReportActionPath(action: 'calculate' | 'confirm') {
 
 export function settlementReportExportPath(reportId: string, revision: string) {
   return `${routes.adminSettlementsApi}/${encodeURIComponent(reportId)}/export?${new URLSearchParams({ revision })}`;
+}
+
+export function legalDocumentPath(
+  kind: 'terms' | 'privacy',
+  version?: string,
+  from: 'start' | 'onboarding' | 'account' = 'start',
+) {
+  const base = kind === 'terms' ? routes.legalTerms : routes.legalPrivacy;
+  const path = version ? `${base}/${encodeURIComponent(version)}` : base;
+  return from === 'start' ? path : `${path}?${new URLSearchParams({ from })}`;
 }

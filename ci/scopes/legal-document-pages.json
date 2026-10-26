@@ -4,31 +4,75 @@
   "base": "fb5c6654d51e427e0956ae5e07cfeab4847b6099",
   "covers": [
     "ci/scopes/legal-document-pages.json",
+    "docs/operations/legal-documents.md",
     "docs/work-log/2026-10-26-legal-document-pages.md",
+    "src/app/legal/[kind]/[version]/page.tsx",
+    "src/app/legal/[kind]/page.tsx",
+    "src/app/legal/loading.tsx",
+    "src/app/start/page.tsx",
+    "src/components/auth/SessionPage.tsx",
+    "src/components/legal-documents/LegalDocumentLinks.tsx",
+    "src/components/legal-documents/LegalDocumentPage.tsx",
+    "src/components/legal-documents/LegalDocumentScreen.tsx",
+    "src/components/legal-documents/legal-documents.module.css",
+    "src/components/onboarding/ProfileOnboarding.tsx",
+    "src/config/legal-documents.ts",
+    "src/config/routes.ts",
+    "src/messages/ko.json",
+    "src/server/db/legal-documents.ts",
+    "src/server/legal-documents/page.ts",
+    "src/server/services/legal-documents/read.ts",
+    "src/types/database.ts",
     "supabase/migrations/20261026000041_legal_document_pages.sql",
-    "supabase/tests/legal_document_pages.test.sql"
+    "supabase/tests/legal_document_pages.test.sql",
+    "tests/e2e/authenticated/legal-document-fixtures.ts",
+    "tests/e2e/authenticated/legal-documents.spec.ts",
+    "tests/e2e/legal-documents-unconfigured.spec.ts",
+    "tests/unit/legal-documents-db.test.ts",
+    "tests/unit/legal-documents-page.test.ts",
+    "tests/unit/legal-documents-routes.test.tsx",
+    "tests/unit/legal-documents-service.test.ts",
+    "tests/unit/legal-documents-ui.test.tsx"
   ],
-  "reason": "Read-only legal document current-pointer schema checkpoint. Official Supabase types must be generated from the minimal view before the application checkpoint.",
+  "reason": "Read-only current and exact-version legal document pages; final application selection includes only new implementation and direct public projection/navigation contracts.",
   "selection": {
-    "unit": [],
+    "unit": [
+      "tests/unit/legal-documents-db.test.ts",
+      "tests/unit/legal-documents-page.test.ts",
+      "tests/unit/legal-documents-routes.test.tsx",
+      "tests/unit/legal-documents-service.test.ts",
+      "tests/unit/legal-documents-ui.test.tsx"
+    ],
     "fixtures": [],
     "sql": ["supabase/tests/legal_document_pages.test.sql"],
     "races": [],
     "upgrades": [],
     "typecheck": true,
-    "browser": {}
+    "browser": {
+      "quality": [
+        {
+          "file": "tests/e2e/legal-documents-unconfigured.spec.ts"
+        }
+      ],
+      "auth-browser": [
+        {
+          "file": "tests/e2e/authenticated/legal-documents.spec.ts"
+        }
+      ]
+    }
   },
   "reasons": {
-    "sql": "Only 29 direct projection/security assertions for the new current view and existing exact-version immutable disclosure boundary; transaction rolled back.",
-    "unit": "No application change in this schema checkpoint.",
-    "fixtures": "No runner or fixture code change.",
+    "sql": "Only 29 direct assertions for the public current-pointer view and exact approved immutable disclosure boundary consumed by the new application database reader. No historical SQL suite.",
+    "unit": "Only 33 new service/selector, database projection, anonymous page/route boundaries and escaped UI/navigation/onboarding-link assertions. No historical onboarding/auth suite is executed.",
+    "fixtures": "No runner or shared fixture implementation changed. New scoped browser fixture is exercised only by the seven selected configured browser cases.",
     "races": "Read-only projection adds no state transition.",
     "upgrades": "No existing data/storage/state transition changes; migrations apply to the genuine disposable database for official generation.",
-    "browser": "No UI in this schema checkpoint.",
-    "typecheck": "Dependency-graph compilation plus official generated type gate, not regression suite."
+    "browser": "Exactly 1 keyless plus 7 configured cases: public current/exact/version escaping; missing setup retry and unpublished/unknown nondisclosure; interrupted/repeated/Back/Forward/reload navigation; exact onboarding/account links without consent mutation; normal/large/xlarge 360px visuals. Repaired runner proves actual installed-CLI inventory and enforces runtime guard/retries0.",
+    "typecheck": "Compile new anonymous view reader, public routes, UI and official generated view contract; no cumulative tests."
   },
   "exclusions": [
-    "No historical suites, full/cumulative check, broad browser invocation, races, upgrades, production deployment, policy activation or legal text seed.",
-    "Approved production terms/privacy and support identity remain pending."
+    "No check:all, full/cumulative unit, SQL, browser, race or upgrade suite; no historical auth/onboarding cases despite shared entrypoint edits.",
+    "No workflow/runner change or new browser job. Existing repaired literal-file configs, actual CLI inventory and runtime guard are mandatory; no legacy broad invocation.",
+    "No writes to policies/consent, activation, approved production legal text, support identity, external messages, role changes, deployment or predeployment cumulative run."
   ]
 }

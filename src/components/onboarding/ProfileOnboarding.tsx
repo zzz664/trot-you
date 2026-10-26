@@ -20,7 +20,8 @@ import { Input } from '@/components/ui/Input';
 import { Loading } from '@/components/ui/Loading';
 import { designTokens, type FontScale } from '@/config/design-tokens';
 import type { OnboardingData, OnboardingStep } from '@/config/onboarding';
-import { routes } from '@/config/routes';
+import Link from 'next/link';
+import { routes, legalDocumentPath } from '@/config/routes';
 
 export function ProfileOnboarding({
   step,
@@ -30,6 +31,7 @@ export function ProfileOnboarding({
   data: OnboardingData;
 }) {
   const t = useTranslations('onboarding');
+  const legal = useTranslations('legalDocuments');
   const router = useRouter();
   const [fontScale, setFontScale] = useState(data.fontScale);
   const [callName, setCallName] = useState(data.callName ?? '');
@@ -206,6 +208,17 @@ export function ProfileOnboarding({
                   {t('policyVersion', { version: data.terms.version })}
                 </p>
                 <p className="onboarding-policy-body">{data.terms.body}</p>
+                <Link
+                  href={legalDocumentPath(
+                    'terms',
+                    data.terms.version,
+                    'onboarding',
+                  )}
+                  prefetch={false}
+                  className="ui-button ui-button--secondary"
+                >
+                  {legal('openVersion')}
+                </Link>
                 <Checkbox
                   label={t('termsLabel')}
                   checked={termsAccepted}
@@ -224,6 +237,17 @@ export function ProfileOnboarding({
                   {t('policyVersion', { version: data.privacy.version })}
                 </p>
                 <p className="onboarding-policy-body">{data.privacy.body}</p>
+                <Link
+                  href={legalDocumentPath(
+                    'privacy',
+                    data.privacy.version,
+                    'onboarding',
+                  )}
+                  prefetch={false}
+                  className="ui-button ui-button--secondary"
+                >
+                  {legal('openVersion')}
+                </Link>
                 <Checkbox
                   label={t('privacyLabel')}
                   checked={privacyAccepted}

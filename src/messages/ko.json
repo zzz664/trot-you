@@ -2396,5 +2396,25 @@
       ]
     },
     "exportPrecision": "엑셀 숫자는 정밀도를 보존하는 텍스트입니다. 보고서는 실제 송금이나 지급 내역이 아닙니다."
+  },
+  "legalDocuments": {
+    "title": "약관과 개인정보처리방침",
+    "terms": "이용약관",
+    "privacy": "개인정보처리방침",
+    "navigation": "법적 문서",
+    "returnNavigation": "이전 화면으로 이동",
+    "openVersion": "이 버전의 전체 문서 보기",
+    "current": "현재 지정된 문서 보기",
+    "version": "문서 버전: {version}",
+    "publishedAt": "게시 시각:",
+    "currentDescription": "현재 서비스에 지정된 문서입니다.",
+    "exactDescription": "주소에 지정된 버전의 문서입니다. 현재 서비스에 지정된 버전과 다를 수 있습니다.",
+    "readOnly": "이 화면은 문서를 읽는 곳입니다. 열어 보는 것만으로 동의가 저장되지는 않습니다.",
+    "unconfigured": "문서 조회 연결이 아직 준비되지 않았습니다. 잠시 후 다시 시도해 주세요.",
+    "notConfigured": "현재 게시할 승인 문서가 아직 지정되지 않았습니다. 임의의 문서를 대신 표시하지 않습니다.",
+    "notFound": "요청한 공개 문서를 찾을 수 없습니다. 문서 종류와 버전을 확인해 주세요.",
+    "unavailable": "문서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "refresh": "문서 새로고침",
+    "retry": "다시 시도"
   }
 }

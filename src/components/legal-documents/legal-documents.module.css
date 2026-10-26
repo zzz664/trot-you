@@ -1,0 +1,9 @@
+.document {
+  overflow-wrap: anywhere;
+}
+
+.body {
+  white-space: pre-wrap;
+  line-height: var(--line-body);
+  margin-block: calc(var(--space-unit) * 3);
+}

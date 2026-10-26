@@ -1256,6 +1256,18 @@ export type Database = {
         };
         Relationships: [];
       };
+      current_onboarding_policy_documents: {
+        Row: {
+          approved_at: string | null;
+          body: string;
+          kind: string;
+          published_at: string | null;
+          title: string;
+          version: string;
+        };
+        ComputedFields: never;
+        Relationships: [];
+      };
       onboarding_policy_documents: {
         Row: {
           approved_at: string | null;
