@@ -396,3 +396,26 @@ test('aggregate CLI accepts the planned results and exits nonzero on selected fa
   assert.equal(failed.stdout, '');
   assert.equal(readFileSync(summaryPath, 'utf8'), summary);
 });
+
+for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+  test(`attendance points browser ${String(result)} fails its selected aggregate`, () => {
+    const plan = fullPlan();
+    const needs = results(plan);
+    needs['attendance-points-browser'].result = result;
+    assert.throws(
+      () => validateResults(plan, needs, SHA),
+      /attendance-points-browser: expected success/,
+    );
+  });
+}
+test('attendance points browser may skip only on a plan that explicitly excludes it', () => {
+  const plan = docsPlan();
+  const needs = results(plan);
+  assert.equal(needs['attendance-points-browser'].result, 'skipped');
+  assert.match(
+    validateResults(plan, needs, SHA),
+    /Every required job succeeded/,
+  );
+  delete needs['attendance-points-browser'];
+  assert.throws(() => validateResults(plan, needs, SHA));
+});

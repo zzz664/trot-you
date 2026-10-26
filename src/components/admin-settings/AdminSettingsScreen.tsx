@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import {
   ADMIN_SETTINGS_TIME_ZONE,
@@ -25,6 +25,7 @@ export function AdminSettingsScreen() {
     [],
   );
   const state = useAdminSettingsResource(routes.adminSettings, load);
+  const saveClickSequence = useRef(false);
   const [editing, setEditing] = useState<{
     key: AdminSettingsGroup['key'];
     epoch: number;
@@ -36,7 +37,18 @@ export function AdminSettingsScreen() {
       timeZone: ADMIN_SETTINGS_TIME_ZONE,
     });
   return (
-    <main className={`app-shell onboarding-shell ${styles.screen}`}>
+    <main
+      className={`app-shell onboarding-shell ${styles.screen}`}
+      onClickCapture={(event) => {
+        // A fast save can settle between the two pointer clicks of one gesture.
+        // Do not let its continuation activate a newly exposed navigation link.
+        // Fresh clicks and keyboard activation are separate, usable intents.
+        if (saveClickSequence.current && event.detail > 1) {
+          event.preventDefault();
+          event.stopPropagation();
+        } else if (event.detail <= 1) saveClickSequence.current = false;
+      }}
+    >
       <Link
         href={routes.admin}
         prefetch={false}
@@ -71,7 +83,7 @@ export function AdminSettingsScreen() {
           {t('policiesOpen')}
         </Link>
       </div>
-      {state.busy && <Loading label={t('loading')} />}
+      {state.busy && !state.data && <Loading label={t('loading')} />}
       {state.error && (
         <>
           <InlineError
@@ -95,7 +107,12 @@ export function AdminSettingsScreen() {
         </Link>
       )}
       {state.data && (
-        <>
+        <div
+          data-admin-settings-content
+          className={styles.stack}
+          inert={state.busy}
+          aria-busy={state.busy}
+        >
           {state.saved && (
             <p role="status" className={styles.notice}>
               {t('saved')}
@@ -123,7 +140,7 @@ export function AdminSettingsScreen() {
                         group={group}
                         onCancel={() => setEditing(null)}
                         onSave={async (input) => {
-                          setEditing(null);
+                          saveClickSequence.current = true;
                           state.dismissSaved();
                           const success = await state.mutate((signal) =>
                             saveAdminSettings(input, signal),
@@ -240,7 +257,7 @@ export function AdminSettingsScreen() {
               <p>{t('auditEmpty')}</p>
             )}
           </section>
-        </>
+        </div>
       )}
     </main>
   );

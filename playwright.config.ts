@@ -26,6 +26,7 @@ export default defineConfig({
     '**/community-posts/**',
     '**/community-interactions/**',
     '**/community-moderation/**',
+    '**/attendance-points/**',
   ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

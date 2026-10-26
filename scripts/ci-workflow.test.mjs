@@ -43,7 +43,8 @@ const reviewedAdditions = {
         '      - run: npm run test:content-calendar-fixture\n' +
         '      - run: npm run test:community-posts-fixture\n' +
         '      - run: npm run test:community-interactions-fixture\n' +
-        '      - run: npm run test:community-moderation-fixture\n',
+        '      - run: npm run test:community-moderation-fixture\n' +
+        '      - run: npm run test:attendance-points-fixture\n',
     },
   ],
   database: [
@@ -57,7 +58,9 @@ const reviewedAdditions = {
         '      - run: npm run test:db:community-interactions-concurrency\n' +
         '      - run: node scripts/test-community-interactions-upgrade.mjs\n' +
         '      - run: npm run test:db:community-moderation-concurrency\n' +
-        '      - run: node scripts/test-community-moderation-upgrade.mjs\n',
+        '      - run: node scripts/test-community-moderation-upgrade.mjs\n' +
+        '      - run: npm run test:db:attendance-points-concurrency\n' +
+        '      - run: node scripts/test-attendance-points-upgrade.mjs\n',
     },
   ],
 };
@@ -200,6 +203,14 @@ describe('CI workflow safety and unchanged regression coverage', () => {
         'echo skipped moderation upgrade',
       ),
       original.replace(
+        'npm run test:db:attendance-points-concurrency',
+        'echo skipped attendance races',
+      ),
+      original.replace(
+        'node scripts/test-attendance-points-upgrade.mjs',
+        'echo skipped attendance upgrade',
+      ),
+      original.replace(
         'npm run test:integration',
         'echo skipped original integration',
       ),
@@ -236,6 +247,10 @@ describe('CI workflow safety and unchanged regression coverage', () => {
       original.replace(
         'npm run test:content-calendar-fixture',
         'echo skipped calendar fixtures',
+      ),
+      original.replace(
+        'npm run test:attendance-points-fixture',
+        'echo skipped attendance fixture',
       ),
       original.replace(
         'npm run test:community-moderation-fixture',
@@ -474,6 +489,61 @@ describe('CI workflow safety and unchanged regression coverage', () => {
     );
   });
 
+  it('runs the registered attendance points suite in its isolated Auth/database fixture job', () => {
+    const calendar = jobs['attendance-points-browser'];
+    const required = [
+      'run: node scripts/auth-local-ci.mjs configure',
+      'run: npm run db:start',
+      'run: npm run db:reset',
+      'run: node scripts/auth-local-ci.mjs environment',
+      'run: node scripts/attendance-points-local-ci.mjs environment',
+      'run: npm run build',
+      'run: npx playwright install --with-deps chromium',
+      'run: npm run test:e2e:attendance-points',
+      'uses: actions/upload-artifact@v4',
+      'name: attendance-points-browser-results',
+      'run: npm run db:stop -- --no-backup',
+    ];
+    let previous = -1;
+    for (const gate of required) {
+      const index = calendar.indexOf(gate);
+      assert.ok(
+        index > previous,
+        `Attendance points gate missing or out of order: ${gate}`,
+      );
+      previous = index;
+    }
+    assert.match(
+      calendar,
+      /run: npm run db:stop -- --no-backup\n        if: always\(\)/,
+    );
+    assert.match(
+      calendar,
+      /uses: actions\/upload-artifact@v4\n        if: always\(\)/,
+    );
+    assert.match(calendar, /timeout-minutes: 25/);
+    const config = readFileSync(
+      new URL('../playwright.config.ts', import.meta.url),
+      'utf8',
+    );
+    assert.ok(config.includes("'**/attendance-points/**'"));
+    const scripts = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    ).scripts;
+    assert.equal(
+      scripts['test:e2e:attendance-points'],
+      'playwright test --config playwright.attendance-points.config.ts',
+    );
+    assert.equal(
+      scripts['test:attendance-points-fixture'],
+      'node --test scripts/attendance-points-local-config.test.mjs',
+    );
+    assert.equal(
+      scripts['test:db:attendance-points-concurrency'],
+      'node scripts/test-attendance-points-concurrency.mjs',
+    );
+  });
+
   it('retains both pgTAP passes, all concurrency suites, and populated upgrades', () => {
     const database = jobs.database;
     assert.equal(
@@ -486,12 +556,12 @@ describe('CI workflow safety and unchanged regression coverage', () => {
           /run: (?:npm run test:db:[^\n]*concurrency|node scripts\/test-[^\n]*concurrency\.mjs)\n/g,
         ) || []
       ).length,
-      32,
+      33,
     );
     assert.equal(
       (database.match(/run: node scripts\/test-[^\n]*upgrade\.mjs\n/g) || [])
         .length,
-      8,
+      9,
     );
     assert.match(database, /git diff --exit-code -- src\/types\/database\.ts/);
     assert.match(database, /npm run db:lint/);

@@ -7,6 +7,9 @@ vi.mock('@/server/auth/page', () => ({ guardPage: mocks.guard }));
 vi.mock('next-intl/server', () => ({
   getTranslations: async () => (key: string) => key,
 }));
+vi.mock('@/components/attendance-points/AttendancePointsEntry', () => ({
+  AttendancePointsEntry: () => <div data-testid="attendance-points-entry" />,
+}));
 vi.mock('@/components/billing-notices/BillingNoticeEntry', () => ({
   BillingNoticeEntry: () => <div data-testid="billing-notice-entry" />,
 }));
@@ -107,5 +110,25 @@ it.each([
     render(await SessionPage({ path: path as string }));
     expect(screen.queryByTestId('moderation-inbox-entry') !== null).toBe(inbox);
     expect(screen.queryByTestId('moderation-admin-entry') !== null).toBe(admin);
+  },
+);
+
+it.each([
+  ['fan', routes.home, true],
+  ['admin', routes.admin, false],
+  ['artist', routes.artist, false],
+  ['fan', routes.restricted, false],
+  ['fan', routes.onboarding, false],
+])(
+  'attendance entry remains on eligible %s %s home only',
+  async (role, path, visible) => {
+    mocks.guard.mockResolvedValue({
+      status: 'authenticated',
+      profile: { role },
+    });
+    render(await SessionPage({ path: path as string }));
+    expect(screen.queryByTestId('attendance-points-entry') !== null).toBe(
+      visible,
+    );
   },
 );

@@ -24,6 +24,7 @@ export const BROWSER_JOBS = Object.freeze([
   'community-posts-browser',
   'community-interactions-browser',
   'community-moderation-browser',
+  'attendance-points-browser',
 ]);
 
 export const CONDITIONAL_JOBS = Object.freeze(['database', ...BROWSER_JOBS]);
@@ -130,6 +131,19 @@ export const FULL_RULES = Object.freeze([
 ]);
 
 export const FEATURE_RULES = Object.freeze([
+  {
+    id: 'attendance-points',
+    jobs: browsers('auth', 'attendance-points'),
+    patterns: [
+      /^src\/(?:components|server(?:\/services)?)\/attendance-points\//,
+      /^src\/client\/attendance-points\.ts$/,
+      /^src\/app\/(?:points|api\/points)\//,
+      /^tests\/unit\/attendance-points-/,
+      /^tests\/e2e\/attendance-points(?:\/|-unconfigured\.spec\.ts$)/,
+      /^scripts\/attendance-points-local-/,
+      /^playwright\.attendance-points\.config\.ts$/,
+    ],
+  },
   {
     id: 'schedules-and-notices',
     jobs: schedules,

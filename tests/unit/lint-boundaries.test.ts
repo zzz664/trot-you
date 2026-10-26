@@ -185,3 +185,28 @@ describe('configuration and pure-layer lint boundaries', () => {
     ).toContain('no-restricted-imports');
   });
 });
+
+describe('attendance points UI boundaries', () => {
+  it.each(['button', 'input', 'a'])(
+    'keeps %s in accessible primitives',
+    async (element) => {
+      expect(
+        await rules(
+          'src/components/attendance-points/Probe.tsx',
+          `export const Probe = () => <${element} />;`,
+        ),
+      ).toContain('no-restricted-syntax');
+    },
+  );
+  it.each(['@/server/db/attendance-points', '@/server/adapters/payment/toss'])(
+    'keeps data and external I/O out of UI: %s',
+    async (path) => {
+      expect(
+        await rules(
+          'src/components/attendance-points/Probe.tsx',
+          `import value from '${path}'; export { value };`,
+        ),
+      ).toContain('no-restricted-imports');
+    },
+  );
+});

@@ -41,71 +41,90 @@ export function useAdminSettingsResource<T>(
     setSaved(false);
     setEpoch((current) => current + 1);
   }, [stop]);
-  const refresh = useCallback(async () => {
-    if (!alive.current || !matches() || document.visibilityState === 'hidden')
-      return false;
-    clear();
-    const owner = generation.current;
-    const request = new AbortController();
-    controller.current = request;
-    setBusy(true);
-    try {
-      const result = await load(request.signal);
-      if (
-        !alive.current ||
-        owner !== generation.current ||
-        request.signal.aborted ||
-        !matches()
-      )
-        return;
-      if (result.ok) setData(result.data);
-      else setError(result.code);
-      return result.ok;
-    } catch {
-      if (alive.current && owner === generation.current)
-        setError('UNAVAILABLE');
-    } finally {
-      if (owner === generation.current) {
-        controller.current = null;
-        if (alive.current) setBusy(false);
+  const refresh = useCallback(
+    async (preservePendingLayout = false) => {
+      if (!alive.current || !matches() || document.visibilityState === 'hidden')
+        return false;
+      if (preservePendingLayout) {
+        // Retain the already authorized, inert review only while this local save
+        // is being verified. Every ordinary reload/invalidation still purges it.
+        stop();
+        setError(null);
+        setSaved(false);
+      } else clear();
+      const owner = generation.current;
+      const request = new AbortController();
+      controller.current = request;
+      setBusy(true);
+      try {
+        const result = await load(request.signal);
+        if (!alive.current || owner !== generation.current) return;
+        if (request.signal.aborted || !matches()) {
+          clear();
+          return;
+        }
+        if (result.ok) {
+          setData(result.data);
+          if (preservePendingLayout) setEpoch((current) => current + 1);
+        } else {
+          clear();
+          setError(result.code);
+        }
+        return result.ok;
+      } catch {
+        if (alive.current && owner === generation.current) {
+          clear();
+          setError('UNAVAILABLE');
+        }
+      } finally {
+        if (owner === generation.current) {
+          controller.current = null;
+          if (alive.current) setBusy(false);
+        }
       }
-    }
-  }, [clear, load, matches]);
+    },
+    [clear, load, matches, stop],
+  );
   const mutate = useCallback(
     async (
       action: (signal: AbortSignal) => Promise<AdminSettingsResult<unknown>>,
     ) => {
       if (!data || busy || controller.current || !alive.current || !matches())
         return false;
-      clear();
+      // Do not remove the physical submit target between repeated pointer
+      // events. The screen makes this retained region inert while busy.
+      stop();
+      setError(null);
+      setSaved(false);
       const owner = generation.current;
       const request = new AbortController();
       controller.current = request;
       setBusy(true);
       try {
         const result = await action(request.signal);
-        if (
-          !alive.current ||
-          owner !== generation.current ||
-          request.signal.aborted ||
-          !matches()
-        )
+        if (!alive.current || owner !== generation.current) return false;
+        if (request.signal.aborted || !matches()) {
+          clear();
           return false;
+        }
         if (!result.ok) {
+          clear();
           setError(result.code);
           return false;
         }
         // Read-only refresh resolves uncertain ownership/version without replaying
         // the write. Fresh forms are mounted only after this read succeeds.
-        const refreshed = await refresh();
+        const refreshed = await refresh(true);
         if (refreshed && alive.current && matches()) {
           setSaved(true);
           return true;
         }
         return false;
       } catch {
-        if (alive.current && owner === generation.current)
+        if (alive.current && owner === generation.current) {
+          clear();
           setError('UNAVAILABLE');
+        }
         return false;
       } finally {
         if (owner === generation.current) {
@@ -114,7 +133,7 @@ export function useAdminSettingsResource<T>(
         }
       }
     },
-    [busy, clear, data, matches, refresh],
+    [busy, clear, data, matches, refresh, stop],
   );
   useEffect(() => {
     alive.current = true;

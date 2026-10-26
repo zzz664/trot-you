@@ -274,6 +274,51 @@ describe('current-actor operational settings UI', () => {
       expect(mock.save).not.toHaveBeenCalled();
     },
   );
+  it('keeps the same inert review through pending save and verification read without duplicate intent', async () => {
+    const write = deferred<AdminSettingsResult<typeof displayGroup>>();
+    const read = deferred<AdminSettingsResult<AdminSettingsList>>();
+    mock.save.mockReturnValue(write.promise);
+    mock.list
+      .mockResolvedValueOnce(ok(settingsList))
+      .mockReturnValueOnce(read.promise);
+    render(wrapper(<AdminSettingsScreen />));
+    await reviewDisplay();
+    fireEvent.click(group().getByRole('checkbox', { name: copy.confirm }));
+    const review = document.querySelector(
+      '[data-admin-settings-review="display"]',
+    );
+    const save = group().getByRole('button', { name: copy.save });
+    fireEvent.click(save);
+    fireEvent.click(save);
+    expect(mock.save).toHaveBeenCalledTimes(1);
+    expect(review).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-admin-settings-content]'),
+    ).toHaveAttribute('inert');
+    expect(save).toBeDisabled();
+    expect(mock.navigate).not.toHaveBeenCalled();
+    await act(async () =>
+      write.resolve(
+        ok({ ...displayGroup, revision: 1, values: { page_size: 31 } }),
+      ),
+    );
+    await waitFor(() => expect(mock.list).toHaveBeenCalledTimes(2));
+    expect(
+      document.querySelector('[data-admin-settings-review="display"]'),
+    ).toBe(review);
+    expect(
+      document.querySelector('[data-admin-settings-content]'),
+    ).toHaveAttribute('inert');
+    expect(save).toBeDisabled();
+    await act(async () => read.resolve(ok(settingsList)));
+    expect(await main().findByText(copy.saved)).toBeVisible();
+    expect(
+      document.querySelector('[data-admin-settings-content]'),
+    ).not.toHaveAttribute('inert');
+    expect(review).not.toBeInTheDocument();
+    expect(mock.save).toHaveBeenCalledTimes(1);
+    expect(mock.navigate).not.toHaveBeenCalled();
+  });
   it('sends once for repeated save clicks and reloads rather than replays the write', async () => {
     const write = deferred<AdminSettingsResult<typeof displayGroup>>();
     mock.save.mockReturnValue(write.promise);
@@ -285,8 +330,9 @@ describe('current-actor operational settings UI', () => {
     fireEvent.click(button);
     expect(mock.save).toHaveBeenCalledTimes(1);
     expect(
-      document.querySelector('[data-admin-settings-group]'),
-    ).not.toBeInTheDocument();
+      document.querySelector('[data-admin-settings-content]'),
+    ).toHaveAttribute('inert');
+    expect(button).toBeDisabled();
     await act(async () =>
       write.resolve(
         ok({ ...displayGroup, revision: 1, values: { page_size: 31 } }),
@@ -296,6 +342,53 @@ describe('current-actor operational settings UI', () => {
     expect(mock.save).toHaveBeenCalledTimes(1);
     expect(await main().findByText(copy.saved)).toBeVisible();
   });
+  it.each([0, 1])(
+    'blocks a post-save continuation click but allows a fresh detail %i navigation',
+    async (detail) => {
+      render(wrapper(<AdminSettingsScreen />));
+      await reviewDisplay();
+      confirmAndSave();
+      expect(await main().findByText(copy.saved)).toBeVisible();
+      const policies = main().getByRole('link', { name: copy.policiesOpen });
+      fireEvent.click(policies, { detail: 2 });
+      expect(mock.navigate).not.toHaveBeenCalled();
+      expect(main().getByText(copy.saved)).toBeVisible();
+      fireEvent.click(policies, { detail });
+      expect(mock.navigate).toHaveBeenCalledExactlyOnceWith(
+        routes.adminSettingsPolicies,
+      );
+      expect(
+        document.querySelector('[data-admin-settings-group]'),
+      ).not.toBeInTheDocument();
+    },
+  );
+  it.each(['UNAUTHENTICATED', 'FORBIDDEN', 'UNAVAILABLE'] as const)(
+    'purges a retained pending review when verification returns %s',
+    async (code) => {
+      const read = deferred<AdminSettingsResult<AdminSettingsList>>();
+      mock.list
+        .mockResolvedValueOnce(ok(settingsList))
+        .mockReturnValueOnce(read.promise);
+      render(wrapper(<AdminSettingsScreen />));
+      await reviewDisplay();
+      confirmAndSave();
+      await waitFor(() => expect(mock.list).toHaveBeenCalledTimes(2));
+      expect(
+        document.querySelector('[data-admin-settings-content]'),
+      ).toHaveAttribute('inert');
+      await act(async () => read.resolve({ ok: false, code }));
+      expect(await main().findByRole('alert')).toHaveTextContent(
+        copy.errors[code],
+      );
+      expect(
+        document.querySelector('[data-admin-settings-group]'),
+      ).not.toBeInTheDocument();
+      expect(
+        document.querySelector('[data-admin-settings-audit]'),
+      ).not.toBeInTheDocument();
+      expect(main().queryByText(copy.saved)).not.toBeInTheDocument();
+    },
+  );
   it.each(Object.keys(ADMIN_SETTINGS_ERROR_STATUS))(
     'hides stale values after %s and retry only reads',
     async (code) => {
@@ -384,6 +477,52 @@ describe('current-actor operational settings UI', () => {
     ).not.toBeInTheDocument();
     expect(mock.list).toHaveBeenCalledTimes(1);
   });
+  it('an intentional navigation purges an inert pending review and ignores its late write', async () => {
+    const write = deferred<AdminSettingsResult<typeof displayGroup>>();
+    mock.save.mockReturnValue(write.promise);
+    render(wrapper(<AdminSettingsScreen />));
+    await reviewDisplay();
+    confirmAndSave();
+    const signal = mock.save.mock.calls[0]?.[1] as AbortSignal;
+    expect(
+      document.querySelector('[data-admin-settings-content]'),
+    ).toHaveAttribute('inert');
+    fireEvent.click(main().getByRole('link', { name: copy.policiesOpen }), {
+      detail: 1,
+    });
+    expect(signal.aborted).toBe(true);
+    expect(
+      document.querySelector('[data-admin-settings-group]'),
+    ).not.toBeInTheDocument();
+    await act(async () => write.resolve(ok(displayGroup)));
+    expect(mock.list).toHaveBeenCalledTimes(1);
+    expect(main().queryByText(copy.saved)).not.toBeInTheDocument();
+    expect(
+      document.querySelector('[data-admin-settings-group]'),
+    ).not.toBeInTheDocument();
+  });
+  it('hiding the document purges an inert pending review before a late response', async () => {
+    const write = deferred<AdminSettingsResult<typeof displayGroup>>();
+    mock.save.mockReturnValue(write.promise);
+    render(wrapper(<AdminSettingsScreen />));
+    await reviewDisplay();
+    confirmAndSave();
+    const signal = mock.save.mock.calls[0]?.[1] as AbortSignal;
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'hidden',
+    });
+    fireEvent(document, new Event('visibilitychange'));
+    expect(signal.aborted).toBe(true);
+    expect(
+      document.querySelector('[data-admin-settings-group]'),
+    ).not.toBeInTheDocument();
+    await act(async () => write.resolve(ok(displayGroup)));
+    expect(
+      document.querySelector('[data-admin-settings-group]'),
+    ).not.toBeInTheDocument();
+    expect(main().queryByText(copy.saved)).not.toBeInTheDocument();
+  });
   it('history restore rechecks session and rejects stale pending mutations', async () => {
     const write = deferred<AdminSettingsResult<typeof displayGroup>>();
     mock.save.mockReturnValue(write.promise);
@@ -393,6 +532,9 @@ describe('current-actor operational settings UI', () => {
     const signal = mock.save.mock.calls[0]?.[1] as AbortSignal;
     fireEvent(window, new Event('pagehide'));
     expect(signal.aborted).toBe(true);
+    expect(
+      document.querySelector('[data-admin-settings-group]'),
+    ).not.toBeInTheDocument();
     mock.list.mockResolvedValue({ ok: false, code: 'UNAUTHENTICATED' });
     fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }));
     expect(await main().findByRole('alert')).toHaveTextContent(
