@@ -86,6 +86,23 @@ create table app_settings (
 | `moderation.forbidden_patterns` | `[{"name":"phone","regex":"..."},{"name":"account","regex":"..."},{"name":"url","regex":"..."}]` | 금칙 패턴 | F-04, 9.3 |
 | `moderation.profanity_words` | `[...]` | 욕설 목록 | F-01 |
 | `notification.retry_max` | `3` | 발송 재시도 | 01 §2.5 |
+| `notification.batch_size` | `500` | 크론 1회에 처리하는 알림 수 | 03 §3.9 |
+| `message.default_call_name` | `"팬"` | 부를 이름이 없을 때 쓰는 호칭 | 10 W1-M01 |
+| `message.push_preview_length` | `40` | 푸시 미리보기 글자 수 | 10 W1-M01 |
+| `message.voice_playback_rates` | `[1.0, 0.8]` | 음성 재생 속도 선택지 | F-03 |
+| `message.preview_sample_name` | `"김순자"` | 가수 작성 화면 미리보기용 예시 이름 | F-09 |
+| `media.signed_url_ttl_seconds` | `3600` | 미디어 서명 URL 유효 시간 | 02 §5 |
+| `media.max_bytes` | `{"avatars":2097152,"message-media":{"photo":10485760,"voice":20971520,"video":104857600},"board-media":5242880}` | 버킷·종류별 최대 크기 | 02 §5 |
+| `media.allowed_extensions` | `{"photo":["jpg","jpeg","png","webp","heic"],"voice":["m4a","mp3","webm","ogg"],"video":["mp4","mov","webm"]}` | 업로드 허용 확장자 | 02 §5 |
+| `subscription.retry_interval_hours` | `24` | 결제 실패 후 재시도 간격 | D-10 |
+| `subscription.retry_max` | `3` | 유예 기간 중 최대 재시도 | D-10 |
+| `subscription.signup_enabled` | `true` | 신규 구독 받기 스위치(장애 시 끔) | 10 W5-L02 |
+| `ratelimit.per_minute` | `{"reply":5,"post":3,"comment":10,"report":5}` | 사용자별 1분 최대 횟수 | 03 §2.6 |
+| `auth.min_age` | `14` | 가입 최소 나이 | 9.3 |
+| `admin.test_message_form_enabled` | `true` | 어드민 임시 메시지 등록 폼(가수 작성 화면 완성 후 끔) | 10 W1-G01 |
+| `public.support_phone` | `""` | 고객센터 전화(화면 노출) | 05 §6 |
+| `public.support_kakao_url` | `""` | 고객센터 카카오톡 채널 주소 | 05 §6 |
+| `public.cancel_guide` | `"내 정보 → 구독 관리에서 언제든 해지할 수 있어요."` | 해지 방법 안내문 | F-02 |
 
 서버에서는 `src/server/settings/get.ts`의 `getSetting<T>(key)`로만 읽는다. 60초 메모리 캐시, zod로 타입 검증.
 

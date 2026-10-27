@@ -77,10 +77,14 @@ startSubscription
   1. authKey → exchangeBillingKey → billing_key_ref 저장
   2. 금액 결정: is_intro_used=false 이면 intro_price_krw, 아니면 price_krw
      (한 사용자가 같은 가수를 재구독하면 intro 재적용 금지. 다른 가수는 가수마다 첫 달 적용 — PM 확인 D-8로 추가)
-  3. payment_events INSERT (type=initial, 금액, period)  ← orderId 선생성
-  4. provider.charge
-  5. 성공: transition(pending→active), started_at/current_period/next_billing_at 설정, is_intro_used=true, track(SUBSCRIBE_COMPLETE), 알림 큐(구독 환영)
-     실패: payment_events UPDATE 없음 → 별도 failed 이벤트 INSERT, track(SUBSCRIBE_FAIL), M-04로 리다이렉트 + 에러 코드
+  3. orderId 결정: 앱에서 UUID를 먼저 만든다 (DB에는 아직 아무것도 넣지 않는다)
+  4. provider.charge(orderId)
+  5. 성공: DB 함수 activate_subscription 하나로 [payment_events INSERT(id=orderId, type=initial, 금액, 기간) + transition(pending→active) + 기간·next_billing_at 설정 + is_intro_used=true]를 한 트랜잭션에서. 그다음 track(SUBSCRIBE_COMPLETE), 알림 큐(구독 환영)
+     실패: payment_events INSERT(type=failed, amount_krw=0, 시도 금액·실패 코드는 provider_payload에), track(SUBSCRIBE_FAIL), M-04로 리다이렉트 + 에러 코드
+
+  ※ 10/27 보정: 처음 설계는 결제 전에 initial 이벤트를 먼저 넣었다. 그러면 결제가 실패해도 그 금액이
+     매출(gross)에 잡히고, payment_events는 수정 금지라 지울 수도 없다. 그래서 "성공한 뒤에 기록"으로 바꿨다.
+     결제는 됐는데 기록 직전에 서버가 죽는 경우는 웹훅(§2.4)이 보정한다.
 ```
 
 기간 계산은 `src/lib/billing-period.ts` 한 곳. 월 단위, 31일 → 다음 달 말일 보정(date-fns `addMonths`).
@@ -90,15 +94,15 @@ startSubscription
 ```
 대상: status in (active, grace) AND next_billing_at <= now()
 각 건:
-  1. payment_events INSERT (type=renewal 또는 retry)
-  2. charge(price_krw)
-  3. 성공 → active, period 1개월 연장, next_billing_at 갱신, track(RENEW)
+  1. orderId = UUID (앱에서 생성. 같은 구독·같은 회차면 같은 값이 나오게 subscription_id + 회차 시작일로 만든다)
+  2. charge(price_krw, orderId)
+  3. 성공 → DB 함수 하나로 [payment_events INSERT(id=orderId, type=renewal 또는 retry) + active + 기간 1개월 연장 + next_billing_at 갱신], track(RENEW)
      실패(retryable) → grace, next_billing_at += retry_interval_hours(설정, 기본 24), 알림 큐(결제 실패 안내)
      실패(non-retryable, 예: 카드 해지) → grace, 사용자에게 카드 재등록 안내
   4. grace 진입 후 grace_days 경과 → expired, 알림 큐(만료 안내)
 ```
 
-멱등성: `payment_events.id`를 `orderId`로 쓰므로 Cron이 겹쳐 돌아도 PG가 중복 승인을 거절한다. 추가로 대상 조회 시 `for update skip locked`.
+멱등성: 같은 회차는 항상 같은 `orderId`가 나오므로 Cron이 겹쳐 돌아도 PG가 중복 승인을 거절한다. 실패 기록은 `type=failed, amount_krw=0`이라 매출에 잡히지 않는다. 추가로 대상 조회 시 `for update skip locked`.
 
 ### 2.3 해지
 
