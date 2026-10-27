@@ -1,0 +1,25 @@
+# 트롯유 Codex 프로젝트 설정 (docs/08 §2, docs/11 §2.2)
+# 기본 = default 프로필. 카드의 "프로필" 칸에 맞춰 `codex -p <이름>`으로 연다.
+# Codex 버전에 따라 프로필 문법이 다르면 직접 지정한다:
+#   codex -m gpt-6.1-sol -c model_reasoning_effort='"high"'
+
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[profiles.chore]
+model = "gpt-6-luna"
+model_reasoning_effort = "low"
+
+[profiles.high]
+model = "gpt-6.1-sol"
+model_reasoning_effort = "high"
+
+[profiles.critical]
+model = "gpt-6.1-sol"
+model_reasoning_effort = "xhigh"
+
+[profiles.deep]
+model = "gpt-6-astra"
+model_reasoning_effort = "high"
